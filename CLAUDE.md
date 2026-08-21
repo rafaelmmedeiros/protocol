@@ -4,9 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Early. There is no build, lint, or test tooling yet — do not invent commands that don't exist.
-The overall architecture still lives in the engineer's head; follow their direction rather than
-assuming a structure.
+Early. The application tiers exist as a walking skeleton (login, end to end) and have build and
+test tooling; the MCP servers still have neither — do not invent commands that don't exist for
+them. Beyond what is written here the architecture lives in the engineer's head; follow their
+direction rather than assuming a structure.
 
 ## Rules
 
@@ -16,6 +17,20 @@ assuming a structure.
 ## Layout
 
 ```
+backend/              the .NET 10 API (solution Protocol.slnx)
+  Protocol.Api/       minimal API; Auth/ holds Identity, the DbContext and the endpoints
+  Protocol.Api.Tests.Unit/         xUnit, no I/O
+  Protocol.Api.Tests.Integration/  xUnit over WebApplicationFactory + Testcontainers Postgres
+  global.json         pins the SDK; the machine has several installed
+  .config/dotnet-tools.json        dotnet-ef as a local tool, restored with `dotnet tool restore`
+  Dockerfile / Dockerfile.tests    runtime image / containerized test runner
+frontend/             the Next.js 16 app (App Router, TypeScript, Tailwind)
+  app/                pages; app/api/[...path]/ proxies the browser's calls to the API
+  lib/                api.ts, session.ts, problem.ts — the non-React logic, unit tested
+  e2e/                Playwright specs, run against a stack that is already up
+  AGENTS.md           written by Next itself; committed on purpose, see the invariants
+  Dockerfile / Dockerfile.e2e      runtime image / Playwright runner
+docker-compose.app.yml  the runnable application stack (project protocol-project)
 mcps/<name>/          one MCP server per directory; more are coming
   src/<pkg>/          src-layout package, installed by uv/pip (never a loose script)
     config.py         API constants, .env loading, credential lookup
@@ -33,6 +48,80 @@ confined to one module, tools grouped by resource and registered through `regist
 read and write split into separate servers (`hevy` / `hevy-write`) so a read-only server
 stays read-only by construction. `C:/Users/rafae/Projects/MCPs` holds unrelated servers on
 an older, flatter version of this shape -- reference only, not a destination for code.
+
+## Running the application stack
+
+`docker-compose.app.yml` is the opposite of the root `docker-compose.yml`: it is meant to be
+brought up and left running. Compose project `protocol-project`, images
+`protocol-project/<service>:latest`. The MCP images stay in `protocol-mcps`, separate.
+
+```
+docker compose -f docker-compose.app.yml up -d --build     # postgres + api + web
+docker compose -f docker-compose.app.yml ps                # every service should read healthy
+docker compose -f docker-compose.app.yml down              # add -v to drop the database volume
+```
+
+The frontend is at `http://localhost:3000`, the API at `http://localhost:8080`. The browser
+only ever calls the frontend's origin: `app/api/[...path]/route.ts` proxies to the API, which
+keeps the Identity cookie first-party and takes CORS out of the browser's path. Server-side
+code reaches the API at `http://api:8080` via `API_URL`.
+
+The database always runs in Docker — the compose service in normal use, and a throwaway
+Testcontainers instance for the integration suite. Nothing expects a Postgres on the host.
+
+Dev loop without the images:
+
+```
+cd backend  && dotnet run --project Protocol.Api    # needs the compose postgres up
+cd frontend && npm run dev
+```
+
+As with the MCP servers, an image caches the source at build time: after editing a tier,
+`docker compose -f docker-compose.app.yml up -d --build <service>` or the container keeps
+serving the old code.
+
+## Testing
+
+```
+cd backend  && dotnet test Protocol.slnx     # unit + integration; integration starts its own Postgres
+cd frontend && npm run typecheck && npm test # tsc, then vitest over lib/
+cd frontend && npm run test:e2e              # Playwright, against a stack that is ALREADY up
+```
+
+Running Playwright on the host needs its browser once: `npx playwright install chromium`. The
+containerized run does not — the Playwright image already carries it.
+
+Both suites also run containerized, which is what proves a change actually ships:
+
+```
+docker compose -f docker-compose.app.yml --profile test run --rm backend-tests
+docker compose -f docker-compose.app.yml --profile test run --rm e2e
+```
+
+Playwright never starts a server itself; `E2E_BASE_URL` points it at the running stack, so the
+local and containerized runs share one code path.
+
+## Application invariants
+
+- Read and write share one API here; the read/write split is an MCP convention, not a
+  repo-wide one.
+- Identity owns authentication. `MapIdentityApi` provides register, login and refresh; only
+  what it leaves out — `/auth/me` and `/auth/logout` — is written by hand in `AuthEndpoints`.
+- The session is a cookie, not a token. `Auth:Cookie:SameSite` defaults to `Lax`, which is
+  correct while the API and the frontend share a site; splitting them across domains requires
+  `None`, which browsers honour only over HTTPS.
+- Migrations run from a hosted service, never between `builder.Build()` and `app.Run()` —
+  code in that gap also executes under `dotnet ef`, which would make every design-time command
+  require a live database. Add one with
+  `dotnet dotnet-ef migrations add <Name> --project Protocol.Api --output-dir Migrations`.
+- `frontend/AGENTS.md` is generated by `next dev` and committed deliberately: Next.js 16
+  differs from model training data and ships its own documentation at
+  `frontend/node_modules/next/dist/docs/`. Read it before writing frontend code.
+  There is no `frontend/CLAUDE.md`, and that is the stable state, not an omission.
+  `next dev` writes these files only when it detects an agent, and only when the managed block
+  is missing: with `AGENTS.md` holding the block it leaves `CLAUDE.md` alone, but deleting both
+  makes it scaffold both again. This file stays the single source of project rules; the
+  generated one only pointed back at `AGENTS.md` anyway.
 
 ## Running an MCP server
 
@@ -75,9 +164,9 @@ on restart.
 
 ## Direction
 
-A backend and a frontend are coming; only the MCP servers exist so far. Skills, agents, and
-further tooling are added when work demands them, not in anticipation. Update this file as
-those land.
+The backend and the frontend have landed as a walking skeleton; the MCP servers predate them.
+Skills, agents, and further tooling are added when work demands them, not in anticipation.
+Update this file as those land.
 
 ## Harness
 
@@ -85,3 +174,8 @@ The tooling that supports the work -- this file, `.claude/skills/`, `.mcp.json`,
 dev loops -- evolves the same way the architecture does: from observed pain, never ahead of it.
 `/protocol-harness` is the trigger for that meta work; `.claude/harness/BACKLOG.md` records the
 pains, wins, and ideas, and a rule that hardens graduates from there into this file.
+
+`/protocol-feature` is the counterpart for product work: the workflow for building a feature
+across the tiers, with the verification ladder that ends at a green containerized stack. It was
+written from the walking-skeleton build, not ahead of it, and every step in it earned its place
+by costing something.

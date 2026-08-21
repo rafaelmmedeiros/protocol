@@ -23,13 +23,18 @@ Status values: `open` · `in-progress` · `done` · `parked`.
 
 | ID | Evidence (real observed case) | Status | Fix |
 |----|-------------------------------|--------|-----|
-| —  | _nothing recorded yet_        | —      | —   |
+| P1 | Building the walking skeleton (login across .NET 10, Next 16, Postgres, Docker) there was no workflow to follow. Every step was improvised on the spot: probing the toolchain, settling four conventions `CLAUDE.md` did not answer, reading Next's embedded docs, and inventing a ten-rung verification ladder. Nothing recorded it afterwards, so the next feature would have improvised the same things again. | done | `/protocol-feature` skill written from the observed steps; `CLAUDE.md` gained the application layout, the stack/test commands and the tier invariants. |
+| P2 | `CLAUDE.md` said "there is no build, lint, or test tooling yet" while `backend/` and `frontend/` had full suites. A statement of absence goes stale silently — nothing fails when it stops being true. | done | Rewritten to scope the claim to the MCP servers. The wider lesson (state what exists, not what does not) is not yet a rule; a second case would earn it. |
 
 ## Wins
 
 | ID | What worked | Keep because |
 |----|-------------|--------------|
-| —  | _nothing recorded yet_ | — |
+| W1 | The verification ladder run in order — compile, unit, integration on a real Postgres, typecheck, frontend unit, stack up, smoke, E2E in Docker, backend suites in Docker, `git status`. | Each rung is cheaper than the one above it, and the top four rungs caught four failures the local run could not see at all. It is the most reusable artifact the skeleton produced. |
+| W2 | Following the framework's own agent instructions before writing code. `frontend/AGENTS.md` pointed at `node_modules/next/dist/docs/`; `cookies.md` there is what produced the proxy architecture. | Without it the design would have been browser-to-API with CORS — plausible, and wrong for a cookie session. Framework docs shipped in-repo beat recalled knowledge. |
+| W3 | Docker traps commented at the line that would otherwise look arbitrary (Postgres 18's moved volume mount, IPv4-only healthchecks, Testcontainers publishing on the host, `aspnet` shipping without `curl`). | The comment sits where someone would edit and break it, and there is no second document to keep in sync. |
+| W4 | Deciding conventions with the engineer up front, then building without further interruption. | Four decisions (auth mechanism, layout, test depth, Docker orchestration) would each have forced a rewrite if discovered mid-build. |
+| W5 | Checking whether a generated `frontend/CLAUDE.md` would compete with the root one by reading Next's own `generate-agent-files.js` and then deleting the file and running `next dev` to see if it came back. | It did not: the generator skips `CLAUDE.md` while `AGENTS.md` holds the managed block. Reading the generator alone would have suggested the file was unavoidable — running the experiment is what settled it. |
 
 ## Ideas
 
