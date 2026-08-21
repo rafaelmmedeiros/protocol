@@ -52,6 +52,10 @@ Grouping: compose project `protocol-mcps`, images `protocol-mcps/<name>:latest`.
 passes `--label com.docker.compose.project=protocol-mcps` so the ad-hoc containers land in the
 same Docker Desktop group as the build.
 
+Dependencies come from `uv.lock` in both paths: the image installs with `uv sync --locked`,
+so a container and the `uv run` dev loop resolve to the same versions. Add a dependency with
+`uv add`, never by hand-editing a pin, and commit the updated lock.
+
 **Docker caches the source at build time**: after editing a server, `docker compose build <name>`
 or the restarted session keeps serving the old code. Changes to `.mcp.json` also only take effect
 on restart.
