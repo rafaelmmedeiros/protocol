@@ -1,0 +1,41 @@
+# Line endings
+#
+# This repo is developed on Windows and builds Linux images. Without a rule here, Git hands
+# CRLF to the working tree, the Docker context carries it into the image, and anything the
+# container executes as a script fails with "bad interpreter" -- an error that says nothing
+# about line endings. Normalising to LF everywhere removes the whole class of failure, and it
+# also silences the CRLF warnings every `git add` prints today.
+
+* text=auto eol=lf
+
+# Files that must be LF regardless of what a tool guesses, because a container runs them.
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+Dockerfile.* text eol=lf
+*.dockerfile text eol=lf
+
+# Files that must be CRLF, because Windows runs them.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary: never normalised, never diffed as text.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.avif  binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.eot   binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
+
+# Generated lock files: still diffable, just collapsed by default in review.
+package-lock.json linguist-generated=true
+uv.lock           linguist-generated=true
