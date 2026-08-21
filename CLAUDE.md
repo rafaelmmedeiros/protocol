@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+It is deliberately short. It holds what is true everywhere: what the system is for, the
+standards that bind every tier, and a map of where the rest lives. Anything that only matters
+inside one tier belongs to that tier's own `CLAUDE.md`.
+
 ## Status
 
 Early. The application tiers exist as a walking skeleton (login, end to end) and have build and
@@ -20,106 +24,123 @@ This system is that missing intelligence. It reads training out of Hevy, reasons
 generates training back into it. Hevy stays where sets get logged -- there is no intention of
 replacing it -- and the reasoning lives here.
 
-That purpose is what the MCP split already serves: `mcps/hevy` is the read path, read-only by
-construction, so analysis can never mutate a training log; a separate `hevy-write` is how
-generated programming gets back into the app. The invariant is not fussiness, it is the shape
-of the product.
+The MCP servers are not part of that. `mcps/hevy` is exploration tooling: it exists so the
+training data can be inspected from a session while designing a feature, and it never runs in
+the product's path. The system reaches Hevy through its own integration in the backend, as an
+external connection like any other. Read this distinction before wiring anything: an MCP server
+here is harness, not runtime.
 
 It grows on two fronts, and they are different kinds of knowledge:
 
-- **Harness knowledge** -- how work is done in this repo. It accumulates in this file, in
+- **Harness knowledge** -- how work is done in this repo. It accumulates in these files, in
   `.claude/skills/`, and in `.claude/harness/BACKLOG.md`, and only ever from observed pain.
 - **Strength-training knowledge** -- periodization, volume and intensity, exercise selection,
-  fatigue management. This is domain knowledge, and it has to be captured somewhere deliberate
-  rather than re-derived from scratch each session. Where it lives is not decided yet; it will
-  be, when the first feature needs to consult it.
+  fatigue management. This is domain knowledge and belongs in a skill, so that it enters a
+  session only when a feature actually consults it. It gets written when that feature exists.
 
 Deployment is local for now: one user, one machine, `docker-compose.app.yml`. Publishing comes
 when there are users to publish for. One decision already anticipates it -- the auth cookie's
 `SameSite` is configurable precisely because a hosted deployment may split the API and the
 frontend across domains.
 
-## Rules
+## Standards
 
-1. All tooling and code — source, identifiers, comments, docs, commit messages, CLI output — is written
-   in English. Conversation with the engineer may be in Portuguese or English.
+These bind every tier. Each one is cheap to hold now and expensive to retrofit: most would
+cost a data migration, or a recount of every analysis already produced, if adopted late.
+
+### Language
+
+1. **The code is English; the product is not.** Source, identifiers, comments, docs, commit
+   messages and CLI output are written in English. Conversation with the engineer may be in
+   Portuguese or English.
+2. **The product is multilingual from birth: `en-US` is the default, `pt-BR` is supported.**
+   No user-visible string is hardcoded in a component. This is not a feature to add later —
+   retrofitting it means touching every screen ever written.
+3. **The backend returns codes, never display text.** An error carries a stable
+   machine-readable code plus whatever data the message needs; the frontend owns every
+   translated string. A translated string is not an identity: the moment code branches on
+   message text, translating breaks behaviour.
+
+### Data
+
+4. **Store canonical units, convert only at the render edge.** Weight is kilograms, distance is
+   metres, duration is seconds, and the unit lives in the field name — `weight_kg`,
+   `distance_meters`, `duration_seconds`, exactly as the Hevy API already does. Pounds and
+   miles exist only in what a user sees, decided by their locale or preference.
+5. **Store UTC, transmit ISO 8601, localise only at render.**
+6. **The training week starts on Monday, always.** It is a periodization convention, not a
+   calendar one, and it is never derived from locale — `en-US` starting the week on Sunday
+   must not redraw the boundaries of an existing training block. Two screens disagreeing about
+   which week a session belongs to reads as an analysis bug, not a formatting one.
+7. **Training history is append-only.** It is the substrate every analysis stands on. An
+   imported record is never mutated or deleted; a correction arrives as a new record. Hevy
+   exposes `updated_at`, so workouts do change upstream — re-import must reconcile without
+   destroying what earlier analysis was computed against.
+8. **External identifiers stay external.** Hevy's `id` and `exercise_template_id` are their
+   namespace: store them as explicit external keys beside our own identifier, never as a
+   primary key.
+9. **An exercise is identified by `exercise_template_id`; its title is display only.** Titles
+   arrive in English and are shown as they arrive for now. Never match, group, key or compare
+   on a title — that is what keeps the history intact if the naming is ever translated or
+   reorganised.
+
+### Operations
+
+10. **Migrations are forward-only.** A migration that has been applied anywhere is never
+    edited; a mistake is corrected by a new migration.
+11. **Secrets come from the environment.** `.env` files and environment variables only, never
+    a credential in tracked source. `.env` is gitignored at the repo root.
+12. **Logs are structured, and a request is traceable across tiers** by a correlation
+    identifier.
+13. **Accessibility is a baseline, not a pass at the end.** Semantic elements, labelled
+    inputs, keyboard reachability. Another thing that is nearly free now and miserable later.
+
+## Where documentation lives
+
+Four homes, chosen by when the reader needs the content — not by topic:
+
+| Home | Holds | Loaded |
+|------|-------|--------|
+| This file | Product, cross-cutting standards, the map | Always |
+| `backend/CLAUDE.md`, `frontend/CLAUDE.md`, `mcps/CLAUDE.md` | That tier's layout, commands and invariants | When working in that tier |
+| `.claude/skills/` | Procedure to execute (`/protocol-feature`, `/protocol-harness`) and, later, strength-training reference | On invocation |
+| `.claude/harness/BACKLOG.md` | Pains, wins and ideas about how the work goes | Through `/protocol-harness` |
+
+A convention must never depend on being remembered: anything that would be wrong to write
+without knowing it goes in a `CLAUDE.md`, never in a skill, because a skill only helps when
+something invokes it.
 
 ## Layout
 
 ```
-backend/              the .NET 10 API (solution Protocol.slnx)
-  Protocol.Api/       minimal API; Auth/ holds Identity, the DbContext and the endpoints
-  Protocol.Api.Tests.Unit/         xUnit, no I/O
-  Protocol.Api.Tests.Integration/  xUnit over WebApplicationFactory + Testcontainers Postgres
-  global.json         pins the SDK; the machine has several installed
-  .config/dotnet-tools.json        dotnet-ef as a local tool, restored with `dotnet tool restore`
-  Dockerfile / Dockerfile.tests    runtime image / containerized test runner
-frontend/             the Next.js 16 app (App Router, TypeScript, Tailwind)
-  app/                pages; app/api/[...path]/ proxies the browser's calls to the API
-  lib/                api.ts, session.ts, problem.ts — the non-React logic, unit tested
-  e2e/                Playwright specs, run against a stack that is already up
-  AGENTS.md           written by Next itself; committed on purpose, see the invariants
-  Dockerfile / Dockerfile.e2e      runtime image / Playwright runner
-docker-compose.app.yml  the runnable application stack (project protocol-project)
-mcps/<name>/          one MCP server per directory; more are coming
-  src/<pkg>/          src-layout package, installed by uv/pip (never a loose script)
-    config.py         API constants, .env loading, credential lookup
-    client.py         the only network access for that server
-    server.py         builds the MCPServer instance, registers the tool modules
-    tools/            one module per resource group, each exposing register(mcp)
-  pyproject.toml      declares a console script named <name>-mcp
-  Dockerfile / docker-compose.yml   builds mcp-<name>:latest
-  .env / .env.example credentials, .env gitignored at the repo root
-.mcp.json             registers every server for this project
+backend/              the .NET 10 API           -> backend/CLAUDE.md
+frontend/             the Next.js 16 app        -> frontend/CLAUDE.md
+mcps/<name>/          exploration MCP servers   -> mcps/CLAUDE.md
+docker-compose.app.yml  the runnable application stack (compose project protocol-project)
+docker-compose.yml      builds the MCP images only (compose project protocol-mcps)
+.mcp.json             registers every MCP server for this project
+.claude/              skills and the harness backlog
 ```
 
-Conventions that should hold for each new server: package under `src/`, network access
-confined to one module, tools grouped by resource and registered through `register(mcp)`,
-read and write split into separate servers (`hevy` / `hevy-write`) so a read-only server
-stays read-only by construction. `C:/Users/rafae/Projects/MCPs` holds unrelated servers on
-an older, flatter version of this shape -- reference only, not a destination for code.
+The two compose files are opposites and are kept apart on purpose: `docker-compose.app.yml`
+runs a stack, the root `docker-compose.yml` only builds images. Their compose projects differ
+so the containers stay in separate groups.
 
-## Running the application stack
-
-`docker-compose.app.yml` is the opposite of the root `docker-compose.yml`: it is meant to be
-brought up and left running. Compose project `protocol-project`, images
-`protocol-project/<service>:latest`. The MCP images stay in `protocol-mcps`, separate.
+## Running the stack
 
 ```
 docker compose -f docker-compose.app.yml up -d --build     # postgres + api + web
 docker compose -f docker-compose.app.yml ps                # every service should read healthy
 docker compose -f docker-compose.app.yml down              # add -v to drop the database volume
+docker compose -f docker-compose.app.yml logs -f api       # follow one service
 ```
 
 The frontend is at `http://localhost:3000`, the API at `http://localhost:8080`. The browser
-only ever calls the frontend's origin: `app/api/[...path]/route.ts` proxies to the API, which
-keeps the Identity cookie first-party and takes CORS out of the browser's path. Server-side
-code reaches the API at `http://api:8080` via `API_URL`.
+only ever calls the frontend's origin, which proxies to the API; server-side code reaches the
+API at `http://api:8080`.
 
-The database always runs in Docker — the compose service in normal use, and a throwaway
+The database always runs in Docker — the compose service in normal use, a throwaway
 Testcontainers instance for the integration suite. Nothing expects a Postgres on the host.
-
-Dev loop without the images:
-
-```
-cd backend  && dotnet run --project Protocol.Api    # needs the compose postgres up
-cd frontend && npm run dev
-```
-
-As with the MCP servers, an image caches the source at build time: after editing a tier,
-`docker compose -f docker-compose.app.yml up -d --build <service>` or the container keeps
-serving the old code.
-
-## Testing
-
-```
-cd backend  && dotnet test Protocol.slnx     # unit + integration; integration starts its own Postgres
-cd frontend && npm run typecheck && npm test # tsc, then vitest over lib/
-cd frontend && npm run test:e2e              # Playwright, against a stack that is ALREADY up
-```
-
-Running Playwright on the host needs its browser once: `npx playwright install chromium`. The
-containerized run does not — the Playwright image already carries it.
 
 Both suites also run containerized, which is what proves a change actually ships:
 
@@ -128,69 +149,8 @@ docker compose -f docker-compose.app.yml --profile test run --rm backend-tests
 docker compose -f docker-compose.app.yml --profile test run --rm e2e
 ```
 
-Playwright never starts a server itself; `E2E_BASE_URL` points it at the running stack, so the
-local and containerized runs share one code path.
-
-## Application invariants
-
-- Read and write share one API here; the read/write split is an MCP convention, not a
-  repo-wide one.
-- Identity owns authentication. `MapIdentityApi` provides register, login and refresh; only
-  what it leaves out — `/auth/me` and `/auth/logout` — is written by hand in `AuthEndpoints`.
-- The session is a cookie, not a token. `Auth:Cookie:SameSite` defaults to `Lax`, which is
-  correct while the API and the frontend share a site; splitting them across domains requires
-  `None`, which browsers honour only over HTTPS.
-- Migrations run from a hosted service, never between `builder.Build()` and `app.Run()` —
-  code in that gap also executes under `dotnet ef`, which would make every design-time command
-  require a live database. Add one with
-  `dotnet dotnet-ef migrations add <Name> --project Protocol.Api --output-dir Migrations`.
-- `frontend/AGENTS.md` is generated by `next dev` and committed deliberately: Next.js 16
-  differs from model training data and ships its own documentation at
-  `frontend/node_modules/next/dist/docs/`. Read it before writing frontend code.
-  There is no `frontend/CLAUDE.md`, and that is the stable state, not an omission.
-  `next dev` writes these files only when it detects an agent, and only when the managed block
-  is missing: with `AGENTS.md` holding the block it leaves `CLAUDE.md` alone, but deleting both
-  makes it scaffold both again. This file stays the single source of project rules; the
-  generated one only pointed back at `AGENTS.md` anyway.
-
-## Running an MCP server
-
-Docker is the default: `.mcp.json` spawns each server with `docker run -i --rm`, so Claude Code
-starts the container itself at session start. Nothing runs between sessions.
-
-```
-docker compose build            # build every MCP image (project: protocol-mcps)
-docker compose build hevy       # rebuild one after changing its source
-uv run --directory D:/projects/protocol/mcps/hevy hevy-mcp    # dev loop, skips the rebuild
-```
-
-The root `docker-compose.yml` exists to BUILD images, not to run them -- an stdio server needs
-its stdin wired to one client, so `docker compose up` would start a container talking to nobody.
-
-Grouping: compose project `protocol-mcps`, images `protocol-mcps/<name>:latest`. `.mcp.json`
-passes `--label com.docker.compose.project=protocol-mcps` so the ad-hoc containers land in the
-same Docker Desktop group as the build.
-
-Dependencies come from `uv.lock` in both paths: the image installs with `uv sync --locked`,
-so a container and the `uv run` dev loop resolve to the same versions. Add a dependency with
-`uv add`, never by hand-editing a pin, and commit the updated lock.
-
-**Docker caches the source at build time**: after editing a server, `docker compose build <name>`
-or the restarted session keeps serving the old code. Changes to `.mcp.json` also only take effect
-on restart.
-
-## mcp-hevy invariants
-
-- Read-only: every tool goes through `client.get`, the module's single network verb. Hevy's
-  write endpoints (POST/PUT on workouts, routines, body_measurements) belong in a separate
-  `mcps/hevy-write` server, never in this one.
-- SDK note: `mcp` 2.x renamed `FastMCP` to `MCPServer` (`mcp.server.mcpserver`) and returns
-  snake_case fields (`server_info`, `input_schema`, `is_error`). The servers under
-  `C:/Users/rafae/Projects/MCPs` still import `mcp.server.fastmcp` because their Docker images
-  pinned 1.x -- do not copy that import into new code.
-- Hevy caps `pageSize` at 10 on every list endpoint except `exercise_templates` (100), and has
-  no server-side search -- hence the paging helper `hevy_recent_workouts` and the client-side
-  `search` filter on `hevy_list_exercise_templates`.
+An image caches the source at build time. After editing a tier, rebuild it —
+`up -d --build <service>` — or the container keeps serving the old code.
 
 ## Direction
 
@@ -200,14 +160,14 @@ which is the whole point of the product above.
 
 Skills, agents, and further tooling are added when work demands them, not in anticipation.
 That applies to the training knowledge as much as to the harness -- it gets a home when a
-feature needs to consult it, not before. Update this file as those land.
+feature needs to consult it, not before. Update these files as those land.
 
 ## Harness
 
-The tooling that supports the work -- this file, `.claude/skills/`, `.mcp.json`, the build and
-dev loops -- evolves the same way the architecture does: from observed pain, never ahead of it.
-`/protocol-harness` is the trigger for that meta work; `.claude/harness/BACKLOG.md` records the
-pains, wins, and ideas, and a rule that hardens graduates from there into this file.
+The tooling that supports the work -- these files, `.claude/skills/`, `.mcp.json`, the build
+and dev loops -- evolves the same way the architecture does: from observed pain, never ahead of
+it. `/protocol-harness` is the trigger for that meta work; `.claude/harness/BACKLOG.md` records
+the pains, wins, and ideas, and a rule that hardens graduates from there into a `CLAUDE.md`.
 
 `/protocol-feature` is the counterpart for product work: the workflow for building a feature
 across the tiers, with the verification ladder that ends at a green containerized stack. It was

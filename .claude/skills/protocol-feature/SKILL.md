@@ -25,7 +25,8 @@ backlog — a step that stops earning its keep should die.
 ## 1. Frame
 
 State which tiers the change touches and what "done" looks like, in one or two sentences,
-before touching a file. Read `CLAUDE.md` for the invariants of the tiers involved.
+before touching a file. Read the root `CLAUDE.md` for the standards that bind everything, and
+the `CLAUDE.md` of each tier you are about to touch for its invariants and commands.
 
 Name the verification that will prove it — the specific test or command, not "it works". If no
 existing test would fail when the feature is absent, that test is part of the work.
@@ -105,6 +106,10 @@ Keep doing that: the comment is the record, not a document elsewhere.
 
 ## 7. Close the loop
 
-Ask what a future session would have to rediscover. A durable fact about a tier goes to
-`CLAUDE.md`; a pain about how the work itself went goes to `/protocol-harness`. If neither
-applies, say so and stop — silence is a valid outcome.
+Ask what a future session would have to rediscover. A durable fact about one tier goes to that
+tier's `CLAUDE.md`; something that binds every tier goes to the root one; a pain about how the
+work itself went goes to `/protocol-harness`. If neither applies, say so and stop — silence is
+a valid outcome.
+
+Never put a convention in a skill. A skill only helps when something invokes it, so a rule that
+lives there is a rule that will be missed.
