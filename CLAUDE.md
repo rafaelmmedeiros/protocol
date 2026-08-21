@@ -75,4 +75,13 @@ on restart.
 
 ## Direction
 
-Skills, agents, and further tooling are planned for later. Update this file as those land.
+A backend and a frontend are coming; only the MCP servers exist so far. Skills, agents, and
+further tooling are added when work demands them, not in anticipation. Update this file as
+those land.
+
+## Harness
+
+The tooling that supports the work -- this file, `.claude/skills/`, `.mcp.json`, the build and
+dev loops -- evolves the same way the architecture does: from observed pain, never ahead of it.
+`/protocol-harness` is the trigger for that meta work; `.claude/harness/BACKLOG.md` records the
+pains, wins, and ideas, and a rule that hardens graduates from there into this file.
