@@ -1,0 +1,17 @@
+# Groups every MCP server in this repo under one Docker project: "protocol-mcps".
+#
+# This file exists to BUILD the images, not to run them. An stdio MCP server is spawned
+# per client with its stdin/stdout wired to that client, so Claude Code starts each one
+# itself via `docker run -i --rm` (see .mcp.json). `docker compose up` would start a
+# container talking to nobody.
+#
+#   docker compose build          # build every MCP image
+#   docker compose build hevy     # build just one
+name: protocol-mcps
+
+services:
+  hevy:
+    build: ./mcps/hevy
+    image: protocol-mcps/hevy:latest
+    env_file: ./mcps/hevy/.env
+    stdin_open: true

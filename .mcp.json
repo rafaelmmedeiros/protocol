@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "hevy": {
+      "type": "stdio",
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--label",
+        "com.docker.compose.project=protocol-mcps",
+        "--env-file",
+        "D:/projects/protocol/mcps/hevy/.env",
+        "protocol-mcps/hevy:latest"
+      ],
+      "env": {}
+    }
+  }
+}
