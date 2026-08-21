@@ -94,6 +94,12 @@ cost a data migration, or a recount of every analysis already produced, if adopt
     identifier.
 13. **Accessibility is a baseline, not a pass at the end.** Semantic elements, labelled
     inputs, keyboard reachability. Another thing that is nearly free now and miserable later.
+14. **The development database is never destroyed.** Not by `docker compose down -v`, not by a
+    migration, not to get out of a bad state. It holds the derivations, notes and logs this
+    system produces and Hevy does not — and unlike the imported training data, none of that can
+    be fetched again. Tests get their own database precisely so that nothing ever has a reason
+    to reset this one. When a reset seems like the only way forward, that is the moment to
+    stop and ask.
 
 ## Where documentation lives
 
@@ -131,9 +137,12 @@ so the containers stay in separate groups.
 ```
 docker compose -f docker-compose.app.yml up -d --build     # postgres + api + web
 docker compose -f docker-compose.app.yml ps                # every service should read healthy
-docker compose -f docker-compose.app.yml down              # add -v to drop the database volume
+docker compose -f docker-compose.app.yml down              # stops the stack; the data survives
 docker compose -f docker-compose.app.yml logs -f api       # follow one service
 ```
+
+**Never pass `-v` to `down`.** It destroys the development database, which standard 14 forbids.
+The flag is one character away from the safe command, and nothing warns before it runs.
 
 The frontend is at `http://localhost:3000`, the API at `http://localhost:8080`. The browser
 only ever calls the frontend's origin, which proxies to the API; server-side code reaches the
