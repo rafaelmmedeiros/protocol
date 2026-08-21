@@ -9,6 +9,36 @@ test tooling; the MCP servers still have neither — do not invent commands that
 them. Beyond what is written here the architecture lives in the engineer's head; follow their
 direction rather than assuming a structure.
 
+## Product
+
+Hevy is the logging surface, and it is very good at that: fast enough to use between sets, and
+it exposes an API. What it does not do is think. It will not periodize, will not read a
+training history back to you, will not tell you whether the last two months actually
+progressed. Logging is solved; judgement is not.
+
+This system is that missing intelligence. It reads training out of Hevy, reasons about it, and
+generates training back into it. Hevy stays where sets get logged -- there is no intention of
+replacing it -- and the reasoning lives here.
+
+That purpose is what the MCP split already serves: `mcps/hevy` is the read path, read-only by
+construction, so analysis can never mutate a training log; a separate `hevy-write` is how
+generated programming gets back into the app. The invariant is not fussiness, it is the shape
+of the product.
+
+It grows on two fronts, and they are different kinds of knowledge:
+
+- **Harness knowledge** -- how work is done in this repo. It accumulates in this file, in
+  `.claude/skills/`, and in `.claude/harness/BACKLOG.md`, and only ever from observed pain.
+- **Strength-training knowledge** -- periodization, volume and intensity, exercise selection,
+  fatigue management. This is domain knowledge, and it has to be captured somewhere deliberate
+  rather than re-derived from scratch each session. Where it lives is not decided yet; it will
+  be, when the first feature needs to consult it.
+
+Deployment is local for now: one user, one machine, `docker-compose.app.yml`. Publishing comes
+when there are users to publish for. One decision already anticipates it -- the auth cookie's
+`SameSite` is configurable precisely because a hosted deployment may split the API and the
+frontend across domains.
+
 ## Rules
 
 1. All tooling and code — source, identifiers, comments, docs, commit messages, CLI output — is written
@@ -165,8 +195,12 @@ on restart.
 ## Direction
 
 The backend and the frontend have landed as a walking skeleton; the MCP servers predate them.
+Between them they are plumbing: nothing yet reads a training history or generates a session,
+which is the whole point of the product above.
+
 Skills, agents, and further tooling are added when work demands them, not in anticipation.
-Update this file as those land.
+That applies to the training knowledge as much as to the harness -- it gets a home when a
+feature needs to consult it, not before. Update this file as those land.
 
 ## Harness
 
