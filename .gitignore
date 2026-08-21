@@ -4,3 +4,11 @@ __pycache__/
 *.pyc
 .idea/
 .claude/settings.local.json
+
+# .NET
+bin/
+obj/
+
+# Playwright
+/frontend/playwright-report/
+/frontend/test-results/

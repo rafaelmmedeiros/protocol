@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Protocol.Api.Tests.Integration/Protocol.Api.Tests.Integration.csproj" />
+  <Project Path="Protocol.Api.Tests.Unit/Protocol.Api.Tests.Unit.csproj" />
+  <Project Path="Protocol.Api/Protocol.Api.csproj" />
+</Solution>

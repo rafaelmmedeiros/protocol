@@ -1,0 +1,13 @@
+# Runs the .NET suites inside a container. The integration suite drives Testcontainers, so the
+# host's Docker socket must be mounted in -- see docker-compose.app.yml.
+FROM mcr.microsoft.com/dotnet/sdk:10.0
+WORKDIR /src
+
+COPY global.json ./
+COPY .config/ .config/
+RUN dotnet tool restore
+
+COPY . .
+RUN dotnet build Protocol.slnx -c Debug
+
+ENTRYPOINT ["dotnet", "test", "Protocol.slnx", "-c", "Debug", "--no-build"]

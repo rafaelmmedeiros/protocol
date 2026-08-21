@@ -1,0 +1,12 @@
+# Playwright's own image already carries the browsers and their system libraries, which is why
+# the E2E suite is not folded into the frontend image.
+FROM mcr.microsoft.com/playwright:v1.62.1-noble
+WORKDIR /e2e
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY playwright.config.ts ./
+COPY e2e/ e2e/
+
+ENTRYPOINT ["npx", "playwright", "test"]

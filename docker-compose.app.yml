@@ -1,0 +1,98 @@
+# The application stack: Postgres, the .NET API and the Next.js frontend, plus the two test
+# runners. Unlike the root docker-compose.yml -- which only BUILDS the MCP images -- this file
+# is meant to be brought up and left running.
+#
+#   docker compose -f docker-compose.app.yml up -d --build
+#   docker compose -f docker-compose.app.yml --profile test run --rm backend-tests
+#   docker compose -f docker-compose.app.yml --profile test run --rm e2e
+name: protocol-project
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: protocol
+      POSTGRES_USER: protocol
+      POSTGRES_PASSWORD: protocol
+    ports:
+      - "5432:5432"
+    volumes:
+      # Postgres 18 expects the mount one level up: it stores data in a version-specific
+      # subdirectory so that pg_upgrade --link works across a single mount point.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U protocol -d protocol"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ./backend
+    image: protocol-project/api:latest
+    environment:
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=protocol;Username=protocol;Password=protocol
+      Frontend__Origin: http://localhost:3000
+      ASPNETCORE_ENVIRONMENT: Development
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    build:
+      context: ./frontend
+    image: protocol-project/web:latest
+    environment:
+      # Server-side only: the browser reaches the API through this app's /api proxy.
+      API_URL: http://api:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/login"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend-tests:
+    profiles: ["test"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.tests
+    image: protocol-project/backend-tests:latest
+    volumes:
+      # The integration suite starts its own Postgres through Testcontainers, which needs to
+      # reach the host's Docker daemon from inside this container.
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      TESTCONTAINERS_RYUK_DISABLED: "true"
+      # Containers started by Testcontainers are siblings on the host, so their published
+      # ports live on the host -- not on this container's loopback.
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  e2e:
+    profiles: ["test"]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.e2e
+    image: protocol-project/e2e:latest
+    environment:
+      E2E_BASE_URL: http://web:3000
+      CI: "true"
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  pgdata:
