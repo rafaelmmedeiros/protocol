@@ -24,7 +24,7 @@ test("the navigation reaches every section", async ({ page }) => {
 
   for (const [testId, path] of [
     ["nav-workouts", "/workouts"],
-    ["nav-adjustments", "/adjustments"],
+    ["nav-equipment", "/equipment"],
     ["nav-template", "/template"],
     ["nav-dashboard", "/dashboard"],
   ] as const) {

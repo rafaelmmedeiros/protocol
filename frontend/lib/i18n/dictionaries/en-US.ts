@@ -13,7 +13,7 @@ export const enUS = {
     skipToContent: "Skip to content",
     dashboard: "Dashboard",
     workouts: "Workouts",
-    adjustments: "Adjustments",
+    equipment: "Equipment",
     template: "Template",
   },
   user: {
@@ -79,11 +79,11 @@ export const enUS = {
     emptyTitle: "No workouts yet",
     emptyBody: "Once the Hevy import lands, every logged session shows up here.",
   },
-  adjustments: {
-    title: "Adjustments",
-    lead: "What this system proposes changing, and why.",
-    emptyTitle: "Nothing to adjust yet",
-    emptyBody: "Adjustments need a training history to reason about. Import one first.",
+  equipment: {
+    title: "Equipment",
+    lead: "The plates, bars and machines you actually train with. What is here decides what a generated session is allowed to ask for.",
+    emptyTitle: "No equipment described yet",
+    emptyBody: "Nothing can be programmed in loads you cannot make. Describing a gym starts here.",
   },
   settings: {
     title: "Settings",
@@ -103,7 +103,7 @@ export const enUS = {
     reserved: "Reserved data ink",
     reservedLead: "Green and red mean progress and regression, everywhere, always. They are never a brand colour and never decoration.",
     typography: "Typography",
-    typographyLead: "One system stack, because a webfont needs the network at build time and makes the Docker build flaky. Numbers that line up in columns get tabular figures.",
+    typographyLead: "Archivo, one variable file of 35 kB served from this origin. Line height and letter spacing belong to the size, not to the component. Its figures are proportional by default, so anything that lines up in a column has to ask for tabular ones.",
     buttons: "Buttons",
     buttonsLead: "One primary action per screen. A destructive action is never a filled button -- filled ember and filled red side by side is the one pairing that confuses.",
     fields: "Fields",

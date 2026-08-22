@@ -20,7 +20,7 @@ test("an anonymous visitor is sent to the login page", async ({ page }) => {
 });
 
 test("every page in the app shell is closed to an anonymous visitor", async ({ page }) => {
-  for (const path of ["/workouts", "/adjustments", "/template", "/settings"]) {
+  for (const path of ["/workouts", "/equipment", "/template", "/settings"]) {
     await page.goto(path);
     await expect(page).toHaveURL(/\/login$/);
   }

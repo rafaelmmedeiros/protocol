@@ -58,8 +58,8 @@ const STACK = [
     why: "Two locales as typed modules; the compiler catches a missing key",
   },
   {
-    choice: "System font stack",
-    why: "A webfont needs the network at build time and makes the image flaky",
+    choice: "Archivo (SIL OFL)",
+    why: "Self-hosted from public/, so the build never touches the network",
   },
   { choice: "Vitest / Playwright", why: "Unit over lib/, end to end in Docker on its own stack" },
 ];
@@ -96,24 +96,36 @@ export default async function TemplatePage() {
         <Section title={dict.template.typography} lead={dict.template.typographyLead}>
           <Card>
             <div className="flex flex-col gap-4">
-              <p className="text-2xl font-semibold tracking-tight text-ink">
-                Aa &mdash; 24px semibold, page title
-              </p>
-              <p className="text-sm font-semibold text-ink">Aa &mdash; 14px semibold, card title</p>
-              <p className="text-sm text-ink">Aa &mdash; 14px regular, body</p>
-              <p className="text-xs text-ink-muted">Aa &mdash; 12px, caption and label</p>
-              <p className="font-mono text-xs text-ink-muted">Aa &mdash; 12px mono, identifiers</p>
+              <p className="text-3xl font-semibold text-ink">Aa &mdash; 3xl, a headline number</p>
+              <p className="text-2xl font-semibold text-ink">Aa &mdash; 2xl, page title</p>
+              <p className="text-lg font-semibold text-ink">Aa &mdash; lg, section heading</p>
+              <p className="text-sm font-semibold text-ink">Aa &mdash; sm semibold, card title</p>
+              <p className="text-sm text-ink">Aa &mdash; sm, body</p>
+              <p className="text-xs text-ink-muted">Aa &mdash; xs, caption</p>
+              <p className="eyebrow">Aa &mdash; eyebrow, a label above a number</p>
+              <p className="font-mono text-xs text-ink-muted">Aa &mdash; xs mono, identifiers</p>
 
-              {/* Both lines are the sans face -- a mono face is tabular by definition and
-                  would prove nothing. Only the top line asks for tabular figures. */}
-              <div className="mt-2 border-t border-line pt-4">
-                <p className="tabular text-sm text-ink">111,5 &middot; 188,0 &middot; 118,5 kg</p>
-                <p className="mt-1 text-sm text-ink">111,5 &middot; 188,0 &middot; 118,5 kg</p>
-                <p className="mt-2 text-xs text-ink-muted">
-                  Tabular figures above, proportional below. Only the top line keeps its
-                  columns, which is what a table of weights needs.
-                </p>
+              {/* The two columns must hold *different* digits, or nothing can misalign and
+                  the demonstration proves nothing. Measured: Archivo sets 1111 at 83px and
+                  8888 at 92px; tabular figures put both at 91px. */}
+              <div className="mt-2 grid max-w-md grid-cols-2 gap-6 border-t border-line pt-4">
+                <div>
+                  <p className="eyebrow mb-1">Tabular</p>
+                  <p className="tabular text-right text-sm text-ink">118,5 kg</p>
+                  <p className="tabular text-right text-sm text-ink">91,0 kg</p>
+                  <p className="tabular text-right text-sm text-ink">8,5 kg</p>
+                </div>
+                <div>
+                  <p className="eyebrow mb-1">Proportional</p>
+                  <p className="text-right text-sm text-ink">118,5 kg</p>
+                  <p className="text-right text-sm text-ink">91,0 kg</p>
+                  <p className="text-right text-sm text-ink">8,5 kg</p>
+                </div>
               </div>
+              <p className="text-xs text-ink-muted">
+                Same numbers, same alignment. Only the left column has its commas and units in
+                a straight line, which is what a table of weights needs.
+              </p>
             </div>
           </Card>
         </Section>
@@ -181,10 +193,10 @@ export default async function TemplatePage() {
               <table className="w-full min-w-[32rem] text-sm">
                 <thead>
                   <tr className="border-b border-line text-left">
-                    <th className="pb-2 text-xs font-medium tracking-wide text-ink-muted uppercase">
+                    <th className="eyebrow pb-2">
                       {dict.template.choiceColumn}
                     </th>
-                    <th className="pb-2 text-xs font-medium tracking-wide text-ink-muted uppercase">
+                    <th className="eyebrow pb-2">
                       {dict.template.whyColumn}
                     </th>
                   </tr>
@@ -220,7 +232,7 @@ function Section({
   return (
     <section className="flex flex-col gap-4">
       <div>
-        <h2 className="text-lg font-semibold tracking-tight text-ink">{title}</h2>
+        <h2 className="text-lg font-semibold text-ink">{title}</h2>
         <p className="mt-1 max-w-2xl text-sm text-ink-muted">{lead}</p>
       </div>
       {children}
@@ -243,10 +255,10 @@ function TokenTable({
         <thead>
           <tr className="border-b border-line text-left">
             <th className="w-14 py-2.5 pl-4" />
-            <th className="py-2.5 text-xs font-medium tracking-wide text-ink-muted uppercase">
+            <th className="eyebrow py-2.5">
               {tokenColumn}
             </th>
-            <th className="py-2.5 pr-4 text-xs font-medium tracking-wide text-ink-muted uppercase">
+            <th className="eyebrow py-2.5 pr-4">
               {roleColumn}
             </th>
           </tr>

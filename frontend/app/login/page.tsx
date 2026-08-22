@@ -11,7 +11,7 @@ export default async function LoginPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-sm grow flex-col justify-center px-6 py-16">
-      <p className="text-xs font-medium tracking-[0.14em] text-accent-ink uppercase">
+      <p className="eyebrow text-accent-ink">
         {dict.app.name}
       </p>
       <LoginForm strings={dict.login} authErrors={dict.authErrors} />

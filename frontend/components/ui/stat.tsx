@@ -17,7 +17,7 @@ export function Stat({
 }) {
   return (
     <div className="rounded-lg border border-line bg-surface p-5">
-      <p className="text-xs font-medium tracking-wide text-ink-muted uppercase">{label}</p>
+      <p className="eyebrow">{label}</p>
       <p className="tabular mt-2 text-3xl leading-none font-semibold text-ink">
         {value ?? <span className="text-ink-muted">&mdash;</span>}
         {unit && value != null && (

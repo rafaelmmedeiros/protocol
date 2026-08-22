@@ -14,7 +14,7 @@ export const ptBR: Dictionary = {
     skipToContent: "Ir para o conteúdo",
     dashboard: "Painel",
     workouts: "Treinos",
-    adjustments: "Ajustes",
+    equipment: "Equipamento",
     template: "Template",
   },
   user: {
@@ -76,11 +76,11 @@ export const ptBR: Dictionary = {
     emptyTitle: "Nenhum treino ainda",
     emptyBody: "Quando a importação do Hevy chegar, cada sessão registrada aparece aqui.",
   },
-  adjustments: {
-    title: "Ajustes",
-    lead: "O que este sistema propõe mudar, e por quê.",
-    emptyTitle: "Nada a ajustar ainda",
-    emptyBody: "Ajustes precisam de um histórico de treino para raciocinar em cima. Importe um primeiro.",
+  equipment: {
+    title: "Equipamento",
+    lead: "As anilhas, barras e máquinas com que você realmente treina. O que está aqui decide que cargas um treino gerado pode pedir.",
+    emptyTitle: "Nenhum equipamento descrito ainda",
+    emptyBody: "Não dá para programar uma carga que você não consegue montar. Descrever a academia começa aqui.",
   },
   settings: {
     title: "Configurações",
@@ -100,7 +100,7 @@ export const ptBR: Dictionary = {
     reserved: "Tinta de dado reservada",
     reservedLead: "Verde e vermelho significam progresso e queda, em toda parte, sempre. Nunca são cor de marca e nunca são enfeite.",
     typography: "Tipografia",
-    typographyLead: "Uma pilha de fontes do sistema, porque webfont precisa de rede na hora do build e deixa o build do Docker instável. Números que se alinham em coluna usam algarismos tabulares.",
+    typographyLead: "Archivo, um arquivo variável de 35 kB servido por esta origem. Entrelinha e espaçamento pertencem ao tamanho, não ao componente. Os algarismos são proporcionais por padrão, então tudo que se alinha em coluna precisa pedir os tabulares.",
     buttons: "Botões",
     buttonsLead: "Uma ação primária por tela. Ação destrutiva nunca é botão preenchido -- brasa preenchido ao lado de vermelho preenchido é a única combinação que confunde.",
     fields: "Campos",

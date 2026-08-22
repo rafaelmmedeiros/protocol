@@ -76,7 +76,7 @@ export function LoginForm({
   return (
     <>
       {/* The heading names the mode, so it lives here with the state rather than in the page. */}
-      <h1 className="mt-3 text-2xl font-semibold tracking-tight text-ink">
+      <h1 className="mt-3 text-2xl font-semibold text-ink">
         {mode === "login" ? strings.signInTitle : strings.registerTitle}
       </h1>
       <p className="mt-2 text-sm text-ink-muted">{strings.lead}</p>

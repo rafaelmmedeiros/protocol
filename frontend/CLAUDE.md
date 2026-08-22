@@ -128,5 +128,15 @@ docker compose -f docker-compose.test.yml run --rm --build e2e     # from the re
 
 ## Fonts and assets
 
-`next/font/google` was removed from the layout deliberately: it needs network access at build
-time, which makes the Docker build flaky for no gain here. The app uses a system font stack.
+The face is **Archivo**, self-hosted from `public/fonts/` as one variable woff2 of 35 kB,
+subset to latin -- which covers every accent pt-BR needs. Its licence travels with it in
+`public/fonts/OFL.txt`.
+
+`next/font/google` stays out: it fetches at build time, which makes the Docker build depend on
+the network. A file in `public/` has none of that problem -- the bytes are in the repository
+and the build is offline -- which is why self-hosting was the way in rather than a system
+stack. Monospace is still a system stack; it shows identifiers and nothing else.
+
+The type scale lives in `@theme` in `globals.css`, and line height and letter spacing are
+declared per size. No component writes `tracking-*`: a heading that is tight on one screen and
+loose on another is exactly what that removes.

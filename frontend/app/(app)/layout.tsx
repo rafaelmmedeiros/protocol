@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const items: NavItem[] = [
     { href: "/dashboard", label: dict.nav.dashboard, testId: "nav-dashboard" },
     { href: "/workouts", label: dict.nav.workouts, testId: "nav-workouts" },
-    { href: "/adjustments", label: dict.nav.adjustments, testId: "nav-adjustments" },
+    { href: "/equipment", label: dict.nav.equipment, testId: "nav-equipment" },
     { href: "/template", label: dict.nav.template, testId: "nav-template" },
   ];
 
@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
 
       <header className="sticky top-0 z-10 border-b border-line bg-surface/85 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-6 px-6">
-          <span className="text-base font-semibold tracking-tight text-ink">{dict.app.name}</span>
+          <span className="text-base font-semibold text-ink">{dict.app.name}</span>
           <AppNav items={items} label={dict.nav.primary} />
           <div className="ml-auto">
             <UserMenu email={user.email} strings={dict.user} />
