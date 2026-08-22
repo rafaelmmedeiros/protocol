@@ -47,4 +47,9 @@ seeded without a network call. What is not deferred is the external key — a ro
 `exercise_template_id` is the failure C describes, arriving one row at a time.
 
 **Revisions.**
-- _(none)_
+- 2026-08-22 — no change to the decision; recording the intent that reinforces it. The product
+  is meant to grow its own logging surface eventually, at which point Hevy becomes an optional
+  integration rather than the substrate (root `CLAUDE.md`, Product; `docs/ROADMAP.md`, The
+  horizon). Option B is what makes that survivable: the catalogue and every week generated
+  from it remain ours, and the Hevy column can go empty without anything else moving. Option A
+  would have made the entire catalogue disappear with the integration.

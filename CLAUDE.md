@@ -21,8 +21,20 @@ training history back to you, will not tell you whether the last two months actu
 progressed. Logging is solved; judgement is not.
 
 This system is that missing intelligence. It reads training out of Hevy, reasons about it, and
-generates training back into it. Hevy stays where sets get logged -- there is no intention of
-replacing it -- and the reasoning lives here.
+generates training back into it. Hevy is where sets get logged, and the reasoning lives here.
+
+**That arrangement is a stage, not the destination.** The intended trajectory is three moves:
+local until there is an MVP; then published, so that other Hevy users can train against it and
+sharpen it; and eventually a logging surface of its own, at which point Hevy becomes an
+integration a user may or may not have rather than the substrate everything stands on. Those
+are large steps and none of them is scheduled -- but a decision taken today under the
+assumption that Hevy is permanent is a decision that has to be unmade later, in data that is
+append-only.
+
+This is why the shape of the Hevy boundary is worth more than convenience anywhere it appears:
+their identifiers stay in their own column (standard 8), an exercise is ours and carries theirs
+beside it (`ADR-002`), and nothing keys on a Hevy value. The system should be able to lose the
+Hevy connection without losing its own history, on the day it grows a logger.
 
 The MCP servers are not part of that. `mcps/hevy` is exploration tooling: it exists so the
 training data can be inspected from a session while designing a feature, and it never runs in

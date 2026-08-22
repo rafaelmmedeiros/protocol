@@ -74,3 +74,21 @@ recalled.
 - Writing anything back into Hevy. The week is read on screen. Pushing it into the logging
   surface is its own milestone, with its own failure modes.
 - Progressing a week into the next one. `M1` generates a week, not a block.
+
+## The horizon
+
+Beyond the numbered milestones, and deliberately unscheduled — recorded because decisions taken
+today are cheap to shape and expensive to unmake, and because an append-only history cannot be
+retrofitted.
+
+1. **Local.** One user, one machine, until there is an MVP worth showing.
+2. **Published.** Known Hevy users train against it, and their use is what sharpens the
+   reasoning. The auth cookie's `SameSite` is already configurable for this (root `CLAUDE.md`).
+3. **Its own logger.** The product eventually logs sets itself, and Hevy becomes an integration
+   a user may or may not have rather than the ground everything stands on.
+
+Nothing here is a commitment to a date, and no milestone is planned against it. What it does is
+settle a class of question in advance: wherever a choice makes Hevy load-bearing, the answer is
+the one that keeps it removable. That is why an exercise is ours with their identifier in a
+column beside it (`ADR-002`), why their identifiers never become primary keys (standard 8), and
+why what this system derives is stored rather than recomputed on demand (`ADR-003`).
