@@ -31,6 +31,12 @@ the `CLAUDE.md` of each tier you are about to touch for its invariants and comma
 Name the verification that will prove it — the specific test or command, not "it works". If no
 existing test would fail when the feature is absent, that test is part of the work.
 
+If the change makes a training judgement — a rep range, a set count, a progression step, a
+volume threshold, a readiness call — invoke `/protocol-training` here, before any of it gets
+written. Follow the decision if one exists; research and record one if not. A number that
+reaches the code without a `TD-###` beside it (root standard 15) cannot be told apart later
+from one that was recalled.
+
 ## 2. Settle the conventions that do not exist yet
 
 Before scaffolding anything new, list the decisions the repo has not already made — where code

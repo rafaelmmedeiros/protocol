@@ -37,6 +37,8 @@ It grows on two fronts, and they are different kinds of knowledge:
 - **Strength-training knowledge** -- periodization, volume and intensity, exercise selection,
   fatigue management. This is domain knowledge and belongs in a skill, so that it enters a
   session only when a feature actually consults it. It gets written when that feature exists.
+  `/protocol-training` is its home, and it holds two things that must not be confused: what the
+  literature supports, and what this product decided to do about it.
 
 Deployment is local for now: one user, one machine, `docker-compose.app.yml`. Publishing comes
 when there are users to publish for. One decision already anticipates it -- the auth cookie's
@@ -102,6 +104,15 @@ cost a data migration, or a recount of every analysis already produced, if adopt
     compose cannot remove it even when asked. When a reset seems like the only way forward,
     that is the moment to stop and ask.
 
+### Domain
+
+15. **No training judgement in code without a decision record.** Any rep range, set count,
+    progression step, volume threshold or readiness call carries the `TD-###` id of the record
+    that decided it, in a comment at the line. The records and the knowledge notes behind them
+    live in `/protocol-training`; consult it before writing the judgement, and add to it when
+    the corpus has no answer. Without the citation a recalled number and a researched one are
+    indistinguishable in the source — and only one of them can be defended later.
+
 ## Where documentation lives
 
 Four homes, chosen by when the reader needs the content — not by topic:
@@ -110,7 +121,7 @@ Four homes, chosen by when the reader needs the content — not by topic:
 |------|-------|--------|
 | This file | Product, cross-cutting standards, the map | Always |
 | `backend/CLAUDE.md`, `frontend/CLAUDE.md`, `mcps/CLAUDE.md` | That tier's layout, commands and invariants | When working in that tier |
-| `.claude/skills/` | Procedure to execute (`/protocol-feature`, `/protocol-harness`) and, later, strength-training reference | On invocation |
+| `.claude/skills/` | Procedure to execute (`/protocol-feature`, `/protocol-harness`) and domain reference (`/protocol-training`) | On invocation |
 | `.claude/harness/BACKLOG.md` | Pains, wins and ideas about how the work goes | Through `/protocol-harness` |
 
 A convention must never depend on being remembered: anything that would be wrong to write
@@ -127,7 +138,7 @@ docker-compose.app.yml   the runnable application stack (compose project protoco
 docker-compose.test.yml  the throwaway stack the suites run against (project protocol-test)
 docker-compose.yml       builds the MCP images only (compose project protocol-mcps)
 .mcp.json                registers every MCP server for this project
-.claude/                 skills and the harness backlog
+.claude/                 skills, agents and the harness backlog
 ```
 
 The three compose files are kept apart on purpose, and their compose projects differ so the
@@ -190,8 +201,9 @@ Between them they are plumbing: nothing yet reads a training history or generate
 which is the whole point of the product above.
 
 Skills, agents, and further tooling are added when work demands them, not in anticipation.
-That applies to the training knowledge as much as to the harness -- it gets a home when a
-feature needs to consult it, not before. Update these files as those land.
+That applies to the training knowledge as much as to the harness: `/protocol-training` now has
+the shape a fact goes into, and it is deliberately empty -- the corpus grows one question at a
+time, and only a question a feature is actually asking. Update these files as those land.
 
 ## Harness
 
