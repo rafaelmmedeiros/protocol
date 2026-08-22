@@ -43,12 +43,21 @@ e2e/                        Playwright specs, against a stack that is already up
 npm run dev             dev server; needs the API and Postgres up
 npm run typecheck       tsc --noEmit
 npm test                Vitest over lib/
-npm run test:e2e        Playwright; needs `npx playwright install chromium` once
+npm run test:e2e        Playwright against whatever runs on localhost:3000
 npm run build           production build (output: standalone)
 ```
 
 Vitest is scoped by `vitest.config.ts` so it does not collect the Playwright specs, whose
 `*.spec.ts` names its default glob would otherwise match.
+
+`npm run test:e2e` needs `npx playwright install chromium` once, and it points at the stack on
+`localhost:3000` — the development one. It registers accounts and does not remove them, so use
+it to iterate and conclude with the containerized run, which brings up its own stack and its
+own database:
+
+```
+docker compose -f docker-compose.test.yml run --rm --build e2e     # from the repo root
+```
 
 ## Invariants
 

@@ -1,0 +1,96 @@
+# The test stack: a throwaway copy of the application, used only by the suites.
+#
+#   docker compose -f docker-compose.test.yml run --rm e2e
+#   docker compose -f docker-compose.test.yml run --rm backend-tests
+#   docker compose -f docker-compose.test.yml down -v
+#
+# It is a separate compose project from docker-compose.app.yml, and that is the whole point:
+# this stack owns no development data, so `down -v` here is always safe. It publishes no host
+# ports either -- the suites reach the services over the compose network -- so it can run while
+# the development stack is up.
+#
+# This is a standalone file rather than an override layered with a second -f, because compose
+# APPENDS `ports` when merging instead of replacing them: an override trying to unpublish 5432
+# would end up publishing it twice.
+name: protocol-test
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: protocol
+      POSTGRES_USER: protocol
+      POSTGRES_PASSWORD: protocol
+    # The data lives in RAM and dies with the container. Nothing here is ever worth keeping,
+    # and a suite that starts from an empty database is a suite that cannot inherit a mess.
+    tmpfs:
+      - /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U protocol -d protocol"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ./backend
+    # Its own tag: building this stack must never replace the image the development stack runs.
+    image: protocol-test/api:latest
+    environment:
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=protocol;Username=protocol;Password=protocol
+      Frontend__Origin: http://localhost:3000
+      ASPNETCORE_ENVIRONMENT: Development
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  web:
+    build:
+      context: ./frontend
+    image: protocol-test/web:latest
+    environment:
+      API_URL: http://api:8080
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/login"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  e2e:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.e2e
+    image: protocol-test/e2e:latest
+    environment:
+      E2E_BASE_URL: http://web:3000
+      CI: "true"
+    depends_on:
+      web:
+        condition: service_healthy
+
+  # Needs no stack at all -- the integration suite starts its own Postgres through
+  # Testcontainers -- but it lives here so that "the suites run from this file" has no
+  # exception to remember.
+  backend-tests:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.tests
+    image: protocol-test/backend-tests:latest
+    volumes:
+      # Testcontainers needs to reach the host's Docker daemon from inside this container.
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      TESTCONTAINERS_RYUK_DISABLED: "true"
+      # Containers started by Testcontainers are siblings on the host, so their published
+      # ports live on the host -- not on this container's loopback.
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

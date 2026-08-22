@@ -1,10 +1,11 @@
-# The application stack: Postgres, the .NET API and the Next.js frontend, plus the two test
-# runners. Unlike the root docker-compose.yml -- which only BUILDS the MCP images -- this file
-# is meant to be brought up and left running.
+# The application stack: Postgres, the .NET API and the Next.js frontend. Unlike the root
+# docker-compose.yml -- which only BUILDS the MCP images -- this file is meant to be brought up
+# and left running.
 #
 #   docker compose -f docker-compose.app.yml up -d --build
-#   docker compose -f docker-compose.app.yml --profile test run --rm backend-tests
-#   docker compose -f docker-compose.app.yml --profile test run --rm e2e
+#
+# The suites live in docker-compose.test.yml, against their own throwaway database. Nothing
+# here is ever a test target: this stack holds the development data.
 name: protocol-project
 
 services:
@@ -63,36 +64,16 @@ services:
       timeout: 5s
       retries: 20
 
-  backend-tests:
-    profiles: ["test"]
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.tests
-    image: protocol-project/backend-tests:latest
-    volumes:
-      # The integration suite starts its own Postgres through Testcontainers, which needs to
-      # reach the host's Docker daemon from inside this container.
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      TESTCONTAINERS_RYUK_DISABLED: "true"
-      # Containers started by Testcontainers are siblings on the host, so their published
-      # ports live on the host -- not on this container's loopback.
-      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-  e2e:
-    profiles: ["test"]
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.e2e
-    image: protocol-project/e2e:latest
-    environment:
-      E2E_BASE_URL: http://web:3000
-      CI: "true"
-    depends_on:
-      web:
-        condition: service_healthy
-
 volumes:
+  # Declared external so that compose is UNABLE to remove it -- `down -v` skips external
+  # volumes. Standard 14 says the development database is never destroyed; this is what makes
+  # the tool incapable of it rather than merely forbidden. The volume already exists under this
+  # name; a fresh clone creates it once with:
+  #
+  #   docker volume create protocol-project_pgdata
+  #
+  # If it is missing, `up` fails loudly instead of silently starting on an empty database --
+  # which looks exactly like data loss, because it is indistinguishable from it.
   pgdata:
+    external: true
+    name: protocol-project_pgdata

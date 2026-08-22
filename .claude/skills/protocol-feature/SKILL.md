@@ -80,15 +80,22 @@ the one above it.
 | 5 | Frontend unit | `npm test` |
 | 6 | Stack builds and reports healthy | `docker compose -f docker-compose.app.yml up -d --build` |
 | 7 | Smoke | `curl -s http://localhost:8080/health` · `curl -so /dev/null -w "%{http_code}" http://localhost:3000/login` |
-| 8 | End to end, in Docker | `docker compose -f docker-compose.app.yml --profile test run --rm e2e` |
-| 9 | Backend suites, in Docker | `docker compose -f docker-compose.app.yml --profile test run --rm backend-tests` |
+| 8 | End to end, in Docker | `docker compose -f docker-compose.test.yml run --rm --build e2e` |
+| 9 | Backend suites, in Docker | `docker compose -f docker-compose.test.yml run --rm --build backend-tests` |
 | 10 | Nothing unwanted is staged | `git status --short --untracked-files=all` |
 
 Skip the rungs that cannot be affected by the change; never skip a rung that can.
 
-Rung 8 is the authoritative end-to-end run. The same suite works on the host via
-`npm run test:e2e`, which is faster to iterate against but needs `npx playwright install
-chromium` once — the Playwright image already has the browser.
+Rung 8 is the authoritative end-to-end run. It builds its own stack — a second api and web
+against a throwaway Postgres — so it never writes into the development database, and `--build`
+is what makes it test the code just changed rather than a cached image. The same suite works on
+the host via `npm run test:e2e`, which is faster to iterate against but needs `npx playwright
+install chromium` once and points at whatever stack is on `localhost:3000` — the development
+one, which is exactly the run that used to leave accounts behind. Iterate there, conclude on
+rung 8.
+
+Rungs 6 and 8 use different compose files on purpose. Leave the development stack up while
+they run; the test stack publishes no host ports and will not collide with it.
 
 ## 6. Containerized green is the only green
 

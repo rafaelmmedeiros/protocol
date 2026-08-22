@@ -97,9 +97,10 @@ cost a data migration, or a recount of every analysis already produced, if adopt
 14. **The development database is never destroyed.** Not by `docker compose down -v`, not by a
     migration, not to get out of a bad state. It holds the derivations, notes and logs this
     system produces and Hevy does not — and unlike the imported training data, none of that can
-    be fetched again. Tests get their own database precisely so that nothing ever has a reason
-    to reset this one. When a reset seems like the only way forward, that is the moment to
-    stop and ask.
+    be fetched again. The suites have their own stack and their own database precisely so that
+    nothing ever has a reason to reset this one, and its volume is declared `external` so that
+    compose cannot remove it even when asked. When a reset seems like the only way forward,
+    that is the moment to stop and ask.
 
 ## Where documentation lives
 
@@ -119,18 +120,20 @@ something invokes it.
 ## Layout
 
 ```
-backend/              the .NET 10 API           -> backend/CLAUDE.md
-frontend/             the Next.js 16 app        -> frontend/CLAUDE.md
-mcps/<name>/          exploration MCP servers   -> mcps/CLAUDE.md
-docker-compose.app.yml  the runnable application stack (compose project protocol-project)
-docker-compose.yml      builds the MCP images only (compose project protocol-mcps)
-.mcp.json             registers every MCP server for this project
-.claude/              skills and the harness backlog
+backend/                 the .NET 10 API         -> backend/CLAUDE.md
+frontend/                the Next.js 16 app      -> frontend/CLAUDE.md
+mcps/<name>/             exploration MCP servers -> mcps/CLAUDE.md
+docker-compose.app.yml   the runnable application stack (compose project protocol-project)
+docker-compose.test.yml  the throwaway stack the suites run against (project protocol-test)
+docker-compose.yml       builds the MCP images only (compose project protocol-mcps)
+.mcp.json                registers every MCP server for this project
+.claude/                 skills and the harness backlog
 ```
 
-The two compose files are opposites and are kept apart on purpose: `docker-compose.app.yml`
-runs a stack, the root `docker-compose.yml` only builds images. Their compose projects differ
-so the containers stay in separate groups.
+The three compose files are kept apart on purpose, and their compose projects differ so the
+containers stay in separate groups. `docker-compose.app.yml` runs the stack that holds the
+development data; `docker-compose.test.yml` runs a throwaway copy of it that owns nothing worth
+keeping; the root `docker-compose.yml` runs nothing at all and only builds images.
 
 ## Running the stack
 
@@ -141,8 +144,19 @@ docker compose -f docker-compose.app.yml down              # stops the stack; th
 docker compose -f docker-compose.app.yml logs -f api       # follow one service
 ```
 
-**Never pass `-v` to `down`.** It destroys the development database, which standard 14 forbids.
-The flag is one character away from the safe command, and nothing warns before it runs.
+**Never pass `-v` to `down` here.** It is one character away from the safe command and nothing
+warns before it runs. The `pgdata` volume is declared `external` precisely so that compose
+cannot remove it either way — the rule tells a reader what not to type, the declaration makes
+the tool incapable of it. On the test stack below, `down -v` is safe and expected.
+
+A fresh clone creates the volume once, because an external volume is never created implicitly:
+
+```
+docker volume create protocol-project_pgdata
+```
+
+Without it `up` fails and says so, which is the intended direction: a stack that silently comes
+up on an empty database is indistinguishable from one that lost its data.
 
 The frontend is at `http://localhost:3000`, the API at `http://localhost:8080`. The browser
 only ever calls the frontend's origin, which proxies to the API; server-side code reaches the
@@ -151,12 +165,20 @@ API at `http://api:8080`.
 The database always runs in Docker — the compose service in normal use, a throwaway
 Testcontainers instance for the integration suite. Nothing expects a Postgres on the host.
 
-Both suites also run containerized, which is what proves a change actually ships:
+## Running the suites
+
+Both suites run containerized, which is what proves a change actually ships — and they run
+against their own stack, never against the one above:
 
 ```
-docker compose -f docker-compose.app.yml --profile test run --rm backend-tests
-docker compose -f docker-compose.app.yml --profile test run --rm e2e
+docker compose -f docker-compose.test.yml run --rm --build e2e             # browser -> web -> api -> its own postgres
+docker compose -f docker-compose.test.yml run --rm --build backend-tests   # unit + integration
+docker compose -f docker-compose.test.yml down -v                          # safe here, and the way to reset
 ```
+
+That stack publishes no host ports, so it runs while the development stack is up; its Postgres
+keeps its data in RAM and starts empty every time. The separation is not tidiness: an E2E run
+registers accounts and never removes them, and they used to land in the development database.
 
 An image caches the source at build time. After editing a tier, rebuild it —
 `up -d --build <service>` — or the container keeps serving the old code.

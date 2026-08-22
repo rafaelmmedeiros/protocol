@@ -33,7 +33,12 @@ dotnet dotnet-ef migrations add <Name> --project Protocol.Api --output-dir Migra
 ```
 
 The integration suite starts its own Postgres through Testcontainers, so it needs Docker but
-not the compose stack.
+not the compose stack — it is isolated by construction and has never been able to touch the
+development database. The containerized run is what a change ships on:
+
+```
+docker compose -f docker-compose.test.yml run --rm --build backend-tests   # from the repo root
+```
 
 ## Invariants
 
