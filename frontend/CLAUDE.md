@@ -33,7 +33,7 @@ app/
     layout.tsx              the guard and the chrome -- header, nav, account menu
     dashboard/              Painel
     workouts/               Treinos
-    adjustments/            Ajustes
+    equipment/              Equipamentos -- what a generated session is allowed to ask for
     template/               the living style guide
     settings/               theme and language, through a Server Function
   api/[...path]/route.ts    proxies the browser's calls to the API
