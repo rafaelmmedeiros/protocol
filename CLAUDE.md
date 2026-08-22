@@ -93,10 +93,11 @@ cost a data migration, or a recount of every analysis already produced, if adopt
 8. **External identifiers stay external.** Hevy's `id` and `exercise_template_id` are their
    namespace: store them as explicit external keys beside our own identifier, never as a
    primary key.
-9. **An exercise is identified by `exercise_template_id`; its title is display only.** Titles
-   arrive in English and are shown as they arrive for now. Never match, group, key or compare
-   on a title — that is what keeps the history intact if the naming is ever translated or
-   reorganised.
+9. **An exercise is ours; a title is never an identity.** Our own key identifies an exercise
+   inside this system, `exercise_template_id` is how that exercise maps to Hevy (standard 8,
+   `ADR-002`), and the title is display only. Titles arrive in English and are shown as they
+   arrive for now. Never match, group, key or compare on a title — that is what keeps the
+   history intact if the naming is ever translated or reorganised.
 
 ### Operations
 
@@ -135,6 +136,18 @@ cost a data migration, or a recount of every analysis already produced, if adopt
     old. Standard 15 is its sibling and the two never merge — `ADR` is how the system is built,
     `TD` is what the system asserts about training, and only the second is subject to a research
     gate.
+
+### Boundaries
+
+17. **Hevy is a mapped boundary, not a model.** Everything this system reasons about is
+    modelled here — our entities, our keys, our field names, our vocabulary. Hevy's
+    representation is translated inward on import and outward on export, in one place per
+    direction, and none of its shape reaches the domain: not its identifiers as keys
+    (standard 8), not its field names, not its enums, not its titles (standard 9). Hevy is
+    where sets get logged in the gym; information is mapped to it and from it, and that is the
+    whole of the relationship. A domain type that cannot be constructed without a Hevy payload
+    is the failure this prevents — and the day the logging surface is ours, what gets deleted
+    is the mapping, not the model.
 
 ## Where documentation lives
 
