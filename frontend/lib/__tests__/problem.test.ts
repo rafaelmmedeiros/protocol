@@ -1,26 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { firstProblemMessage } from "../problem";
+import { firstProblemCode } from "../problem";
 
-describe("firstProblemMessage", () => {
-  it("prefers the first validation error", () => {
+describe("firstProblemCode", () => {
+  it("reads the error code, never the backend's sentence", () => {
     const problem = {
       title: "One or more validation errors occurred.",
       errors: { PasswordTooShort: ["Passwords must be at least 6 characters."] },
     };
 
-    expect(firstProblemMessage(problem, "fallback")).toBe(
-      "Passwords must be at least 6 characters.",
-    );
+    expect(firstProblemCode(problem)).toBe("PasswordTooShort");
   });
 
-  it("falls back through detail and title when there are no field errors", () => {
-    expect(firstProblemMessage({ detail: "Account locked." }, "fallback")).toBe("Account locked.");
-    expect(firstProblemMessage({ title: "Bad request." }, "fallback")).toBe("Bad request.");
+  it("returns null for a body with no error map", () => {
+    expect(firstProblemCode({ detail: "Account locked." })).toBeNull();
+    expect(firstProblemCode({ errors: {} })).toBeNull();
   });
 
-  it("uses the fallback for anything it cannot read", () => {
-    expect(firstProblemMessage(null, "fallback")).toBe("fallback");
-    expect(firstProblemMessage("not json", "fallback")).toBe("fallback");
-    expect(firstProblemMessage({ errors: {} }, "fallback")).toBe("fallback");
+  it("returns null for anything it cannot read", () => {
+    expect(firstProblemCode(null)).toBeNull();
+    expect(firstProblemCode("not json")).toBeNull();
   });
 });

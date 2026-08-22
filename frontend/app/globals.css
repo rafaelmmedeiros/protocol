@@ -1,24 +1,170 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Ferro & Brasa -- the palette, as semantic tokens.
+ *
+ * No component ever names a colour. It names a role (`bg-surface`, `text-ink-muted`,
+ * `border-line`) and the role resolves per theme. That is what makes the hue replaceable:
+ * every value below can change without a single component being touched.
+ *
+ * Three theme states, not two:
+ *   - no `data-theme` on <html>  -> follow the operating system
+ *   - data-theme="light"         -> forced light, even on a dark OS
+ *   - data-theme="dark"          -> forced dark, even on a light OS
+ * The attribute is written by the server from a cookie, so the first paint is already
+ * correct and nothing flashes.
+ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+:root {
+  color-scheme: light;
+
+  --color-ground: #faf8f5;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f2ede7;
+  --color-line: #e5dfd7;
+  --color-line-strong: #d3cabe;
+  --color-ink: #1a1714;
+  --color-ink-muted: #6e665c;
+
+  /* The brand hue, split by job. `accent` is the mark; `accent-ink` and `accent-fill` are
+     the contrast-safe forms, because #de5a1b as small text on white is only 3.6:1. */
+  --color-accent: #de5a1b;
+  --color-accent-ink: #b14509;
+  --color-accent-fill: #c24a12;
+  --color-accent-fill-hover: #a63d0d;
+  --color-accent-soft: #fbede4;
+  --color-on-accent: #ffffff;
+
+  /* Reserved data ink: progress, deload, regression. Never used as a brand colour. */
+  --color-ok: #1f7a4a;
+  --color-ok-soft: #e7f3ec;
+  --color-warn: #8a6200;
+  --color-warn-soft: #faf0da;
+  --color-bad: #a3162a;
+  --color-bad-soft: #fbe9ea;
+
+  --shadow-card: 0 1px 2px rgb(26 23 20 / 0.05), 0 8px 24px -12px rgb(26 23 20 / 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* `:not([data-theme="light"])` is what lets an explicit light choice beat a dark OS. */
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --color-ground: #131110;
+    --color-surface: #1c1917;
+    --color-surface-muted: #262220;
+    --color-line: #302b27;
+    --color-line-strong: #453e38;
+    --color-ink: #f3efe9;
+    --color-ink-muted: #a39a8f;
+
+    --color-accent: #f4712f;
+    --color-accent-ink: #ff8a4d;
+    --color-accent-fill: #f4712f;
+    --color-accent-fill-hover: #ff8a4d;
+    --color-accent-soft: #2e1d13;
+    --color-on-accent: #1a1714;
+
+    --color-ok: #46b87a;
+    --color-ok-soft: #14261c;
+    --color-warn: #d9a62a;
+    --color-warn-soft: #2a2211;
+    --color-bad: #e8564d;
+    --color-bad-soft: #2e1614;
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
   }
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-ground: #131110;
+  --color-surface: #1c1917;
+  --color-surface-muted: #262220;
+  --color-line: #302b27;
+  --color-line-strong: #453e38;
+  --color-ink: #f3efe9;
+  --color-ink-muted: #a39a8f;
+
+  --color-accent: #f4712f;
+  --color-accent-ink: #ff8a4d;
+  --color-accent-fill: #f4712f;
+  --color-accent-fill-hover: #ff8a4d;
+  --color-accent-soft: #2e1d13;
+  --color-on-accent: #1a1714;
+
+  --color-ok: #46b87a;
+  --color-ok-soft: #14261c;
+  --color-warn: #d9a62a;
+  --color-warn-soft: #2a2211;
+  --color-bad: #e8564d;
+  --color-bad-soft: #2e1614;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+}
+
+/*
+ * `inline` resolves the var at use site, so `bg-surface` follows whichever theme block won
+ * rather than freezing the light value into the utility.
+ */
+@theme inline {
+  --color-ground: var(--color-ground);
+  --color-surface: var(--color-surface);
+  --color-surface-muted: var(--color-surface-muted);
+  --color-line: var(--color-line);
+  --color-line-strong: var(--color-line-strong);
+  --color-ink: var(--color-ink);
+  --color-ink-muted: var(--color-ink-muted);
+
+  --color-accent: var(--color-accent);
+  --color-accent-ink: var(--color-accent-ink);
+  --color-accent-fill: var(--color-accent-fill);
+  --color-accent-fill-hover: var(--color-accent-fill-hover);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-on-accent: var(--color-on-accent);
+
+  --color-ok: var(--color-ok);
+  --color-ok-soft: var(--color-ok-soft);
+  --color-warn: var(--color-warn);
+  --color-warn-soft: var(--color-warn-soft);
+  --color-bad: var(--color-bad);
+  --color-bad-soft: var(--color-bad-soft);
+
+  --shadow-card: var(--shadow-card);
+
+  /* No webfont: `next/font/google` needs the network at build time and makes the Docker
+     build flaky. A self-hosted woff2 in public/ is the way in if a face is ever wanted. */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", "Cascadia Mono", Menlo,
+    Consolas, monospace;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Numbers in this product line up in columns -- sets, kilograms, weeks. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* One focus treatment everywhere, keyboard-only, in the brand hue. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

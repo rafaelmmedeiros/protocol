@@ -8,9 +8,22 @@ import { expect, test } from "@playwright/test";
 const password = "Passw0rd!";
 const uniqueEmail = () => `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@protocol.test`;
 
+/** Signing out now lives behind the account menu, so every sign-out opens it first. */
+async function signOut(page: import("@playwright/test").Page) {
+  await page.getByTestId("user-menu").click();
+  await page.getByTestId("logout").click();
+}
+
 test("an anonymous visitor is sent to the login page", async ({ page }) => {
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/login$/);
+});
+
+test("every page in the app shell is closed to an anonymous visitor", async ({ page }) => {
+  for (const path of ["/workouts", "/adjustments", "/template", "/settings"]) {
+    await page.goto(path);
+    await expect(page).toHaveURL(/\/login$/);
+  }
 });
 
 test("a new account can register, land on the dashboard and sign out", async ({ page }) => {
@@ -29,7 +42,7 @@ test("a new account can register, land on the dashboard and sign out", async ({ 
   await page.reload();
   await expect(page.getByTestId("user-email")).toHaveText(email);
 
-  await page.getByTestId("logout").click();
+  await signOut(page);
   await expect(page).toHaveURL(/\/login$/);
 
   await page.goto("/dashboard");
@@ -45,7 +58,7 @@ test("an existing account can sign in again", async ({ page }) => {
   await page.getByTestId("password").fill(password);
   await page.getByTestId("submit").click();
   await expect(page).toHaveURL(/\/dashboard$/);
-  await page.getByTestId("logout").click();
+  await signOut(page);
   await expect(page).toHaveURL(/\/login$/);
 
   await page.getByTestId("email").fill(email);
@@ -64,7 +77,7 @@ test("a wrong password is reported and keeps the visitor on the login page", asy
   await page.getByTestId("password").fill(password);
   await page.getByTestId("submit").click();
   await expect(page).toHaveURL(/\/dashboard$/);
-  await page.getByTestId("logout").click();
+  await signOut(page);
 
   await page.getByTestId("email").fill(email);
   await page.getByTestId("password").fill("Wrong1!");

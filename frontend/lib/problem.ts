@@ -1,6 +1,12 @@
 /**
- * ASP.NET Core Identity reports validation failures as a ProblemDetails body carrying an
- * `errors` map. This lifts the first message out of it so the UI can show something specific.
+ * ASP.NET Core Identity reports failures as a ProblemDetails body whose `errors` map is keyed
+ * by a stable error code -- `PasswordTooShort`, `DuplicateUserName` -- with the English
+ * sentence as the value.
+ *
+ * The code is the contract; the sentence is not. Standard 3 in the root CLAUDE.md says the
+ * backend returns codes and this tier owns every translated string, so only the key is read
+ * here. Showing the backend's sentence would put untranslated English in a pt-BR screen and
+ * would break the moment anyone reworded it.
  */
 export type ProblemDetails = {
   title?: string;
@@ -8,11 +14,12 @@ export type ProblemDetails = {
   errors?: Record<string, string[]>;
 };
 
-export function firstProblemMessage(problem: unknown, fallback: string): string {
-  if (typeof problem !== "object" || problem === null) return fallback;
+/** The first error code in the body, or null when it is not a ProblemDetails we recognise. */
+export function firstProblemCode(problem: unknown): string | null {
+  if (typeof problem !== "object" || problem === null) return null;
 
-  const { errors, detail, title } = problem as ProblemDetails;
-  const fromErrors = errors && Object.values(errors).flat().find((message) => message.length > 0);
+  const { errors } = problem as ProblemDetails;
+  if (!errors) return null;
 
-  return fromErrors ?? detail ?? title ?? fallback;
+  return Object.keys(errors).find((code) => code.length > 0) ?? null;
 }

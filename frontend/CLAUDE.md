@@ -25,17 +25,36 @@ Deleting `AGENTS.md` makes it scaffold both again, so leave it in place.
 
 ```
 app/
+  layout.tsx                stamps `lang` and `data-theme` from cookies
+  globals.css               the colour tokens; the only file that names a hex
   page.tsx                  redirects by session state
-  login/                    client component; register and sign in
-  dashboard/                server component, redirects when there is no session
+  login/                    server page + client form; register and sign in
+  (app)/                    route group: everything behind a session
+    layout.tsx              the guard and the chrome -- header, nav, account menu
+    dashboard/              Painel
+    workouts/               Treinos
+    adjustments/            Ajustes
+    template/               the living style guide
+    settings/               theme and language, through a Server Function
   api/[...path]/route.ts    proxies the browser's calls to the API
+components/
+  ui/                       button, field, card, pill, stat, page-header, empty-state
+  app-nav.tsx               client; marks the active section
+  user-menu.tsx             client; account popover and sign out
 lib/
   api.ts                    API_URL, shared types
   session.ts                getCurrentUser(), forwards cookies server-side
-  problem.ts                reads ProblemDetails bodies
+  problem.ts                reads the error *code* out of a ProblemDetails body
+  preferences.ts            the theme and locale cookies
+  cn.ts                     class-name join
+  i18n/                     locales.ts, dictionaries/, index.ts (server-side)
   __tests__/                Vitest, over lib/ only
 e2e/                        Playwright specs, against a stack that is already up
 ```
+
+The route group is what makes `(app)/layout.tsx` the one place a session is checked. The URLs
+are unchanged -- `/dashboard` is still `/dashboard` -- but a page added inside the group cannot
+forget the guard.
 
 ## Commands
 
@@ -49,6 +68,11 @@ npm run build           production build (output: standalone)
 
 Vitest is scoped by `vitest.config.ts` so it does not collect the Playwright specs, whose
 `*.spec.ts` names its default glob would otherwise match.
+
+After moving or renaming a route, delete `.next/` before building. Next generates
+`.next/dev/types/validator.ts` from the routes it last saw, and a stale entry there fails
+`npm run build` with a `Cannot find module` for a page that no longer exists -- an error that
+points at generated code rather than at the move that caused it.
 
 `npm run test:e2e` needs `npx playwright install chromium` once, and it points at the stack on
 `localhost:3000` — the development one. It registers accounts and does not remove them, so use
@@ -71,8 +95,29 @@ docker compose -f docker-compose.test.yml run --rm --build e2e     # from the re
   `/auth/me` and returns null on 401, so a page can choose between rendering and redirecting.
   Cookies can only be *written* from a Route Handler or a Server Function.
 - **Every user-visible string is translatable.** `en-US` is the default and `pt-BR` is
-  supported; nothing user-facing is hardcoded in a component. The backend sends codes, so this
-  tier owns all display text, including error messages.
+  supported; nothing user-facing is hardcoded in a component. `lib/i18n/dictionaries/en-US.ts`
+  is the source of truth and `Dictionary` is derived from it, so a key added there fails to
+  compile in pt-BR until it is translated there too. The dictionaries are read server-side
+  only; a Client Component receives the strings it shows as props, which is why none of them
+  reach the browser bundle. The locale is a preference in a cookie, not a path segment -- the
+  `app/[lang]/` routing the Next.js i18n guide describes buys shareable localised URLs, which
+  a signed-in training log has no use for, and costs a locale in every route and every test.
+- **The backend's sentence is never displayed.** `firstProblemCode()` reads only the error
+  code out of a ProblemDetails body -- `PasswordTooShort`, `DuplicateUserName` -- and
+  `dict.authErrors` turns it into a translated sentence. Showing the API's English would put
+  untranslated text in a pt-BR screen and would break the day anyone reworded it.
+- **No component ever names a colour.** It names a role: `bg-surface`, `text-ink-muted`,
+  `border-line`, `bg-accent-fill`. Every hex in this tier lives in `app/globals.css`, which is
+  what makes the palette replaceable without touching a component. Green and red are reserved
+  data ink -- progress and regression -- and are never a brand or a decorative colour.
+- **Theme and locale are cookies, read on the server.** `app/layout.tsx` stamps `lang` and
+  `data-theme` on the HTML it emits, so the first paint is already right. Reading them from
+  `localStorage` would render the wrong theme and then correct it, which is a flash. There are
+  three theme states, not two: no `data-theme` attribute means follow the operating system,
+  and only an explicit choice stamps `light` or `dark`.
+- **`/template` is the living style guide.** It renders the real components, not pictures of
+  them. A component that changes changes there in the same commit; a disagreement between that
+  page and the product is a bug in one of the two.
 - **Formatting is this tier's job.** Weights, distances, durations and dates arrive canonical
   (kilograms, metres, seconds, UTC) and are converted and formatted here, at the render edge,
   never upstream.
