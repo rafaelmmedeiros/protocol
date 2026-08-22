@@ -391,7 +391,7 @@ shows something it decided itself.
 
 **Acceptance criteria:**
 
-- Rungs 1–10 pass, with the test stack up alongside the development one.
+- Rungs 1–11 pass, with the test stack up alongside the development one.
 - The development database's account count is unchanged by the run (win `W6`).
 
 ## Specifications

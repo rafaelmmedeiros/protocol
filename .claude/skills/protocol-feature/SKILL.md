@@ -128,28 +128,29 @@ the one above it.
 
 | # | Rung | Command |
 |---|------|---------|
-| 1 | Backend compiles | `dotnet build` (in `backend/`) |
-| 2 | Backend unit | `dotnet test Protocol.Api.Tests.Unit` |
-| 3 | Backend integration, real Postgres | `dotnet test Protocol.Api.Tests.Integration` |
-| 4 | Frontend types | `npm run typecheck` (in `frontend/`) |
-| 5 | Frontend unit | `npm test` |
-| 6 | Stack builds and reports healthy | `docker compose -f docker-compose.app.yml up -d --build` |
-| 7 | Smoke | `curl -s http://localhost:8080/health` · `curl -so /dev/null -w "%{http_code}" http://localhost:3000/login` |
-| 8 | End to end, in Docker | `docker compose -f docker-compose.test.yml run --rm --build e2e` |
-| 9 | Backend suites, in Docker | `docker compose -f docker-compose.test.yml run --rm --build backend-tests` |
-| 10 | Nothing unwanted is staged | `git status --short --untracked-files=all` |
+| 1 | Documents match the tree | `node scripts/check-docs.mjs` |
+| 2 | Backend compiles | `dotnet build` (in `backend/`) |
+| 3 | Backend unit | `dotnet test Protocol.Api.Tests.Unit` |
+| 4 | Backend integration, real Postgres | `dotnet test Protocol.Api.Tests.Integration` |
+| 5 | Frontend types | `npm run typecheck` (in `frontend/`) |
+| 6 | Frontend unit | `npm test` |
+| 7 | Stack builds and reports healthy | `docker compose -f docker-compose.app.yml up -d --build` |
+| 8 | Smoke | `curl -s http://localhost:8080/health` · `curl -so /dev/null -w "%{http_code}" http://localhost:3000/login` |
+| 9 | End to end, in Docker | `docker compose -f docker-compose.test.yml run --rm --build e2e` |
+| 10 | Backend suites, in Docker | `docker compose -f docker-compose.test.yml run --rm --build backend-tests` |
+| 11 | Nothing unwanted is staged | `git status --short --untracked-files=all` |
 
 Skip the rungs that cannot be affected by the change; never skip a rung that can.
 
-Rung 8 is the authoritative end-to-end run. It builds its own stack — a second api and web
+Rung 9 is the authoritative end-to-end run. It builds its own stack — a second api and web
 against a throwaway Postgres — so it never writes into the development database, and `--build`
 is what makes it test the code just changed rather than a cached image. The same suite works on
 the host via `npm run test:e2e`, which is faster to iterate against but needs `npx playwright
 install chromium` once and points at whatever stack is on `localhost:3000` — the development
 one, which is exactly the run that used to leave accounts behind. Iterate there, conclude on
-rung 8.
+rung 9.
 
-Rungs 6 and 8 use different compose files on purpose. Leave the development stack up while
+Rungs 7 and 9 use different compose files on purpose. Leave the development stack up while
 they run; the test stack publishes no host ports and will not collide with it.
 
 ## 6. Containerized green is the only green

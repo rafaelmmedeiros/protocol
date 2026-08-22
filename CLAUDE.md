@@ -149,6 +149,25 @@ cost a data migration, or a recount of every analysis already produced, if adopt
     is the failure this prevents — and the day the logging surface is ours, what gets deleted
     is the mapping, not the model.
 
+### Documentation
+
+18. **A document is corrected by the commit that falsifies it.** Three clauses, one per way a
+    document has actually drifted here:
+    - **Say what exists, not what does not.** "There is no tooling yet" is the sentence that
+      ages in silence — nothing fails when it stops being true, and nobody re-reads it.
+    - **A path that moves moves its map in the same commit.** A `## Layout` block claims to
+      describe the tree as it is; prose may name a generated file or something planned, a
+      layout block may not.
+    - **A new decision record means re-reading the standards it touches.** A standard that
+      contradicts a fresh `ADR` is corrected there and then. Standard 9 once said an exercise
+      is identified by a Hevy identifier, one line under standard 8 saying their identifiers
+      are never a key — and the next thing to read it would have been a migration.
+
+    `node scripts/check-docs.mjs` enforces the mechanical half: layout entries resolve, and
+    every `standard N`, `ADR-###` and `TD-###` cited under `docs/` exists. It is rung 1 of the
+    verification ladder. The half it cannot enforce — a claim that is well-formed, resolvable
+    and untrue — is why this is a standard and not only a script.
+
 ## Where documentation lives
 
 Five homes, chosen by when the reader needs the content — not by topic:
@@ -174,6 +193,7 @@ mcps/<name>/             exploration MCP servers -> mcps/CLAUDE.md
 docs/ROADMAP.md          the capability spine: what gets built, in what order
 docs/decisions/          ADR-###: how the system is built, append-only
 docs/milestones/         one directory per planned milestone (plan.md + progress.md)
+scripts/check-docs.mjs   fails when a document drifts from the tree (standard 18)
 docker-compose.app.yml   the runnable application stack (compose project protocol-project)
 docker-compose.test.yml  the throwaway stack the suites run against (project protocol-test)
 docker-compose.yml       builds the MCP images only (compose project protocol-mcps)
