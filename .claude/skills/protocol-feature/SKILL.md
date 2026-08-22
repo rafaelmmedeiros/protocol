@@ -22,6 +22,55 @@ backlog — a step that stops earning its keep should die.
 - **A new tier, a new dependency, or anything that changes a convention** → all six steps, and
   settle step 2 with the engineer before writing code.
 
+## Milestone mode
+
+When the work is a step of a planned milestone — `docs/milestones/M<N>-<slug>/plan.md`, written
+by `/protocol-milestone` — the plan is the contract and this section governs the loop. Steps 1
+and 2 below are already answered by it: do not re-frame and do not re-decide. Steps 3 through 7
+still apply, once per step of the plan.
+
+**Before the first step.** Read the plan in full. Refuse to start while its `## Open questions`
+section is non-empty — an unanswered question there is a decision that would otherwise get made
+silently, mid-build. Read `progress.md` if it exists and resume from the first step that is not
+`completed`; create it with every step `pending` if it does not.
+
+**One step at a time, in the plan's dependency order.** Never two at once, never ahead of a
+dependency. That guarantee is the only thing this mode adds over building freely, so breaking it
+empties the mode.
+
+For each step:
+
+1. Re-read its section of the plan — description, technical actions, tests, acceptance criteria.
+2. Implement the technical actions, in order, touching nothing outside them. An unrelated
+   problem noticed on the way is reported, not fixed.
+3. Write the test files its Tests table names. Every acceptance criterion should be observable
+   from at least one of them.
+4. Run **only this step's tests**. The full ladder is for the end.
+5. On failure: read the error, fix the root cause, re-run — at most **three attempts**. Then
+   stop and report which step is stuck, the failure, and your hypothesis. Never weaken a test,
+   never skip one, never quietly edit a completed step to make this one pass.
+6. Write the `progress.md` entry, then **stop and ask before starting the next step** — unless
+   the engineer asked for a continuous run up front.
+
+**The progress entry is the point.** It is the only artifact that survives the session, and the
+line that matters is the last one:
+
+```markdown
+### S<N>.X — <name>
+- **Status:** completed
+- **Tests:** <counts, or "no tests">
+- **Observations:** <what a future session would otherwise rediscover — or "none">
+```
+
+Write an observation when something was not in the plan and cost time: a container that kept
+serving old code, a suite that hung, a migration that left an artifact behind. Not a summary of
+what the step did — that is already in the plan and in the diff.
+
+**When every step is done**, climb the full ladder (step 5 below), tick the plan's Deliverables,
+confirm every capability bullet is covered, and set the progress file's status to `completed`.
+Then close the loop (step 7). If the plan itself turned out to be wrong, that is not something
+to patch mid-build: stop, and revise it through `/protocol-milestone`.
+
 ## 1. Frame
 
 State which tiers the change touches and what "done" looks like, in one or two sentences,

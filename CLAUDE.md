@@ -113,15 +113,27 @@ cost a data migration, or a recount of every analysis already produced, if adopt
     the corpus has no answer. Without the citation a recalled number and a researched one are
     indistinguishable in the source — and only one of them can be defended later.
 
+### Decisions
+
+16. **An architectural decision is a record, not a commit message.** Which library, which
+    layout, which protocol, which shape a schema takes — anything where a different answer
+    would have produced different code — gets an `ADR-###` in `docs/decisions/`, with the
+    options considered and the rejected one written down. Records are append-only: a parameter
+    changing is a `Revisions` bullet, a different option winning is a new record superseding the
+    old. Standard 15 is its sibling and the two never merge — `ADR` is how the system is built,
+    `TD` is what the system asserts about training, and only the second is subject to a research
+    gate.
+
 ## Where documentation lives
 
-Four homes, chosen by when the reader needs the content — not by topic:
+Five homes, chosen by when the reader needs the content — not by topic:
 
 | Home | Holds | Loaded |
 |------|-------|--------|
 | This file | Product, cross-cutting standards, the map | Always |
 | `backend/CLAUDE.md`, `frontend/CLAUDE.md`, `mcps/CLAUDE.md` | That tier's layout, commands and invariants | When working in that tier |
-| `.claude/skills/` | Procedure to execute (`/protocol-feature`, `/protocol-harness`) and domain reference (`/protocol-training`) | On invocation |
+| `docs/` | The roadmap, the `ADR` records, and one directory per planned milestone | When planning or executing a milestone |
+| `.claude/skills/` | Procedure to execute (`/protocol-milestone`, `/protocol-feature`, `/protocol-harness`) and domain reference (`/protocol-training`) | On invocation |
 | `.claude/harness/BACKLOG.md` | Pains, wins and ideas about how the work goes | Through `/protocol-harness` |
 
 A convention must never depend on being remembered: anything that would be wrong to write
@@ -134,6 +146,9 @@ something invokes it.
 backend/                 the .NET 10 API         -> backend/CLAUDE.md
 frontend/                the Next.js 16 app      -> frontend/CLAUDE.md
 mcps/<name>/             exploration MCP servers -> mcps/CLAUDE.md
+docs/ROADMAP.md          the capability spine: what gets built, in what order
+docs/decisions/          ADR-###: how the system is built, append-only
+docs/milestones/         one directory per planned milestone (plan.md + progress.md)
 docker-compose.app.yml   the runnable application stack (compose project protocol-project)
 docker-compose.test.yml  the throwaway stack the suites run against (project protocol-test)
 docker-compose.yml       builds the MCP images only (compose project protocol-mcps)
@@ -216,3 +231,8 @@ the pains, wins, and ideas, and a rule that hardens graduates from there into a 
 across the tiers, with the verification ladder that ends at a green containerized stack. It was
 written from the walking-skeleton build, not ahead of it, and every step in it earned its place
 by costing something.
+
+`/protocol-milestone` sits above it and answers a different question — not *how is this built
+well*, but *what gets built, in what order, against which decisions*. It turns a milestone from
+`docs/ROADMAP.md` into a plan with steps, tests and an order, and it is where the decisions a
+package of features needs get made and recorded before any of them reach the code.
