@@ -33,18 +33,21 @@ app/
     layout.tsx              the guard and the chrome -- header, nav, account menu
     dashboard/              Painel
     workouts/               Treinos
+    profile/                goal, days a week, minutes a session -- what the generator reads
     equipment/              Equipamentos -- what a generated session is allowed to ask for
     template/               the living style guide
     settings/               theme and language, through a Server Function
   api/[...path]/route.ts    proxies the browser's calls to the API
 components/
-  ui/                       button, field, card, pill, stat, page-header, empty-state
+  ui/                       button, field, select, card, pill, stat, page-header, empty-state
   app-nav.tsx               client; marks the active section
   user-menu.tsx             client; account popover and sign out
 lib/
   api.ts                    API_URL, shared types
   session.ts                getCurrentUser(), forwards cookies server-side
   problem.ts                reads the error *code* out of a ProblemDetails body
+  api-error.ts              reads our own error shape: a code plus the bounds it was rejected against
+  duration.ts               seconds to minutes and back, at the render edge
   preferences.ts            the theme and locale cookies
   cn.ts                     class-name join
   i18n/                     locales.ts, dictionaries/, index.ts (server-side)

@@ -13,6 +13,7 @@ export const enUS = {
     skipToContent: "Skip to content",
     dashboard: "Dashboard",
     workouts: "Workouts",
+    profile: "Profile",
     equipment: "Equipment",
     template: "Template",
   },
@@ -78,6 +79,38 @@ export const enUS = {
     lead: "Every session read out of Hevy, newest first.",
     emptyTitle: "No workouts yet",
     emptyBody: "Once the Hevy import lands, every logged session shows up here.",
+  },
+  profile: {
+    title: "Training profile",
+    lead: "What you train for, and what you actually have available. Every session generated for you is built from these three answers.",
+    goalLabel: "Goal",
+    goalHint: "Only hypertrophy is programmed today. The rest are listed so you can see what is coming.",
+    goalHypertrophy: "Muscle growth",
+    goalStrength: "Strength",
+    goalWeightLoss: "Weight loss",
+    goalEndurance: "Endurance",
+    unavailable: "not yet",
+    daysLabel: "Days a week",
+    daysHint: "How many sessions you will realistically train, not how many you would like to.",
+    durationLabel: "Minutes a session",
+    durationHint: "How long a session can last, door to door. Rest between sets is decided for you.",
+    save: "Save profile",
+    saving: "Saving...",
+    saved: "Profile saved",
+  },
+  /**
+   * Keyed by the codes the training endpoints answer with. The backend never sends a sentence
+   * (root standard 3), and the two that carry bounds take them as arguments so the numbers
+   * TD-002 and TD-012 decided are never copied into this file.
+   */
+  profileErrors: {
+    GoalNotSupported: "That goal is not programmed yet. Choose muscle growth for now.",
+    FrequencyOutOfRange: (min: number, max: number) =>
+      `Choose between ${min} and ${max} days a week.`,
+    DurationOutOfRange: (min: number, max: number) =>
+      `A session has to be between ${min} and ${max} minutes.`,
+    ProfileNotFound: "No profile saved yet.",
+    unknown: "Could not save the profile.",
   },
   equipment: {
     title: "Equipment",

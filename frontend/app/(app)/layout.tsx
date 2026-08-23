@@ -17,6 +17,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const items: NavItem[] = [
     { href: "/dashboard", label: dict.nav.dashboard, testId: "nav-dashboard" },
     { href: "/workouts", label: dict.nav.workouts, testId: "nav-workouts" },
+    { href: "/profile", label: dict.nav.profile, testId: "nav-profile" },
     { href: "/equipment", label: dict.nav.equipment, testId: "nav-equipment" },
     { href: "/template", label: dict.nav.template, testId: "nav-template" },
   ];

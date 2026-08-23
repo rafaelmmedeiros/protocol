@@ -372,7 +372,42 @@ tests pass and its acceptance criteria hold.
     writes.
 
 ### S1.10 — The Profile section
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 3 unit (`lib/__tests__/duration.test.ts`), 5 E2E (`e2e/profile.spec.ts`).
+  Typecheck clean; Vitest 13; containerized E2E 14 passed.
+- **Produced:** `app/(app)/profile/` (page, form, Server Function), `lib/duration.ts`,
+  `lib/api-error.ts`, `components/ui/select.tsx`, both dictionaries, nav entry.
+- **Observations:**
+  - **A function cannot cross from a Server Component into a Client Component**, and the first
+    draft passed `errorFor(state)` as a prop. The fix is better than the workaround would have
+    been: the **Server Function resolves the sentence itself**, because it runs on the server
+    where the dictionary lives. The form never sees a code, and root standard 3 is honoured by
+    construction rather than by discipline.
+  - **The bounded error sentences take their bounds as arguments** —
+    `FrequencyOutOfRange: (min, max) => ...`. Because `Dictionary` is derived from `en-US`, the
+    compiler forces `pt-BR` to match the *signature*, not just the key. The numbers `TD-002`
+    and `TD-012` decided are never copied into this tier, so superseding a record moves the
+    sentence with it.
+  - **`DurationOutOfRange` needs a unit conversion in the error path**, which is easy to miss:
+    the backend bounds duration in seconds and the screen speaks minutes, so the sentence would
+    have read "between 1500 and 7200 minutes". Converted where every other rendered unit is
+    converted (root standard 4).
+  - **Our error shape is not Identity's**, so `lib/problem.ts` does not apply. `lib/api-error.ts`
+    reads `{ code, min, max }`. Two shapes on one API is a real thing to know before writing
+    the next screen.
+  - **The proxy route has no `PUT` handler** — only GET, POST and DELETE. Not hit here because
+    a Server Function goes server-to-server, but the next feature that writes from the browser
+    will find it. Reported, not fixed: nothing needs it yet.
+  - **A styled `<select>` was extracted to `components/ui/select.tsx` and added to
+    `/template`.** The tier's invariant is that the style guide renders the real components, so
+    a one-off select inline would have made the guide and the product disagree — which that
+    invariant defines as a bug in one of the two.
+  - `ADR-004`'s "collect the goal, programme one value" is rendered literally: all four goals
+    are listed and three are `disabled`. Hiding them would make the field look arbitrary and
+    the roadmap invisible.
+  - E2E was run against the **containerized** stack rather than `npm run test:e2e`, which
+    points at the development database and leaves accounts behind (`W6`). Slower, and it keeps
+    the development data clean.
 
 ### S1.11 — The generated week on screen
 - **Status:** pending

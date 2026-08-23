@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Field } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
+import { Select } from "@/components/ui/select";
 import { Stat } from "@/components/ui/stat";
 import { getDictionary } from "@/lib/i18n";
 
@@ -154,6 +155,19 @@ export default async function TemplatePage() {
                 type="text"
                 defaultValue="82.4"
                 hint="Stored in kilograms; the unit shown follows the locale."
+              />
+              <Select
+                label={dict.profile.goalLabel}
+                hint={dict.profile.goalHint}
+                defaultValue="Hypertrophy"
+                options={[
+                  { value: "Hypertrophy", label: dict.profile.goalHypertrophy },
+                  {
+                    value: "Strength",
+                    label: `${dict.profile.goalStrength} (${dict.profile.unavailable})`,
+                    disabled: true,
+                  },
+                ]}
               />
             </div>
           </Card>
