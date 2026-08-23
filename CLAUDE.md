@@ -116,6 +116,14 @@ cost a data migration, or a recount of every analysis already produced, if adopt
     nothing ever has a reason to reset this one, and its volume is declared `external` so that
     compose cannot remove it even when asked. When a reset seems like the only way forward,
     that is the moment to stop and ask.
+19. **Git is the log of how the work went, not a snapshot of where it ended.** Work is
+    committed as each coherent unit finishes — a step of a milestone, a harness fix, a document
+    corrected — not batched at the end. Local commits happen without asking; **pushing is a
+    separate decision and is always asked for.** Stage by path and read `git status` before
+    committing, never `git add -A` from the root. This is cheap per commit and unrecoverable
+    later: a decision superseded three steps after it was made is only explainable if the
+    commits between them exist, and no amount of documentation reconstructs a history that was
+    never recorded.
 
 ### Domain
 

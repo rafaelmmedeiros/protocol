@@ -49,11 +49,33 @@ For each step:
 5. On failure: read the error, fix the root cause, re-run — at most **three attempts**. Then
    stop and report which step is stuck, the failure, and your hypothesis. Never weaken a test,
    never skip one, never quietly edit a completed step to make this one pass.
-6. Write the `progress.md` entry, then **stop and ask before starting the next step** — unless
+6. **Commit the step**, `progress.md` entry included — see below.
+7. Then **stop and ask before starting the next step** — unless
    the engineer asked for a continuous run up front.
 
-**The progress entry is the point.** It is the only artifact that survives the session, and the
-line that matters is the last one:
+**One step, one commit.** The step is not finished until it is committed. A milestone that lands
+as a single end-of-run commit throws away the thing the per-step loop exists to produce: `M1`
+superseded a decision one step after making it, and in one big commit both records appear
+together with nothing saying which step forced the revision.
+
+- **Commit at the end of each step, without asking** — the plan is the authorization, and a
+  local commit is reversible. **Pushing is not, and is still asked for separately.**
+- **The commit is the whole step**: code, tests, the records it produced, and its `progress.md`
+  entry. Staging part of a step leaves history claiming something that was never true.
+- **Subject line names the step**, so `git log --oneline` reads as the milestone's spine:
+  `M1 S1.6 — the exercise catalogue`. The body says what the step decided, not what it touched;
+  the diff already says what it touched.
+- **A step that produced no code still commits.** The five research steps of `M1` produced 30
+  files and no source, and that is exactly the history worth keeping.
+- **Never `git add -A` from the repo root.** Stage the step's paths by name, then read
+  `git status` before committing — rung 11 exists because something unrelated is always sitting
+  in the tree.
+
+If a step cannot be committed cleanly — a test is red, a file belongs to two steps — that is a
+finding to report, not a reason to batch it into the next commit.
+
+**The progress entry is the point.** Git now carries what changed; `progress.md` carries what a
+future session would otherwise rediscover, and the line that matters is the last one:
 
 ```markdown
 ### S<N>.X — <name>
@@ -138,7 +160,7 @@ the one above it.
 | 8 | Smoke | `curl -s http://localhost:8080/health` · `curl -so /dev/null -w "%{http_code}" http://localhost:3000/login` |
 | 9 | End to end, in Docker | `docker compose -f docker-compose.test.yml run --rm --build e2e` |
 | 10 | Backend suites, in Docker | `docker compose -f docker-compose.test.yml run --rm --build backend-tests` |
-| 11 | Nothing unwanted is staged | `git status --short --untracked-files=all` |
+| 11 | Nothing unwanted is staged, and nothing is left uncommitted | `git status --short --untracked-files=all` |
 
 Skip the rungs that cannot be affected by the change; never skip a rung that can.
 
