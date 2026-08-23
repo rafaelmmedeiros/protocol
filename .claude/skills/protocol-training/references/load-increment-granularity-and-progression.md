@@ -82,7 +82,11 @@ absolute loads are not comparable for straightforward mechanical reasons.
   at 2-3, which is not the condition tested.
 - **Whether a "stalled" lift is a real signal at all.** The 2026 stand's finding that progression
   is not necessary for benefit undercuts the premise that a plateau needs intervention within a
-  first block.
+  first block. **Read that line alongside
+  `references/progression-and-periodization-for-hypertrophy.md`, which narrows it**: ACSM's claim
+  is about *sufficiency*, and a within-subject trial since then found progressing roughly doubled
+  growth, which is a claim about *magnitude*. The two are compatible; this note on its own leans
+  harder on ACSM than the evidence now supports.
 - **Nothing establishes a conversion factor between variants.** There is no evidence-based way to
   say "your 30 kg barbell curl means X on the cable." The absence is total, not merely uncertain.
 - **The rotation literature does not specifically test variant-swaps.** Baz-Valle 2019 and Kassiano

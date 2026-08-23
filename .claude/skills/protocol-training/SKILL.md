@@ -51,6 +51,9 @@ the table, then only the notes its question actually touches.
 | [`ranking-exercise-variants`](references/ranking-exercise-variants.md) | thin | A general variant ranking survives only as performability, never growth. Personal fit is an adherence finding, and Damas 2019 puts the variance in the person, not the person-by-exercise pairing |
 | [`self-selected-exercise-and-autonomy`](references/self-selected-exercise-and-autonomy.md) | thin | Autonomy reaches device-measured behaviour (d=0.29) but the two resistance-training choice trials moved autonomy and **not** enjoyment. Self-selected *load* has a measured price: 53% of 1RM |
 | [`indirect-only-volume-and-the-coverage-floor`](references/indirect-only-volume-and-the-coverage-floor.md) | contested | Starving a muscle is cheap and contested where compounds cover it, expensive where nothing does. That asymmetry, not a threshold, says which exclusions cost something |
+| [`progression-and-periodization-for-hypertrophy`](references/progression-and-periodization-for-hypertrophy.md) | contested | **Do not build periodization** — null across 4 reviews, and every positive result is a strength result. But progression itself got stronger: a within-subject trial roughly doubled growth. Stalls and deloads are convention, not findings |
+| [`volume-progression-across-a-block`](references/volume-progression-across-a-block.md) | contested | Adding sets failed in two trials that both started above 20 weekly sets. At `TD-014`'s 6.0 we are far below that, on the steepest part of the curve — defensible here, indefensible at 22 |
+| [`inferring-proximity-to-failure-from-logged-sets`](references/inferring-proximity-to-failure-from-logged-sets.md) | thin | RIR **cannot** be recovered from weight and reps; device-free inference is off by 3-6 reps. Self-report is accurate to ~1 rep, and experience does not affect it. Asking beats inferring |
 
 ### Decisions
 
