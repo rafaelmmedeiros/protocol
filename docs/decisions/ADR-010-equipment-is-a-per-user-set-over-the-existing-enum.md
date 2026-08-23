@@ -1,7 +1,7 @@
 ---
 id: ADR-010
 title: Equipment availability is a per-user set over the enum the catalogue already uses
-status: active
+status: superseded-by ADR-013
 binds: [backend, frontend]
 decided: 2026-08-23
 ---

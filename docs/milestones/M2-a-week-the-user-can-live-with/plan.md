@@ -66,35 +66,40 @@ a programme that is worse for it, and what the generator does at that line.
 
 ### S2.2 — Available equipment
 
-**Description:** The user's gym as a set over the enum the catalogue already carries, defaulting
-to what `TD-004` assumed so a user who never opens the screen behaves exactly as in `M1`.
+**Description:** What each exercise requires, what the user owns, and the subset check between
+them. Defaults to `TD-004`'s assumed gym so a user who never opens the screen behaves exactly
+as in `M1`.
 
 **Technical actions:**
 
-1. Add the equipment set to the training profile as its own entity or column set (per
-   `ADR-010`)
-2. Default a new user's set to `TD-004`'s assumed gym, so the assumption becomes a default
-   rather than disappearing (per `ADR-010`)
-3. Add the migration (standard 10 — forward-only)
-4. Filter catalogue selection in `WeekGenerator` by the set, leaving the rest of selection
-   untouched (per `ADR-010`)
-5. Surface a muscle the equipment set cannot train at all through the existing
+1. Add the `EquipmentItem` vocabulary, granular enough to name an individual machine rather
+   than a class of them (per `ADR-013`)
+2. Add `exercise_requirements` as a relation, and curate the requirement set for all 36
+   catalogue rows — a bench press needs a barbell *and* a bench (per `ADR-013`)
+3. Add the items a user owns, defaulting to `TD-004`'s gym expressed as items (per `ADR-013`)
+4. Add the migration (standard 10 — forward-only)
+5. Filter selection in `WeekGenerator` to exercises whose requirements are a **subset** of what
+   the user owns, leaving the rest of selection untouched (per `ADR-013`)
+6. Surface a muscle the owned items cannot train at all through the existing
    `UncoveredMuscles` channel rather than a new one (`TD-008`)
 
 **Tests:**
 
 | Artifact | Layer | Test file |
 |----------|-------|-----------|
-| Equipment filtering | Unit: a set without cables never yields a cable exercise; the `TD-004` default reproduces `M1`'s week exactly | `Protocol.Api.Tests.Unit/Training/EquipmentFilterTests.cs` |
+| Requirement matching | Unit: an exercise needing a bench is not offered to a user with a barbell and a rack; the `TD-004` default reproduces `M1`'s week exactly | `Protocol.Api.Tests.Unit/Training/EquipmentFilterTests.cs` |
+| The home gym | Unit: one barbell, one bench, one rack still produces a week that meets the floor, or names what it cannot cover | same file |
+| Catalogue integrity | Integration: every seeded exercise has at least one requirement, and none requires an item outside the vocabulary | `Protocol.Api.Tests.Integration/Training/ExerciseCatalogueTests.cs` |
 | Equipment endpoints | Integration: round-trips, 401 unauthenticated, a new user starts with the default set | `Protocol.Api.Tests.Integration/Training/EquipmentEndpointsTests.cs` |
 
 **Depends on:** none
 
 **Acceptance criteria:**
 
-- A user whose set matches `TD-004` gets byte-identical weeks to `M1`, proven by comparing
-  generated content.
-- A machine-only exercise never appears for a user without machines.
+- A user whose owned items match `TD-004` gets byte-identical weeks to `M1`, proven by
+  comparing generated content.
+- An exercise whose requirements are not fully owned is never prescribed — including one whose
+  *primary* implement is owned but whose bench, rack or station is not.
 
 ---
 
@@ -257,12 +262,22 @@ that `references/cold-start-first-block.md` says decides retention.
 
 | Table | Holds | Notes |
 |-------|-------|-------|
-| `user_equipment` | the set a user has | one row per user per `Equipment` value; absent means the `TD-004` default |
+| `exercise_requirements` | what an exercise needs to be performed at all | one row per exercise per `EquipmentItem`; a bench press requires a barbell **and** a bench (`ADR-013`) |
+| `user_equipment` | the items a user owns | one row per user per `EquipmentItem`; no rows means the `TD-004` default |
 | `exercise_exclusions` | "never prescribe this" | user plus our exercise key (standard 8) |
 | `preferred_variants` | "for this pattern, this row" | user, `movement_pattern`, our exercise key |
 
+An exercise is performable when its requirements are a subset of the user's items. That is a
+different question from `exercises.equipment`, which stays exactly as `TD-005` defined it — the
+implement that *discriminates a variant*, and the scope `preference_rank` is ordered within.
+Conflating the two is what `ADR-010` got wrong.
+
 No new column on `exercises`: substitution candidates come from `movement_pattern` plus the
 `primary` muscle, both of which `S1.6` already stores (`ADR-012`).
+
+Loadable ranges — which plates, which dumbbells, which bar lengths — are deliberately absent.
+They answer "what weight can this person make", which nothing in `M1` or `M2` prescribes
+(`ADR-013`, option C).
 
 ### API contracts
 
@@ -277,7 +292,8 @@ No new column on `exercises`: substitution candidates come from `movement_patter
 
 | Code | HTTP | Trigger |
 |------|------|---------|
-| `EquipmentSetEmpty` | 400 | a set with nothing in it |
+| `EquipmentSetEmpty` | 400 | owning nothing at all — a gym with no items cannot be programmed for |
+| `UnknownEquipmentItem` | 400 | an item outside the `EquipmentItem` vocabulary |
 | `ExerciseNotFound` | 404 | excluding or preferring an exercise that is not ours |
 | `NotACandidate` | 400 | substituting for an exercise that does not train the same thing |
 | `PrescriptionNotFound` | 404 | substituting a slot that is not in the current week |
