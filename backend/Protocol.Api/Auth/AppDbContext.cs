@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Protocol.Api.Training;
 
 namespace Protocol.Api.Auth;
 
@@ -10,4 +11,44 @@ namespace Protocol.Api.Auth;
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     : IdentityDbContext<AppUser>(options)
 {
+    public DbSet<Exercise> Exercises => Set<Exercise>();
+
+    protected override void OnModelCreating(ModelBuilder builder)
+    {
+        base.OnModelCreating(builder);
+
+        builder.Entity<Exercise>(exercise =>
+        {
+            exercise.ToTable("exercises");
+            exercise.HasKey(e => e.Id);
+
+            // Hevy's identifier lives beside ours, never as the key (root standard 8). Unique
+            // because one Hevy template maps to exactly one of our rows -- that is what makes
+            // the export a lookup rather than a reconciliation (ADR-002).
+            exercise.Property(e => e.ExternalTemplateId).IsRequired().HasMaxLength(64);
+            exercise.HasIndex(e => e.ExternalTemplateId).IsUnique();
+
+            exercise.Property(e => e.Title).IsRequired().HasMaxLength(200);
+
+            // Enums are stored as text, not as ordinals. An ordinal silently changes meaning
+            // when a value is inserted into the enum, and training history is append-only
+            // (root standard 7) -- a week generated last month must still read correctly.
+            exercise.Property(e => e.MovementPattern).HasConversion<string>().IsRequired().HasMaxLength(32);
+            exercise.Property(e => e.Mechanic).HasConversion<string>().IsRequired().HasMaxLength(16);
+            exercise.Property(e => e.Equipment).HasConversion<string>().IsRequired().HasMaxLength(32);
+            exercise.Property(e => e.OrderClass).HasConversion<string>().IsRequired().HasMaxLength(32);
+            exercise.Property(e => e.Laterality).HasConversion<string>().IsRequired().HasMaxLength(16);
+
+            exercise.Property(e => e.PreferenceRank).IsRequired();
+
+            exercise.OwnsMany(e => e.Muscles, muscle =>
+            {
+                muscle.ToTable("exercise_muscles");
+                muscle.WithOwner().HasForeignKey(m => m.ExerciseId);
+                muscle.Property(m => m.MuscleGroup).HasConversion<string>().IsRequired().HasMaxLength(32);
+                muscle.Property(m => m.Role).HasConversion<string>().IsRequired().HasMaxLength(16);
+                muscle.HasKey(m => new { m.ExerciseId, m.MuscleGroup });
+            });
+        });
+    }
 }

@@ -11,6 +11,7 @@ Protocol.slnx                      the solution (.NET 10 emits .slnx, not .sln)
 Protocol.Api/
   Program.cs                       composition root: CORS, Identity, cookie, health, endpoints
   Auth/                            AppUser, AppDbContext, AuthEndpoints, DatabaseMigrator
+  Training/                        the domain: exercise catalogue and its vocabulary
   Migrations/                      EF Core migrations, forward-only
   appsettings.json                 defaults; every value is overridable by environment
 Protocol.Api.Tests.Unit/           xUnit, no I/O
@@ -70,3 +71,8 @@ substitute hides.
 
 Assert through the API, not against the database. A test that reads tables couples itself to
 the schema and fails on migrations that broke nothing.
+
+The one standing exception is seeded reference data with no endpoint — `ExerciseCatalogueTests`
+reads the context directly, because what it asserts *is* the seed contract, which is exactly
+what should fail when it stops holding. Give a test that reads tables a comment saying why the
+rule does not apply to it, or it reads as one that forgot the rule.

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Protocol.Api.Auth;
+using Protocol.Api.Training;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -49,6 +50,8 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 builder.Services.AddHostedService<DatabaseMigrator>();
+// Registration order is start order, and there is no table to seed until the migrator has run.
+builder.Services.AddHostedService<ExerciseCatalogueSeeder>();
 
 var app = builder.Build();
 
