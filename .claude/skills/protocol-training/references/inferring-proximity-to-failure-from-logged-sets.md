@@ -90,5 +90,9 @@ measure (velocity devices). The one large-scale log-mining paper found depends o
   ambiguous.** If it ships, the record must say it acts on **completion**, not on effort.
 - **It argues against building any velocity or RIR-estimation feature.** The accurate method
   needs hardware; the hardware-free methods are off by three to six repetitions.
-- **The flat-sequence heuristic is the only thing here worth prototyping**, and only as a
-  low-confidence flag — "these sets look easy" — never as an input to arithmetic.
+- **The flat-sequence heuristic was the only thing here worth prototyping**, as a low-confidence
+  flag — "these sets look easy" — never as an input to arithmetic. **That suggestion is withdrawn
+  by `references/separating-execution-modes-from-a-bare-log.md`**, which adds two confounders this
+  note did not see: a fatigue-resistant muscle produces a flat sequence under constant effort, and
+  so does an exercise placed late in a session (Simao 2012). The flag cannot see either, so its
+  false-positive rate is unbounded on back and shoulder work. Nothing else in this note changes.
