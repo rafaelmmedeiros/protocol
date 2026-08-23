@@ -12,6 +12,7 @@ Protocol.Api/
   Program.cs                       composition root: CORS, Identity, cookie, health, endpoints
   Auth/                            AppUser, AppDbContext, AuthEndpoints, DatabaseMigrator
   Training/                        the domain: catalogue, profile, equipment, generator, weeks
+  Hevy/                            the outbound boundary: client, key protection, connection
   Migrations/                      EF Core migrations, forward-only
   appsettings.json                 defaults; every value is overridable by environment
 Protocol.Api.Tests.Unit/           xUnit, no I/O
@@ -59,9 +60,17 @@ docker compose -f docker-compose.test.yml run --rm --build backend-tests   # fro
 - **Configuration is overridable by environment.** `appsettings.json` holds defaults only;
   compose passes `ConnectionStrings__Postgres` and `Frontend__Origin`. No credential is ever
   committed.
-- **The Hevy integration will live here**, as an ordinary outbound HTTP client. The MCP server
+- **The Hevy integration lives in `Hevy/`**, as an ordinary outbound HTTP client. The MCP server
   under `mcps/hevy` is exploration tooling for a session and must never be part of a request
   path.
+- **`IHevyClient` is the only way out.** Every call to Hevy goes through it, which is what keeps
+  their shape out of `Training/` (root standard 17) and what lets the suites substitute the whole
+  service. `ApiFactory` replaces it for every integration test, so no suite can reach
+  `api.hevyapp.com` even by accident.
+- **The Data Protection key ring is persisted to the database**, not to the container's
+  filesystem, and the application name is pinned. Both are load-bearing: an ephemeral ring or a
+  name derived from the content root would leave every stored Hevy key silently undecryptable
+  after a restart (`ADR-014`).
 
 ## Testing
 

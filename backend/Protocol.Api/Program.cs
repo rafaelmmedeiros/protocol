@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Protocol.Api.Auth;
+using Protocol.Api.Hevy;
 using Protocol.Api.Training;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +19,23 @@ builder.Services.AddCors(options => options.AddPolicy(FrontendCors, policy => po
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
+
+// The key ring is persisted to the database, not to the container's filesystem, which is
+// ephemeral. Without this every stored Hevy key becomes undecryptable at the next restart, and
+// nothing announces it (ADR-014). The application name is pinned because Data Protection
+// otherwise derives it from the content root, which differs between the container and a test
+// host -- and a derived name that changes is the same failure wearing a different hat.
+builder.Services.AddDataProtection()
+    .SetApplicationName("protocol")
+    .PersistKeysToDbContext<AppDbContext>();
+
+// Hevy is reached as an ordinary outbound HTTP client from this tier (backend/CLAUDE.md); the
+// MCP server under mcps/hevy is exploration tooling and is never in a request path.
+builder.Services.AddHttpClient<IHevyClient, HevyClient>(client =>
+    client.BaseAddress = new Uri(builder.Configuration["Hevy:BaseUrl"] ?? "https://api.hevyapp.com/v1/"));
+
+builder.Services.AddSingleton<IHevyBackoff, ExponentialHevyBackoff>();
+builder.Services.AddScoped<HevyKeyProtector>();
 
 builder.Services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<AppUser>()
@@ -68,6 +87,7 @@ app.MapHealthChecks("/health");
 app.MapGroup("/auth").MapIdentityApi<AppUser>().WithTags("Auth");
 app.MapAuthEndpoints();
 app.MapTrainingEndpoints();
+app.MapHevyEndpoints();
 
 app.Run();
 

@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Protocol.Api.Hevy;
 using Protocol.Api.Training;
 
 namespace Protocol.Api.Auth;
@@ -9,8 +11,22 @@ namespace Protocol.Api.Auth;
 /// added here as features land.
 /// </summary>
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
-    : IdentityDbContext<AppUser>(options)
+    : IdentityDbContext<AppUser>(options), IDataProtectionKeyContext
 {
+    /// <summary>
+    /// The Data Protection key ring, kept in the database rather than on disk.
+    /// <para>
+    /// ADR-014 names losing this as the trap: the container's default key ring is ephemeral, so
+    /// a restart would leave every stored Hevy key silently undecryptable. Keeping it here puts
+    /// the keys in the same place as the ciphertext they open, so a database restored from
+    /// backup brings its own keys with it — a filesystem ring and a database can drift apart,
+    /// and the only symptom is that nothing decrypts.
+    /// </para>
+    /// </summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+
+    public DbSet<HevyConnection> HevyConnections => Set<HevyConnection>();
+
     public DbSet<Exercise> Exercises => Set<Exercise>();
 
     public DbSet<TrainingProfile> TrainingProfiles => Set<TrainingProfile>();
@@ -107,6 +123,25 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             item.Property(i => i.Item).HasConversion<string>().IsRequired().HasMaxLength(32);
             // One row per user per item, so owning a thing twice is impossible.
             item.HasIndex(i => new { i.UserId, i.Item }).IsUnique();
+        });
+
+        builder.Entity<HevyConnection>(connection =>
+        {
+            connection.ToTable("hevy_connections");
+            connection.HasKey(c => c.Id);
+
+            // One connection per user, enforced by the database rather than by the endpoint.
+            connection.Property(c => c.UserId).IsRequired().HasMaxLength(450);
+            connection.HasIndex(c => c.UserId).IsUnique();
+
+            // Ciphertext, as text. Data Protection's string overload already returns base64url,
+            // so storing bytes would mean decoding on the way in and encoding on the way out for
+            // no gain.
+            connection.Property(c => c.ProtectedApiKey).IsRequired();
+
+            // timestamptz, both of them. UTC in, UTC out (root standard 5).
+            connection.Property(c => c.ConnectedAt).IsRequired();
+            connection.Property(c => c.SyncCursor);
         });
 
         builder.Entity<TrainingProfile>(profile =>

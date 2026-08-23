@@ -341,11 +341,18 @@ side by side.
 | generated week | `hevy_routine_folder_id` | number, nullable | `POST /v1/routine_folders` |
 | planned session | `hevy_routine_id` | string, nullable | `POST /v1/routines` |
 | imported workout | `hevy_workout_id` | string | events feed |
-| user | `hevy_api_key_encrypted` | bytes, nullable | the user |
-| user | `hevy_sync_cursor` | timestamptz, nullable | the events feed |
+| `hevy_connections` row | `ProtectedApiKey` | text | the user |
+| `hevy_connections` row | `SyncCursor` | timestamptz, nullable | the events feed |
 
-Every one of these is nullable and legitimately so: a week that was never pushed has no folder, and
-a user who never connected has no key.
+Every column on our own records is nullable and legitimately so: a week that was never pushed has
+no folder.
+
+**The connection is its own table, not two columns on the user** — corrected here in `S3.1`, where
+building it made the reason obvious. A user who never connected has no row at all rather than a row
+full of nulls, the cursor lives beside the key it is meaningless without, and disconnecting one day
+is a delete rather than three nullifications. The key is **text** rather than bytes because Data
+Protection's string API already returns base64url; storing bytes would mean decoding in and
+encoding out for nothing.
 
 **Error codes** (standard 3 — codes, never display text):
 
@@ -354,7 +361,7 @@ a user who never connected has no key.
 | `HevyKeyInvalid` | the key was rejected by Hevy at save time |
 | `HevyNotConnected` | an operation needing a key ran without one |
 | `HevyUnreachable` | the API could not be reached or returned a server error |
-| `HevyRateLimited` | the API refused for rate reasons — shape settled by the open question |
+| `HevyRateLimited` | the API refused for rate reasons; retried with backoff first (`ADR-021`) |
 | `WeekNotPushed` | a sync-dependent operation ran against a week never pushed |
 | `ExerciseNotMappable` | a prescribed exercise has no external key and cannot be pushed |
 | `PushedRoutineMissing` | a `PUT` target no longer exists in Hevy |
