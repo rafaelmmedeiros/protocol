@@ -33,7 +33,41 @@ plan's dependency order.
     would be violated.
 
 ### S2.1 — Research: what a preference may override
-- **Status:** pending
+- **Status:** completed
+- **Tests:** no tests — this step produces records, not code
+- **Produced:** `references/self-selected-exercise-and-autonomy.md` (thin),
+  `references/indirect-only-volume-and-the-coverage-floor.md` (contested), `TD-016`
+- **Observations:**
+  - **The starvation problem is much narrower than the plan assumed, and that is the finding
+    that shapes `S2.3`.** For muscles compounds cover, the evidence that indirect-only volume is
+    worse is *contested and possibly absent* — a 7-study meta-analysis finds a trivial estimate,
+    and a trained-men trial found nothing. The cost concentrates on **side delts, rear delts and
+    calves**, which no compound covers. Excluding curls is cheap; excluding lateral raises is
+    not. `S2.3` should not treat all exclusions as equally dangerous.
+  - **"Choice makes it more fun" is not supported and the corpus now says so.** Both
+    resistance-training choice trials moved *perceived autonomy* hard (3.05 vs 2.19, p<0.001)
+    and left enjoyment flat (p=0.72 and p=0.40, with Bayes factors favouring the null). The case
+    for honouring preference is that it costs nothing measurable — not that it is more
+    enjoyable.
+  - **Self-selected *load* has a measured price and self-selected *exercise* does not.** Left to
+    choose, trainees pick 53% of 1RM. That is the concrete reason `TD-016` stops preference at
+    the exercise and keeps `TD-009`/`TD-010`/`TD-011` prescribed.
+  - **Refusing an exclusion was rejected on auditability, not on training grounds** — and that
+    is the strongest argument in the record. A refused exclusion becomes an **unlogged skip**,
+    converting a shortfall the system can count into one it cannot, and root standard 7 then has
+    history recording a plan nobody executed.
+  - **No threshold on how much may be excluded, deliberately.** "Fraction of catalogue excluded"
+    carries no information — half a catalogue is free if it is redundant variants and fatal if
+    it is the only three rows loading rear delts. The quantity that carries information is one
+    the generator already computes.
+  - **A refinement to `TD-004` and `TD-015` worth knowing before `M3`:** both record that
+    deriving preference beats asking, on evidence about *intentions*. An exclusion is not an
+    intention — it is a report of past affect, which is the one construct with a demonstrated
+    forward link to behaviour. **A stated exclusion is more trustworthy than a stated ranking**,
+    and the corpus's scepticism about asking should not be applied to both equally.
+  - Provenance: the single-vs-multi-joint meta-analysis effect size and de Franca's percentages
+    are secondary-sourced (publishers returned 402/403), as is Ntoumanis' device-assessed
+    figure. All flagged in-note.
 
 ### S2.2 — Available equipment
 - **Status:** pending

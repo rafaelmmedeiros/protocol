@@ -49,6 +49,8 @@ the table, then only the notes its question actually touches.
 | [`exercise-variant-and-implementation`](references/exercise-variant-and-implementation.md) | contested | Four within-movement trials null for growth, one with BF<0.01 in trained lifters. "Constant tension" was tested directly and did not win. The muscle map changes by variant, so it cannot live on a parent |
 | [`load-increment-granularity-and-progression`](references/load-increment-granularity-and-progression.md) | thin | The smallest load step varies 10x and breaks ACSM's 2-10% rule on light isolation work. Rep progression is non-inferior. **Load does not transfer across variants; hypertrophy does** |
 | [`ranking-exercise-variants`](references/ranking-exercise-variants.md) | thin | A general variant ranking survives only as performability, never growth. Personal fit is an adherence finding, and Damas 2019 puts the variance in the person, not the person-by-exercise pairing |
+| [`self-selected-exercise-and-autonomy`](references/self-selected-exercise-and-autonomy.md) | thin | Autonomy reaches device-measured behaviour (d=0.29) but the two resistance-training choice trials moved autonomy and **not** enjoyment. Self-selected *load* has a measured price: 53% of 1RM |
+| [`indirect-only-volume-and-the-coverage-floor`](references/indirect-only-volume-and-the-coverage-floor.md) | contested | Starving a muscle is cheap and contested where compounds cover it, expensive where nothing does. That asymmetry, not a threshold, says which exclusions cost something |
 
 ### Decisions
 
@@ -69,6 +71,7 @@ the table, then only the notes its question actually touches.
 | [`TD-013`](decisions/TD-013-cut-ordering.md) | Cut ladder: rest → consolidate → sets → drop slots → refuse. Frequency is never cut; supersets declined for `M1` | active | `cutting-training-volume-under-a-time-constraint` (thin), `session-time-cost-of-a-set` (thin) |
 | [`TD-014`](decisions/TD-014-weekly-volume-target-revised.md) | **6.0** fractional sets per muscle per week, superseding `TD-008`'s 8.0 — a target every supported configuration can actually reach | active | `weekly-set-volume-for-hypertrophy` (settled), `session-time-cost-of-a-set` (thin), `cold-start-first-block` (thin) |
 | [`TD-015`](decisions/TD-015-catalogue-stays-flat.md) | Catalogue stays flat — a variant is a row, not a child. `preference_rank` claims performability, never growth. `load_increment_kg` deferred with its reason | active | `exercise-variant-and-implementation` (contested), `ranking-exercise-variants` (thin), `load-increment-granularity-and-progression` (thin) |
+| [`TD-016`](decisions/TD-016-what-a-preference-may-override.md) | A preference filters and reorders the draw pool and never touches the volume arithmetic. An exclusion is honoured unconditionally and the shortfall is surfaced per muscle. No threshold on how much may be excluded | active | `self-selected-exercise-and-autonomy` (thin), `indirect-only-volume-and-the-coverage-floor` (contested), `ranking-exercise-variants` (thin) |
 
 ## Consulting
 
