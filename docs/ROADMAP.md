@@ -172,26 +172,32 @@ assumed:
   routine id per session, a folder id per week, as external columns (standard 8). Nothing in
   `M1` writes them, and adding them later is a forward-only migration over rows that will
   legitimately have nulls.
-- **Whether that identifier is enough is untested, and the first thing to find out.** A logged
-  workout carries `routine_id`, and Hevy therefore models the link. An earlier note here claimed
-  the field was unreliable because an observed session had it `null` — **that claimed more than
-  the data supported**: the account holds no routines at all, so a null is exactly what a
-  workout that came from no routine should have. Whether starting a workout *from* a routine
-  populates it is a one-experiment question and it decides the whole design of sync. Run it
-  before choosing a fallback.
-- **If it does not populate, the fallback is a decision and not an implementation.** A routine
-  and a workout are separate entities with separate identifiers, so an id of ours has to travel
-  in a field Hevy does expose — `description` in preference to `title`, since a title is what
-  the user reads in the gym and is the field they are most likely to edit. Per-exercise `notes`
-  is a third. All three are user-editable, which makes any of them a weaker key than
-  `routine_id` and is why the experiment comes first. Date plus the exercise fingerprint is the
-  last resort and is lossy.
+- **`routine_id` populates, and it was tested rather than assumed.** A routine was created
+  through the API, trained from, and the resulting workout came back carrying that routine's
+  identifier. So the association is Hevy's own and the match is a lookup — **nothing of ours
+  needs to ride in a title or a description**, and the fallback options this note previously
+  worried about are moot. An earlier version claimed the field was unreliable because an
+  observed workout had it `null`; the account held no routines at all, so that observation
+  supported nothing.
+- **A routine's own notes do not survive into the workout.** The same experiment sent a note on
+  the routine's exercise and the logged workout came back with it empty. If per-exercise
+  metadata is ever needed, that is not the channel.
+- **A workout inherits the routine's title.** Useful as a second confirmation, never as the key.
+- **The fallback still has to exist, for workouts that came from no routine.** Training without
+  starting from the routine is ordinary, and that history still matters — but only at the
+  exercise level, which is where progression reads anyway.
 - **Sets carry a `type`, and `warmup` is one of its values.** Counting warm-up sets as
   fractional volume would inflate every number the system produces (`TD-006`). The import
   filters on this or it is wrong from the first row.
-- **A set carries `rpe`.** It is null in the observed data, but it is the channel that would
-  close the gap `TD-010` names as the largest in the whole prescription: a prescribed RIR is not
-  necessarily the RIR performed, and nothing observes the set.
+- **A set carries `rpe`, and this account fills it.** The experiment above came back with
+  `rpe: 9`. That matters more than it looks: `TD-010` names the gap between prescribed and
+  performed RIR as the largest in the whole prescription, and
+  `references/inferring-proximity-to-failure-from-logged-sets.md` establishes it **cannot** be
+  recovered from weight and repetitions — device-free inference is off by three to six
+  repetitions — while self-report lands within about one. So the gap closes by a field, the
+  field already exists in Hevy, and the user already uses it. Whether to depend on it is a
+  decision: it is optional, so a partially-filled history is the realistic case, and depending on
+  it also trades against `TD-001`'s "observe, do not ask" posture.
 - **Logged exercises will fall outside the catalogue and outside the assumed gym.** The same
   account logs `Iso-Lateral Row (Machine)`, which `TD-004` excludes by assumption. That is the
   loud failure `TD-004` chose over a silent one, and it is the signal that deriving equipment
