@@ -113,35 +113,76 @@ may and may not override traces to a `TD-###`.
   gym; see the note under `M3`.
 - Writing anything back into Hevy.
 
-### M3 — Programming from what actually happened
+### M3 — Closing the loop with Hevy
 
 **Depends on:** `M2`.
+
+The milestone where the week stops being a screen and becomes something trained from. The system
+writes the generated week into Hevy as routines, the user trains from them in the gym, and a sync
+brings back what actually happened — matched to the session that prescribed it.
+
+**Reading and writing ship together, and that is a correction.** An earlier version of this
+milestone excluded writing. A live experiment then established that the association between a
+routine and the workout it produced is **Hevy's own**, carried on `routine_id`. So an import that
+was never preceded by a push can only match at the level of an exercise, never at the level of a
+prescribed session — which is precisely the comparison the product exists to make. The two halves
+are one loop, and shipping the read half alone would ship the half that cannot be evaluated.
+
+**Capabilities:**
+
+- Connect a Hevy account with a personal API key the system can use and never reveals
+- Push a generated week into Hevy as routines, remembering which routine belongs to which session
+- Import training history out of Hevy, reconciling records that changed upstream
+- Match a logged workout to the session that prescribed it, and read what was performed against
+  what was prescribed
+- Derive the available equipment from what has actually been trained, rather than from a
+  description
+
+**Deliverables:** a signed-in user saves their Hevy key, generates a week, pushes it, trains from
+it in the gym, presses sync, and reads back each session with what was prescribed beside what was
+performed — including the repetitions in reserve they reported, converted inbound by `TD-017`.
+
+**Not in this milestone:**
+
+- Progressing a week into the next one, and prescribing a working load. Both are `M4`, both read
+  the same observed data, and neither is possible before this milestone has produced any.
+- Prescribing effort into Hevy. A routine set has **no `rpe` field** — the API carries it only on
+  a logged workout — so the conversion runs inbound only, and the prescribed reserve reaches the
+  user as displayed text rather than as data.
+
+### M4 — Programming from what actually happened
+
+**Depends on:** `M3`.
 
 The milestone that makes the product worth its name: the system stops programming from what the
 user *said* and starts programming from what they *did*.
 
 **Capabilities:**
 
-- Import training history out of Hevy, reconciling records that changed upstream
+- Prescribe a working load for an exercise from what the user has actually lifted
 - Progress a week into the next one from observed performance rather than from a schedule
-- Derive the available equipment from what has actually been trained, rather than from a
-  description
+- Say why a week differs from the one before it
 
 **Deliverables:** a second generated week differs from the first because of what was logged
 between them, and the reason it differs is readable.
 
-**Not in this milestone:**
+**Why load and progression are one milestone.** They answer the same question — what to lift next
+time — from the same observed data, and neither can be answered about a lifter the system has
+never watched. Prescribing a load before the first sync would be the week-one calibration
+`TD-001` refused, with nothing behind it.
 
-- Writing anything back into Hevy. Reading and writing have different failure modes and are not
-  worth shipping together.
+**Why progression waits for `M3` and did not belong in `M2`.** The scheme is already researched —
+double progression on ACSM's 2-10% rule, with repetition progression where the load increment is
+too coarse, and no load carried across variants (`/protocol-training`,
+`load-increment-granularity-and-progression`). What is missing is not the rule but the input.
+Progressing without observing what was performed is adding sets by calendar, and ACSM's 2026
+overview finds progression is not necessary for benefit at all outside continued long-term
+progress. Blind progression is worse than none.
 
-**Why progression waits for this and not for `M2`.** The scheme is already researched —
-double progression on ACSM's 2-10% rule, with repetition progression where the load increment
-is too coarse, and no load carried across variants
-(`/protocol-training`, `load-increment-granularity-and-progression`). What is missing is not the
-rule but the input. Progressing without observing what was performed is adding sets by
-calendar, and ACSM's 2026 overview finds progression is not necessary for benefit at all
-outside continued long-term progress. Blind progression is worse than none.
+**What this milestone will have to decide and `M3` deliberately does not.** What triggers a step,
+how large it is per `load_increment_kg` (`TD-015` deferred the column and said what would bring
+it), whether a stall or a deload exists at all — and what weight a logged RPE of 6 carries, which
+`TD-017` names as the weakest row in the conversion and leaves open on purpose.
 
 ## The horizon
 
