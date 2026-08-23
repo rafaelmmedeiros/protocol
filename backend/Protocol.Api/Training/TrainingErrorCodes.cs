@@ -19,6 +19,9 @@ public static class TrainingErrorCodes
     /// <summary>Days per week outside the supported range (TD-002).</summary>
     public const string FrequencyOutOfRange = "FrequencyOutOfRange";
 
+    /// <summary>Substituting a slot that is not in the current week.</summary>
+    public const string PrescriptionNotFound = "PrescriptionNotFound";
+
     /// <summary>Excluding or preferring an exercise that is not ours.</summary>
     public const string ExerciseNotFound = "ExerciseNotFound";
 

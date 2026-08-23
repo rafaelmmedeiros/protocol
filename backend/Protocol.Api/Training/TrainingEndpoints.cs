@@ -300,8 +300,218 @@ public static class TrainingEndpoints
             })
             .WithName("GetCurrentTrainingWeek");
 
+        group.MapGet("/weeks/current/prescriptions/{id:guid}/candidates", async (
+                Guid id,
+                ClaimsPrincipal user,
+                AppDbContext db,
+                CancellationToken token) =>
+            {
+                var userId = UserIdOf(user);
+                var week = await CurrentWeekAsync(db, userId, token);
+                var prescription = week?.Sessions
+                    .SelectMany(session => session.Prescriptions)
+                    .SingleOrDefault(p => p.Id == id);
+
+                if (week is null || prescription is null)
+                {
+                    return Results.NotFound(new ApiError(TrainingErrorCodes.PrescriptionNotFound));
+                }
+
+                var candidates = await CandidatesForAsync(db, userId, prescription, token);
+
+                return Results.Ok(candidates
+                    .Select(exercise => new CandidateResponse(
+                        exercise.Id,
+                        exercise.Title,
+                        exercise.ExternalTemplateId,
+                        exercise.Equipment.ToString(),
+                        exercise.OrderClass.ToString()))
+                    .ToList());
+            })
+            .WithName("GetSubstitutionCandidates");
+
+        group.MapPost("/weeks/current/prescriptions/{id:guid}/substitute", async (
+                Guid id,
+                SubstituteRequest request,
+                ClaimsPrincipal user,
+                AppDbContext db,
+                CancellationToken token) =>
+            {
+                var userId = UserIdOf(user);
+                var week = await CurrentWeekAsync(db, userId, token);
+                var prescription = week?.Sessions
+                    .SelectMany(session => session.Prescriptions)
+                    .SingleOrDefault(p => p.Id == id);
+
+                if (week is null || prescription is null)
+                {
+                    return Results.NotFound(new ApiError(TrainingErrorCodes.PrescriptionNotFound));
+                }
+
+                var candidates = await CandidatesForAsync(db, userId, prescription, token);
+                var replacement = candidates.SingleOrDefault(exercise => exercise.Id == request.ExerciseId);
+
+                if (replacement is null)
+                {
+                    return Results.BadRequest(new ApiError(TrainingErrorCodes.NotACandidate));
+                }
+
+                var catalogue = await CatalogueAsync(db, token);
+
+                // A new week with one slot replaced, rather than an edit. The previous week stays
+                // readable because someone may have trained it (ADR-003, ADR-012).
+                var now = DateTimeOffset.UtcNow;
+                var replaced = Substitute(
+                    week,
+                    prescription,
+                    replacement,
+                    new DateTimeOffset(now.Ticks - (now.Ticks % 10), now.Offset),
+                    InferCut(week, catalogue));
+
+                db.GeneratedWeeks.Add(replaced);
+                await db.SaveChangesAsync(token);
+
+                return Results.Ok(GeneratedWeekResponse.From(replaced, [.. catalogue.Values]));
+            })
+            .WithName("SubstitutePrescription");
+
         return app;
     }
+
+    /// <summary>
+    /// What a slot could be swapped for: the same movement, training the same thing, performable
+    /// in this user's gym, and not something they have excluded.
+    /// <para>
+    /// The candidate set needs no column of its own — <c>movement_pattern</c> plus the primary
+    /// muscle already identify it, which is why `TD-015`'s anticipated <c>movement_group</c> tag
+    /// has not been needed (`ADR-012`).
+    /// </para>
+    /// </summary>
+    private static async Task<List<Exercise>> CandidatesForAsync(
+        AppDbContext db,
+        string userId,
+        GeneratedPrescription prescription,
+        CancellationToken token)
+    {
+        var catalogue = await CatalogueAsync(db, token);
+        if (!catalogue.TryGetValue(prescription.ExerciseId, out var current)) return [];
+
+        var owned = await OwnedItemsAsync(db, userId, token);
+        var preferences = await PreferencesOf(db, userId, token);
+        var primary = current.Muscles.Single(muscle => muscle.Role == MuscleRole.Primary).MuscleGroup;
+
+        return
+        [
+            .. catalogue.Values
+                .Where(exercise => exercise.Id != current.Id)
+                .Where(exercise => exercise.MovementPattern == current.MovementPattern)
+                .Where(exercise => exercise.Muscles
+                    .Single(muscle => muscle.Role == MuscleRole.Primary).MuscleGroup == primary)
+                .Where(exercise => !preferences.ExcludedExerciseIds.Contains(exercise.Id))
+                .Where(exercise => exercise.Requirements.All(r => owned.Contains(r.Item)))
+                .OrderBy(exercise => exercise.OrderClass)
+                .ThenBy(exercise => exercise.PreferenceRank)
+                .ThenBy(exercise => exercise.Equipment),
+        ];
+    }
+
+    /// <summary>
+    /// Copies a week, replacing one prescription. The replacement's numbers come from **its own**
+    /// <see cref="OrderClass"/> rather than from the slot it replaces, so swapping a barbell
+    /// press for a dumbbell one changes the repetition range, the proximity to failure and the
+    /// rest along with it (`TD-009`, `TD-010`, `TD-011`, `ADR-012`).
+    /// </summary>
+    private static GeneratedWeek Substitute(
+        GeneratedWeek week,
+        GeneratedPrescription replacedSlot,
+        Exercise replacement,
+        DateTimeOffset generatedAt,
+        CutLevel cut)
+    {
+        var prescription = TrainingPrescription.For(replacement.OrderClass);
+        var sets = cut == CutLevel.RestToFloorAndFewerSets
+            ? TrainingPrescription.ReducedSetsPerSlot   // TD-013
+            : TrainingPrescription.SetsPerSlot;         // TD-008
+        var rest = cut == CutLevel.None
+            ? prescription.RestSeconds                  // TD-011
+            : TrainingPrescription.RestFloorSeconds;    // TD-011, never below
+
+        return new GeneratedWeek
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = week.UserId,
+            WeekStartDate = week.WeekStartDate,
+            GeneratedAt = generatedAt,
+            Goal = week.Goal,
+            DaysPerWeek = week.DaysPerWeek,
+            SessionDurationSeconds = week.SessionDurationSeconds,
+            Sessions =
+            [
+                .. week.Sessions.OrderBy(session => session.Position).Select(session => new GeneratedSession
+                {
+                    Id = Guid.CreateVersion7(),
+                    Position = session.Position,
+                    Day = session.Day,
+                    Kind = session.Kind,
+                    Prescriptions =
+                    [
+                        .. session.Prescriptions.OrderBy(p => p.Position).Select(p => new GeneratedPrescription
+                        {
+                            Id = Guid.CreateVersion7(),
+                            Position = p.Position,
+                            ExerciseId = p.Id == replacedSlot.Id ? replacement.Id : p.ExerciseId,
+                            Sets = p.Id == replacedSlot.Id ? sets : p.Sets,
+                            MinReps = p.Id == replacedSlot.Id ? prescription.MinReps : p.MinReps,
+                            MaxReps = p.Id == replacedSlot.Id ? prescription.MaxReps : p.MaxReps,
+                            RepsInReserve = p.Id == replacedSlot.Id ? prescription.RepsInReserve : p.RepsInReserve,
+                            RestSeconds = p.Id == replacedSlot.Id ? rest : p.RestSeconds,
+                        }),
+                    ],
+                }),
+            ],
+        };
+    }
+
+    /// <summary>
+    /// How far down `TD-013`'s ladder the stored week was generated, read back from what it
+    /// contains. A substitution has to land on the same rung, or one slot would rest three
+    /// minutes in a week where every other slot rests ninety seconds.
+    /// </summary>
+    private static CutLevel InferCut(GeneratedWeek week, IReadOnlyDictionary<Guid, Exercise> catalogue)
+    {
+        var slots = week.Sessions.SelectMany(session => session.Prescriptions).ToList();
+        if (slots.Count == 0) return CutLevel.None;
+
+        if (slots.Any(slot => slot.Sets < TrainingPrescription.SetsPerSlot))
+        {
+            return CutLevel.RestToFloorAndFewerSets;
+        }
+
+        var restWasCut = slots.Any(slot =>
+            catalogue.TryGetValue(slot.ExerciseId, out var exercise)
+            && slot.RestSeconds < TrainingPrescription.For(exercise.OrderClass).RestSeconds);
+
+        return restWasCut ? CutLevel.RestToFloor : CutLevel.None;
+    }
+
+    private static Task<GeneratedWeek?> CurrentWeekAsync(
+        AppDbContext db,
+        string userId,
+        CancellationToken token) =>
+        db.GeneratedWeeks
+            .Include(week => week.Sessions).ThenInclude(session => session.Prescriptions)
+            .Where(week => week.UserId == userId)
+            .OrderByDescending(week => week.GeneratedAt)
+            .FirstOrDefaultAsync(token);
+
+    private static async Task<Dictionary<Guid, Exercise>> CatalogueAsync(
+        AppDbContext db,
+        CancellationToken token) =>
+        await db.Exercises
+            .Include(exercise => exercise.Muscles)
+            .Include(exercise => exercise.Requirements)
+            .AsNoTracking()
+            .ToDictionaryAsync(exercise => exercise.Id, token);
 
     /// <summary>
     /// Whether a freshly generated plan is the week already stored.
@@ -463,8 +673,55 @@ public sealed record GeneratedWeekResponse(
     int DaysPerWeek,
     int SessionDurationSeconds,
     int EstimatedSeconds,
+    IReadOnlyList<MuscleCoverageResponse> Shortfalls,
     IReadOnlyList<GeneratedSessionResponse> Sessions)
 {
+    /// <summary>
+    /// Per-muscle fractional volume, recomputed from the prescriptions actually stored.
+    /// <para>
+    /// Not a column: it is derivable, and a derived column can disagree with its own source. It
+    /// is recomputed rather than inherited so that a substitution which starves a muscle says so
+    /// on the week that starved it, not on the one before (`ADR-012`, `TD-008`).
+    /// </para>
+    /// </summary>
+    internal static IReadOnlyList<MuscleCoverageResponse> ShortfallsOf(
+        GeneratedWeek week,
+        IReadOnlyDictionary<Guid, Exercise> catalogue)
+    {
+        var volumes = new Dictionary<MuscleGroup, decimal>();
+
+        foreach (var prescription in week.Sessions.SelectMany(session => session.Prescriptions))
+        {
+            if (!catalogue.TryGetValue(prescription.ExerciseId, out var exercise)) continue;
+
+            foreach (var muscle in exercise.Muscles)
+            {
+                var credit = muscle.Role == MuscleRole.Primary
+                    ? TrainingPrescription.PrimarySetCredit    // TD-006
+                    : TrainingPrescription.SecondarySetCredit; // TD-006
+
+                volumes[muscle.MuscleGroup] =
+                    volumes.GetValueOrDefault(muscle.MuscleGroup) + (prescription.Sets * credit);
+            }
+        }
+
+        // Every muscle the catalogue can train, so a muscle at zero is reported as zero rather
+        // than by being absent from the list.
+        return
+        [
+            .. catalogue.Values
+                .Select(exercise => exercise.Muscles.Single(m => m.Role == MuscleRole.Primary).MuscleGroup)
+                .Distinct()
+                .Select(muscle => (Muscle: muscle, Sets: volumes.GetValueOrDefault(muscle)))
+                .Where(entry => entry.Sets < TrainingPrescription.WeeklyFloorFractionalSets) // TD-008
+                .OrderBy(entry => entry.Muscle)
+                .Select(entry => new MuscleCoverageResponse(
+                    entry.Muscle.ToString(),
+                    entry.Sets,
+                    TrainingPrescription.WeeklyTargetFractionalSets)),
+        ];
+    }
+
     /// <summary>
     /// A session's expected duration: its warm-up, plus what each slot costs in sets, rest and
     /// the transition to the next exercise (`TD-012`). Computed from the prescriptions actually
@@ -490,6 +747,7 @@ public sealed record GeneratedWeekResponse(
             week.DaysPerWeek,
             week.SessionDurationSeconds,
             week.Sessions.Sum(EstimatedSecondsFor),
+            ShortfallsOf(week, titles),
             [
                 .. week.Sessions
                     .OrderBy(session => session.Position)
@@ -584,3 +842,20 @@ public sealed record PreferencesRequest(
     IReadOnlyList<PreferredVariantRequest>? PreferredVariants);
 
 public sealed record PreferredVariantRequest(string MovementPattern, Guid ExerciseId);
+
+/// <summary>
+/// A muscle that finished the week below TD-008's floor, with the number. "Rear delts reach 2.0
+/// of 6.0" is arithmetic and defensible; "your programme is inadequate" is a growth claim with
+/// nothing behind it (TD-015, TD-016).
+/// </summary>
+public sealed record MuscleCoverageResponse(string MuscleGroup, decimal FractionalSets, decimal Target);
+
+/// <summary>An exercise a slot could be swapped for.</summary>
+public sealed record CandidateResponse(
+    Guid ExerciseId,
+    string Title,
+    string ExternalTemplateId,
+    string Equipment,
+    string OrderClass);
+
+public sealed record SubstituteRequest(Guid ExerciseId);

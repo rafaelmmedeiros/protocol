@@ -159,7 +159,30 @@ plan's dependency order.
     predicted this would look like a bug; it is now pinned by two tests so nobody "fixes" it.
 
 ### S2.4 — Substituting one exercise
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 9 integration (`SubstitutionTests`). Suites green: 84 unit, 61 integration,
+  typecheck clean.
+- **Produced:** `GET .../prescriptions/{id}/candidates`, `POST .../substitute`, the shortfall
+  finally reaching the API response.
+- **Observations:**
+  - **The shortfall was being computed and thrown away.** `S1.9` never put it in the response,
+    so every week since has silently discarded the one number `TD-008` exists to surface. This
+    step needed it — "recompute rather than inherit" is meaningless if nobody can see it — so
+    `Shortfalls` is now on the week, **recomputed from the stored prescriptions** rather than
+    stored as a column.
+  - **A substitution has to land on the same rung of `TD-013`'s ladder as the week it edits**,
+    or one slot would rest three minutes in a week where everything else rests ninety seconds.
+    The cut level is not stored (`S1.9` declined the column deliberately), so it is **inferred
+    from what the week contains**: fewer sets than `TD-008` prescribes means the sets rung, any
+    rest below its class's prescribed value means the rest rung.
+  - **`TD-015`'s `movement_group` tag is still not needed.** Candidates are exercises sharing
+    `movement_pattern` and the primary muscle, filtered by owned equipment and exclusions —
+    all of it computable from what `S1.6` already stores, exactly as `ADR-012` predicted.
+  - **Slot identifiers are deliberately absent from the week response** and the tests read them
+    from the context. The API addresses a slot by id; the screen never needs one. If `S2.6`
+    turns out to need them, that is a response change, not a model change.
+  - The candidate list is filtered by exclusions too, so an exercise the user refuses is never
+    offered as the fix for one they refused.
 
 ### S2.6 — The equipment and preference screens
 - **Status:** pending
