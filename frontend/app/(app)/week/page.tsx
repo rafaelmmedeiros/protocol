@@ -9,7 +9,9 @@ import { API_URL } from "@/lib/api";
 import { secondsToMinutes, splitDuration } from "@/lib/duration";
 import { getDictionary, getLocale } from "@/lib/i18n";
 import { formatSessionDay } from "@/lib/week";
+import { ComparisonView, type Comparison } from "./comparison";
 import { GenerateForm } from "./generate-form";
+import { LoopControls } from "./loop-controls";
 import { SlotActions, type Candidate } from "./slot-actions";
 
 type Prescription = {
@@ -112,6 +114,13 @@ export default async function WeekPage() {
     ),
   );
 
+  // Both only exist once an account is connected. Read after the week, because the comparison
+  // is keyed to it.
+  const [connection, comparison] = await Promise.all([
+    read<{ connected: boolean }>("/hevy/connection"),
+    read<Comparison>(`/training/weeks/${week.id}/comparison`),
+  ]);
+
   const generatedAt = new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
@@ -131,6 +140,20 @@ export default async function WeekPage() {
           {strings.generatedAt} {generatedAt}
         </p>
       </div>
+
+      {connection?.connected && (
+        <div className="mb-8" data-testid="week-loop">
+          <LoopControls
+            weekId={week.id}
+            strings={{
+              push: dict.hevy.push,
+              pushing: dict.hevy.pushing,
+              sync: dict.hevy.sync,
+              syncing: dict.hevy.syncing,
+            }}
+          />
+        </div>
+      )}
 
       <div className="flex flex-col gap-4" data-testid="week-sessions">
         {week.sessions.map((session) => (
@@ -195,6 +218,39 @@ export default async function WeekPage() {
           </Card>
         ))}
       </div>
+
+      {connection?.connected && comparison && (
+        <ComparisonView
+          comparison={comparison}
+          dayLabels={comparison.sessions.map((session) =>
+            formatSessionDay(week.weekStartDate, session.day, locale),
+          )}
+          strings={{
+            title: dict.hevy.comparisonTitle,
+            lead: dict.hevy.comparisonLead,
+            prescribed: dict.hevy.prescribed,
+            performed: dict.hevy.performed,
+            notPerformed: dict.hevy.notPerformed,
+            noEffortReported: dict.hevy.noEffortReported,
+            outcomes: {
+              InRange: dict.hevy.outcomeInRange,
+              AboveRange: dict.hevy.outcomeAboveRange,
+              BelowRange: dict.hevy.outcomeBelowRange,
+              Mixed: dict.hevy.outcomeMixed,
+              NotPerformed: dict.hevy.notPerformed,
+            },
+            extrasTitle: dict.hevy.extrasTitle,
+            extrasLead: dict.hevy.extrasLead,
+            unboundTitle: dict.hevy.unboundTitle,
+            unboundLead: dict.hevy.unboundLead,
+            coverage: dict.hevy.coverage(
+              comparison.coverage.boundWorkouts,
+              comparison.coverage.importedWorkouts,
+            ),
+            sets: dict.common.sets,
+          }}
+        />
+      )}
     </>
   );
 }

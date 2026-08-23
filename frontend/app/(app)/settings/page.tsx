@@ -1,10 +1,15 @@
 import { cookies } from "next/headers";
 
+import { Card, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { API_URL } from "@/lib/api";
 import { getDictionary, getLocale } from "@/lib/i18n";
 import { LOCALES } from "@/lib/i18n/locales";
 import { parseTheme, THEME_COOKIE, THEMES } from "@/lib/preferences";
+import { HevyConnection } from "./hevy-connection";
 import { SettingsForm, type Choice } from "./settings-form";
+
+type Connection = { connected: boolean; connectedAt: string | null };
 
 const LOCALE_NAMES: Record<(typeof LOCALES)[number], string> = {
   // A language is always named in itself: someone looking for their own language recognises
@@ -15,6 +20,17 @@ const LOCALE_NAMES: Record<(typeof LOCALES)[number], string> = {
 
 export default async function SettingsPage() {
   const [dict, locale, cookieStore] = await Promise.all([getDictionary(), getLocale(), cookies()]);
+
+  const response = await fetch(`${API_URL}/hevy/connection`, {
+    headers: { cookie: cookieStore.toString() },
+    cache: "no-store",
+  });
+
+  // Whether an account is connected, and nothing else -- the API has no endpoint that returns
+  // the key, so there is nothing else to read (ADR-014).
+  const connection: Connection = response.ok
+    ? ((await response.json()) as Connection)
+    : { connected: false, connectedAt: null };
   const theme = parseTheme(cookieStore.get(THEME_COOKIE)?.value);
 
   const themes: Choice[] = THEMES.map((value) => ({
@@ -48,6 +64,28 @@ export default async function SettingsPage() {
           saved: dict.settings.saved,
         }}
       />
+
+      <Card className="mt-8">
+        <CardHeader title={dict.hevy.connectionTitle} />
+        <p className="mb-4 text-xs text-ink-muted">{dict.hevy.connectionLead}</p>
+        <HevyConnection
+          connected={connection.connected}
+          strings={{
+            apiKeyLabel: dict.hevy.apiKeyLabel,
+            apiKeyHelp: dict.hevy.apiKeyHelp,
+            connect: dict.hevy.connect,
+            connecting: dict.hevy.connecting,
+            connected: dict.hevy.connected,
+            notConnected: dict.hevy.notConnected,
+            connectedSince: connection.connectedAt
+              ? dict.hevy.connectedSince(
+                  new Date(connection.connectedAt).toLocaleDateString(locale),
+                )
+              : null,
+            keyNeverShown: dict.hevy.keyNeverShown,
+          }}
+        />
+      </Card>
     </>
   );
 }

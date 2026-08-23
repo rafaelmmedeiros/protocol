@@ -40,6 +40,10 @@ services:
       ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=protocol;Username=protocol;Password=protocol
       Frontend__Origin: http://localhost:3000
       ASPNETCORE_ENVIRONMENT: Development
+      # The browser suite drives this container, so Hevy has to be faked inside it. Without this
+      # the E2E run would reach api.hevyapp.com. Set here and nowhere else -- the application
+      # stack must never have it.
+      Hevy__UseFake: "true"
     depends_on:
       postgres:
         condition: service_healthy

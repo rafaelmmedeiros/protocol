@@ -7,8 +7,10 @@ import { API_URL } from "@/lib/api";
 import { getDictionary } from "@/lib/i18n";
 import { allowExerciseAgain } from "./actions";
 import { EquipmentForm, type Item } from "./equipment-form";
+import { Suggestions, type Gap, type Suggestion } from "./suggestions";
 
 type Equipment = { items: string[]; vocabulary: string[] };
+type SuggestionPayload = { suggestions: Suggestion[]; catalogueGaps: Gap[] };
 type Preferences = { excluded: { exerciseId: string; title: string }[] };
 
 async function read<T>(path: string): Promise<T | null> {
@@ -22,10 +24,11 @@ async function read<T>(path: string): Promise<T | null> {
 }
 
 export default async function EquipmentPage() {
-  const [dict, equipment, preferences] = await Promise.all([
+  const [dict, equipment, preferences, suggested] = await Promise.all([
     getDictionary(),
     read<Equipment>("/training/equipment"),
     read<Preferences>("/training/preferences"),
+    read<SuggestionPayload>("/training/equipment/suggestions"),
   ]);
 
   const strings = dict.equipment;
@@ -86,6 +89,26 @@ export default async function EquipmentPage() {
             </p>
           )}
         </Card>
+
+        {suggested && (
+          <Suggestions
+            suggestions={suggested.suggestions}
+            gaps={suggested.catalogueGaps}
+            strings={{
+              title: dict.hevy.suggestionsTitle,
+              lead: dict.hevy.suggestionsLead,
+              accept: dict.hevy.accept,
+              decline: dict.hevy.decline,
+              empty: dict.hevy.noSuggestions,
+              gapsTitle: dict.hevy.gapsTitle,
+              gapsLead: dict.hevy.gapsLead,
+              impliedBy: dict.hevy.impliedBy,
+              // The vocabulary is translated by the same dictionary the checkbox list uses, so
+              // an item never reads one way here and another way there.
+              itemLabel: (item) => strings.items[item as keyof typeof strings.items] ?? item,
+            }}
+          />
+        )}
       </div>
     </>
   );

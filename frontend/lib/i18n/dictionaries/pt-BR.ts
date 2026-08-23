@@ -197,6 +197,65 @@ export const ptBR: Dictionary = {
     choiceColumn: "Escolha",
     whyColumn: "Por quê",
   },
+  hevy: {
+    connectionTitle: "Hevy",
+    connectionLead:
+      "Sua chave do Hevy. Ela é guardada criptografada, usada para ler e escrever seu treino, e nunca mais é exibida -- nem para você.",
+    apiKeyLabel: "Chave de API",
+    apiKeyHelp: "O Hevy gera essa chave nas configurações dele, em Developer.",
+    connect: "Conectar",
+    connecting: "Conectando...",
+    connected: "Conectado",
+    notConnected: "Não conectado",
+    connectedSince: (when: string) => `Conectado desde ${when}.`,
+    replaceKey: "Trocar chave",
+    keyNeverShown: "Salva. A chave não é legível a partir daqui.",
+
+    keyInvalid: "O Hevy não aceitou essa chave.",
+    notConnectedError: "Conecte sua conta do Hevy primeiro.",
+    unreachable: "Não foi possível falar com o Hevy. Nada foi salvo -- tente de novo.",
+    rateLimited: "O Hevy está recusando requisições agora. O que chegou foi mantido; tente de novo em instantes.",
+
+    push: "Enviar para o Hevy",
+    pushing: "Enviando...",
+    pushed: "Enviado. A semana está no Hevy como uma rotina por sessão.",
+    alreadyTrainedFrom:
+      "Esta semana já foi treinada, então as rotinas dela ficam como estão. Gere uma semana nova para enviar outra.",
+    routineMissing: "Uma das rotinas não existe mais no Hevy. Gere uma semana nova e envie essa.",
+    exerciseNotMappable: "Um exercício prescrito não tem correspondente no Hevy, então nada foi enviado.",
+
+    sync: "Sincronizar do Hevy",
+    syncing: "Sincronizando...",
+    synced: (imported: number, tombstoned: number, unmapped: number) =>
+      `${imported} importados, ${tombstoned} removidos na origem, ${unmapped} não compreendidos.`,
+
+    comparisonTitle: "Prescrito e executado",
+    comparisonLead: "O que cada sessão pediu, ao lado do que foi registrado nela.",
+    prescribed: "prescrito",
+    performed: "executado",
+    notPerformed: "Não executado",
+    noEffortReported: "sem esforço relatado",
+    outcomeInRange: "dentro da faixa",
+    outcomeAboveRange: "acima da faixa",
+    outcomeBelowRange: "abaixo da faixa",
+    outcomeMixed: "dentro e fora da faixa",
+    extrasTitle: "Também treinado",
+    extrasLead: "Feito nesta sessão, e não prescrito por ela.",
+    unboundTitle: "Sem sessão correspondente",
+    unboundLead:
+      "Treino que não partiu de nenhuma rotina nossa. Ele ainda conta para o volume; só não dá para comparar com uma prescrição.",
+    coverage: (bound: number, total: number) => `${bound} de ${total} treinos importados casaram com uma sessão.`,
+
+    suggestionsTitle: "Equipamento que seu treino sugere",
+    suggestionsLead: "Itens confirmados ampliam de onde o gerador pode escolher. Nada aqui remove coisa alguma.",
+    impliedBy: (title: string) => `Porque você registrou ${title}.`,
+    accept: "Tenho isso",
+    decline: "Não tenho",
+    noSuggestions: "Nada a acrescentar. Sua academia já cobre tudo o que você registrou.",
+    gapsTitle: "Exercícios que não conhecemos",
+    gapsLead:
+      "Registrados no Hevy e ausentes do nosso catálogo, então não sugerem equipamento e não contam para nenhum músculo.",
+  },
   common: {
     noDataYet: "Sem dados ainda",
     awaitingImport: "Esperando a primeira importação do Hevy.",

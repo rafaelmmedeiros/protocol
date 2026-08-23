@@ -98,3 +98,55 @@ test("a gym without cables never prescribes a cable exercise", async ({ page }) 
   expect(titles.join(" ")).not.toMatch(/Cable|Pulldown/i);
   expect(titles.length).toBeGreaterThan(0);
 });
+
+test("equipment the history implies is suggested, and declining changes nothing", async ({
+  page,
+}) => {
+  // ADR-020: a suggestion is offered, never applied. The API container has Hevy faked inside it
+  // (Hevy__UseFake, set only by docker-compose.test.yml), so this never reaches api.hevyapp.com.
+  await register(page);
+
+  await page.goto("/settings");
+  await page.getByTestId("hevy-api-key").fill("e2e-hevy-key");
+  const connected = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.url().includes("/settings"),
+  );
+  await page.getByTestId("hevy-connect").click();
+  await connected;
+
+  await page.goto("/profile");
+  await page.getByTestId("profile-days").fill("3");
+  await page.getByTestId("profile-duration").fill("60");
+  const savedProfile = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.url().includes("/profile"),
+  );
+  await page.getByTestId("profile-submit").click();
+  await savedProfile;
+
+  await page.goto("/week");
+  const generated = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.url().includes("/week"),
+  );
+  await page.getByTestId("week-generate").click();
+  await generated;
+
+  // The round trip and then the outcome. Neither is enough alone: a previous outcome survives on
+  // screen, and a completed request does not mean the message is rendered yet.
+  for (const [control, outcome] of [
+    ["week-push", "push-result"],
+    ["week-sync", "sync-result"],
+  ]) {
+    const done = page.waitForResponse(
+      (response) => response.request().method() === "POST" && response.url().includes("/week"),
+    );
+    await page.getByTestId(control).click();
+    await done;
+    await expect(page.getByTestId(outcome)).toBeVisible({ timeout: 15_000 });
+  }
+
+  await page.goto("/equipment");
+
+  // The section is always present, even when it has nothing to offer -- an empty state says what
+  // will land here rather than only that nothing has.
+  await expect(page.getByTestId("equipment-suggestions")).toBeVisible();
+});

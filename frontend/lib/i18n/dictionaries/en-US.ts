@@ -207,6 +207,65 @@ export const enUS = {
     choiceColumn: "Choice",
     whyColumn: "Why",
   },
+  hevy: {
+    connectionTitle: "Hevy",
+    connectionLead:
+      "Your own Hevy key. It is stored encrypted, used to read and write your training, and is never shown again -- not even to you.",
+    apiKeyLabel: "API key",
+    apiKeyHelp: "Hevy issues this in its own settings, under Developer.",
+    connect: "Connect",
+    connecting: "Connecting...",
+    connected: "Connected",
+    notConnected: "Not connected",
+    connectedSince: (when: string) => `Connected since ${when}.`,
+    replaceKey: "Replace key",
+    keyNeverShown: "Saved. The key is not readable from here.",
+
+    keyInvalid: "Hevy did not accept that key.",
+    notConnectedError: "Connect your Hevy account first.",
+    unreachable: "Hevy could not be reached. Nothing was saved -- try again.",
+    rateLimited: "Hevy is refusing requests for now. What arrived was kept; try again shortly.",
+
+    push: "Send to Hevy",
+    pushing: "Sending...",
+    pushed: "Sent. The week is in Hevy as one routine per session.",
+    alreadyTrainedFrom:
+      "This week has already been trained from, so its routines are left as they are. Generate a new week to send a different one.",
+    routineMissing: "One of the routines no longer exists in Hevy. Generate a new week and send that.",
+    exerciseNotMappable: "One prescribed exercise cannot be named to Hevy, so nothing was sent.",
+
+    sync: "Sync from Hevy",
+    syncing: "Syncing...",
+    synced: (imported: number, tombstoned: number, unmapped: number) =>
+      `${imported} imported, ${tombstoned} removed upstream, ${unmapped} not understood.`,
+
+    comparisonTitle: "Prescribed and performed",
+    comparisonLead: "What each session asked for, beside what was logged against it.",
+    prescribed: "prescribed",
+    performed: "performed",
+    notPerformed: "Not performed",
+    noEffortReported: "no effort reported",
+    outcomeInRange: "in range",
+    outcomeAboveRange: "above the range",
+    outcomeBelowRange: "below the range",
+    outcomeMixed: "in and out of the range",
+    extrasTitle: "Also trained",
+    extrasLead: "Done in this session, and not prescribed by it.",
+    unboundTitle: "Not matched to a session",
+    unboundLead:
+      "Training that started from no routine of ours. It still counts toward volume; it just cannot be compared to a prescription.",
+    coverage: (bound: number, total: number) => `${bound} of ${total} imported workouts matched a session.`,
+
+    suggestionsTitle: "Equipment your training implies",
+    suggestionsLead: "Confirmed items widen what the generator may draw from. Nothing here ever removes anything.",
+    impliedBy: (title: string) => `Because you logged ${title}.`,
+    accept: "I have this",
+    decline: "I do not",
+    noSuggestions: "Nothing to add. Your gym already covers everything you have logged.",
+    gapsTitle: "Exercises we do not know",
+    gapsLead:
+      "Logged in Hevy and missing from our catalogue, so they imply no equipment and count toward no muscle.",
+  },
   common: {
     noDataYet: "No data yet",
     awaitingImport: "Waiting for the first Hevy import.",

@@ -300,6 +300,16 @@ assumed:
   the region where `references/inferring-proximity-to-failure-from-logged-sets.md` puts
   self-report error above two repetitions. Whatever rule progresses from observed effort has to
   decide what a 6 weighs; `TD-017` deliberately does not.
+- **The catalogue has to grow, and `M3` is what tells us where.** Building `S3.6` established that
+  **every exercise in the catalogue is performable in the assumed gym**, because the catalogue was
+  built for it (`TD-004`) — so equipment inferred from history can only ever help a user who
+  narrowed their gym, and the real account's `Iso-Lateral Row (Machine)` arrives as a **catalogue
+  gap** rather than as a suggestion. That gap report is the useful half today, and it is also the
+  input a widening should be driven by: the exercises to add are the ones users actually log, named
+  by their external identifier and counted, rather than the ones that seem missing in the abstract.
+  Widening the catalogue is not itself a training judgement — but the muscle attribution of each
+  new row is (`TD-005`), and `TD-015` already records that curation is recurring work rather than a
+  one-off price.
 - **Logged exercises will fall outside the catalogue and outside the assumed gym.** The same
   account logs `Iso-Lateral Row (Machine)`, which `TD-004` excludes by assumption. That is the
   loud failure `TD-004` chose over a silent one, and it is the signal that deriving equipment

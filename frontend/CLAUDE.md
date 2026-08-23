@@ -33,11 +33,11 @@ app/
     layout.tsx              the guard and the chrome -- header, nav, account menu
     dashboard/              Painel
     workouts/               Treinos
-    week/                   the generated week, session by session, and the button that makes it
+    week/                   the generated week; generate, send to Hevy, sync, and prescribed vs performed
     profile/                goal, days a week, minutes a session -- what the generator reads
-    equipment/              Equipamentos -- what a generated session is allowed to ask for
+    equipment/              Equipamentos -- what a session may ask for, plus what the history suggests
     template/               the living style guide
-    settings/               theme and language, through a Server Function
+    settings/               theme, language, and the Hevy connection -- all through Server Functions
   api/[...path]/route.ts    proxies the browser's calls to the API
 components/
   ui/                       button, field, select, checkbox, card, pill, stat, page-header, empty-state
@@ -129,7 +129,17 @@ docker compose -f docker-compose.test.yml run --rm --build e2e     # from the re
 - **Elements before ARIA.** A button is a `<button>`, an input has a label, and the keyboard
   reaches everything. Retrofitting accessibility is far more expensive than writing it.
 - **Tests reach for `data-testid`.** Playwright selects on it rather than on visible text,
-  because visible text is translatable and would make the suite locale-dependent.
+  because visible text is translatable and would make the suite locale-dependent. Put it on an
+  element that renders it: our `Card` and `Pill` take named props only, and TypeScript waves
+  hyphenated JSX attributes through — so `<Card data-testid="x">` compiles and never reaches the
+  DOM.
+- **An E2E press waits for the round trip *and* for the outcome.** Neither alone is enough: the
+  outcome of a previous press survives on screen, so asserting straight after a click can pass
+  without the second press having happened — and a completed request does not mean the message is
+  rendered yet. Open the response subscription before the click.
+- **A Server Function that revalidates its own page wipes the state it just returned.** The push
+  control lost its confirmation that way and the suite went flaky. Revalidate only when the page
+  actually shows something that changed; `pushWeek` does not, and says so at the line.
 
 ## Fonts and assets
 

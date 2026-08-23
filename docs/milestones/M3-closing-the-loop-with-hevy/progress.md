@@ -170,7 +170,33 @@ file carries what a future session would otherwise rediscover.
     equipment is gone.
 
 ### S3.7 — The screens
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 21 frontend unit (`locales.test.ts` covers the new keys), 36 E2E green in Docker
+  (`hevy.spec.ts` new, `equipment.spec.ts` extended)
+- **Observations:**
+  - **The E2E runs the real API container, so Hevy had to be faked *inside* it.** The unit and
+    integration suites substitute `IHevyClient` in process; a container cannot. `FakeHevyClient` is
+    registered only when `Hevy:UseFake` is set, and only `docker-compose.test.yml` sets it. It is
+    deliberately not a null object — it **synthesises a workout from each routine it was given**,
+    with repetitions falling across the sets, because a fake that accepted writes and returned
+    nothing would let the milestone's most important test pass without the loop ever closing.
+  - **A Server Function that revalidates its own page wipes the state it just returned.** `pushWeek`
+    called `revalidatePath("/week")`, the re-render reset `useActionState`, and the confirmation
+    vanished — one E2E went flaky on exactly that. The revalidation bought nothing: a push stores
+    routine identifiers the screen never renders and leaves the comparison untouched. Removed, with
+    the reason at the line, and promoted to `frontend/CLAUDE.md`.
+  - **Fixing that flake immediately created its mirror image, and it is the `M1` failure again.**
+    With the message no longer wiped, a second press finds the *previous* outcome and passes
+    without the second press having happened. An E2E press now waits for the round trip **and**
+    the outcome, with the subscription opened before the click. Also promoted.
+  - **`data-testid` on `Card` type-checks and never reaches the DOM.** Our `Card` and `Pill` take
+    named props only, and TypeScript waves hyphenated JSX attributes through without an excess
+    property error — so the identifier compiles, renders nothing, and the E2E fails on an element
+    that looks present in the source. Caught before the suite depended on it. Promoted.
+  - **The comparison lives on the week screen rather than its own route**, because the acceptance
+    criterion is that a session shows prescribed and performed *without navigating*. The loop
+    controls and the comparison both appear only once an account is connected, so `M1` and `M2`
+    still work untouched for a user who never connects one — asserted by its own E2E.
 
 ### S3.8 — The ladder, containerized
 - **Status:** pending

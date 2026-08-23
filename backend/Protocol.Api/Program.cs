@@ -34,6 +34,15 @@ builder.Services.AddDataProtection()
 builder.Services.AddHttpClient<IHevyClient, HevyClient>(client =>
     client.BaseAddress = new Uri(builder.Configuration["Hevy:BaseUrl"] ?? "https://api.hevyapp.com/v1/"));
 
+// The end-to-end suite runs this very container, so it cannot substitute the client in process
+// the way the unit and integration suites do. Without this switch a browser test would reach
+// api.hevyapp.com -- a third party's uptime, a real account's rate budget, and a credential in CI.
+// Only docker-compose.test.yml sets it; the application stack never does.
+if (builder.Configuration.GetValue<bool>(FakeHevyClient.EnabledKey))
+{
+    builder.Services.AddSingleton<IHevyClient, FakeHevyClient>();
+}
+
 builder.Services.AddSingleton<IHevyBackoff, ExponentialHevyBackoff>();
 builder.Services.AddScoped<HevyKeyProtector>();
 builder.Services.AddScoped<HevyWeekPusher>();
