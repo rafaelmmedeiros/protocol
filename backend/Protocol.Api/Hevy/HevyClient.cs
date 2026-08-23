@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 
 namespace Protocol.Api.Hevy;
@@ -71,13 +72,33 @@ public sealed class HevyClient(HttpClient http, ILogger<HevyClient> logger, IHev
         Func<HttpRequestMessage> newRequest,
         CancellationToken token)
     {
+        // Every call is logged under the ambient trace, so a request is followable from the
+        // browser through the API and out to Hevy (root standard 12). The identifier is the one
+        // ASP.NET Core already creates and HttpClient already propagates as traceparent -- there
+        // is nothing to invent, and inventing a second one would give a request two names.
+        using var scope = logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["traceId"] = Activity.Current?.TraceId.ToString(),
+        });
+
         for (var attempt = 1; attempt <= MaxAttempts; attempt++)
         {
             HttpResponseMessage response;
 
             try
             {
-                response = await http.SendAsync(newRequest(), token);
+                var request = newRequest();
+
+                // The method and path, never the header. The key is the one thing in this client
+                // that must not reach a log, and the request is logged before it is sent so a
+                // call that hangs still leaves a trace.
+                logger.LogInformation(
+                    "Hevy {Method} {Path} attempt {Attempt}",
+                    request.Method,
+                    request.RequestUri,
+                    attempt);
+
+                response = await http.SendAsync(request, token);
             }
             catch (HttpRequestException exception)
             {

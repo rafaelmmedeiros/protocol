@@ -12,7 +12,7 @@ Protocol.Api/
   Program.cs                       composition root: CORS, Identity, cookie, health, endpoints
   Auth/                            AppUser, AppDbContext, AuthEndpoints, DatabaseMigrator
   Training/                        the domain: catalogue, profile, equipment, generator, weeks
-  Hevy/                            the outbound boundary: client, key protection, connection
+  Hevy/                            the boundary: client, contracts, both mappers, key protection
   Migrations/                      EF Core migrations, forward-only
   appsettings.json                 defaults; every value is overridable by environment
 Protocol.Api.Tests.Unit/           xUnit, no I/O

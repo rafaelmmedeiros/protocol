@@ -36,7 +36,30 @@ file carries what a future session would otherwise rediscover.
     would be scope this step was not given. Reported rather than fixed.
 
 ### S3.2 — The Hevy boundary
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 27 unit (`EffortConversionTests`, `HevyMappingTests`, `BoundaryIsolationTests`)
+- **Observations:**
+  - **A test asserted something false and the code was right.** `The_half_points_and_the_floor_do
+    _not_round_trip` failed on RPE 6, because 6 is a whole point: 6 → 4 → 6 closes arithmetically.
+    The loss at that anchor is **semantic** rather than numeric — Hevy words it "4+ more reps", so
+    it is a floor with no ceiling. Corrected the test, and split it so the distinction is written
+    down rather than implied.
+  - **The inbound mapper refuses an unmodelled set type rather than defaulting to working.**
+    Counting a `cluster` or anything else as a working set would inflate every fractional volume
+    figure (`TD-006`) silently. `ADR-018` retains the raw payload, so failing loudly loses nothing
+    and a wrong guess would. `S3.4` has to decide what a sync does with a workout that fails to
+    map — skip and record, or stop — and this step deliberately does not.
+  - **`BoundaryIsolationTests` is reflection over the assembly, not a lint rule.** It walks every
+    property, field, method parameter and return type of `Protocol.Api.Training` and fails if any
+    resolves into `Protocol.Api.Hevy`, unwrapping arrays, generics and tasks on the way. The
+    second test bans the substring "rpe" in any domain symbol. Both would have passed trivially
+    today and exist for the commit that would not.
+  - **`PerformedWorkout` lives in `Training/`, not in `Hevy/`.** Training that happened is domain,
+    so the dependency runs Hevy → Training and never back. Its EF configuration and migration are
+    `S3.4`'s; this step defines the shape the mapper produces.
+  - **Correlation needed no invention.** Standard 12 is satisfied by the `Activity` ASP.NET Core
+    already creates and `HttpClient` already propagates as `traceparent`. A second identifier
+    would have given one request two names.
 
 ### S3.3 — Pushing a week
 - **Status:** pending
