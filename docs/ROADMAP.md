@@ -172,11 +172,20 @@ assumed:
   routine id per session, a folder id per week, as external columns (standard 8). Nothing in
   `M1` writes them, and adding them later is a forward-only migration over rows that will
   legitimately have nulls.
-- **That identifier is necessary and not sufficient.** A logged workout carries `routine_id`,
-  but it can be `null` — an observed session in this account is titled `Pull`, is plainly
-  structured, and has no routine on it. So the match cannot depend on it, and whatever fallback
-  is chosen — date plus `exercise_template_id` plus set structure is the obvious one — is lossy
-  and is a decision that needs a record rather than an implementation.
+- **Whether that identifier is enough is untested, and the first thing to find out.** A logged
+  workout carries `routine_id`, and Hevy therefore models the link. An earlier note here claimed
+  the field was unreliable because an observed session had it `null` — **that claimed more than
+  the data supported**: the account holds no routines at all, so a null is exactly what a
+  workout that came from no routine should have. Whether starting a workout *from* a routine
+  populates it is a one-experiment question and it decides the whole design of sync. Run it
+  before choosing a fallback.
+- **If it does not populate, the fallback is a decision and not an implementation.** A routine
+  and a workout are separate entities with separate identifiers, so an id of ours has to travel
+  in a field Hevy does expose — `description` in preference to `title`, since a title is what
+  the user reads in the gym and is the field they are most likely to edit. Per-exercise `notes`
+  is a third. All three are user-editable, which makes any of them a weaker key than
+  `routine_id` and is why the experiment comes first. Date plus the exercise fingerprint is the
+  last resort and is lossy.
 - **Sets carry a `type`, and `warmup` is one of its values.** Counting warm-up sets as
   fractional volume would inflate every number the system produces (`TD-006`). The import
   filters on this or it is wrong from the first row.
