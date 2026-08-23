@@ -185,6 +185,37 @@ how large it is per `load_increment_kg` (`TD-015` deferred the column and said w
 it), whether a stall or a deload exists at all — and what weight a logged RPE of 6 carries, which
 `TD-017` names as the weakest row in the conversion and leaves open on purpose.
 
+**A precondition the trigger must not smuggle in.** Two people can satisfy the same prescription
+by executing it in opposite ways, and a progression rule written without noticing that will work
+for one of them and silently freeze the other.
+
+*Terminate on effort.* The product's only user stops a set when the movement slows — a perceived
+velocity-loss criterion — rather than at a rep count. Under 3 sets of 8-12 that produces 12/10/8
+or 11/10/9: effort held constant, repetitions falling as the muscle fatigues. Their own progression
+signal is graded rather than binary — 13/12/11 reads as *close to going up*, and 15/13/11 against a
+target of 12 reads as *this load is beaten*. They also read a flat 12/12/12 as evidence the first
+two sets were not honest, which is the same asymmetry
+`references/inferring-proximity-to-failure-from-logged-sets.md` already states from the other
+direction.
+
+*Chase the number.* Someone else takes 12 as the instruction, stops at 12, and produces 12/12/12
+with the early sets well short of the prescribed proximity. Their sequence is flat because the
+prescription made it flat, not because they were fresh.
+
+**A trigger keyed on "the first set exceeded the range" fits the first lifter and never fires for
+the second.** A trigger keyed on "every set reached the top" fits the second and essentially never
+fires for the first, because the last set will not reach the top at constant proximity. Neither is
+a rule about training; both are rules about an execution style, and the record that picks one has
+to say which style it assumes and what happens to the other.
+
+**What separates them without inferring anything: the reported effort.** 12/12/12 at RPE 7 is a
+lifter saying there was room; 12/10/8 at RPE 8 is a lifter saying there was not. That is the
+inbound conversion `TD-017` exists for, and it is why a partially-filled `rpe` history — which
+`TD-017` already names as the realistic case — is the genuinely hard input rather than a detail.
+**Inferring the execution style from the shape of the drop-off is the thing not to do:** the
+corpus grades that heuristic as untested and fit for a low-confidence flag, never as an input to
+arithmetic, and a progression step is arithmetic.
+
 ## The horizon
 
 Beyond the numbered milestones, and deliberately unscheduled — recorded because decisions taken
