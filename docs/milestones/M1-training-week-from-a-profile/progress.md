@@ -4,7 +4,18 @@ Written by `/protocol-feature` in milestone mode. One entry per step of `plan.md
 plan's dependency order. **Status:** `pending` until the step is started, `completed` when its
 tests pass and its acceptance criteria hold.
 
-**Milestone status:** in progress
+**Milestone status:** completed
+
+All twelve steps done, every deliverable in `plan.md` ticked, and the verification ladder green
+end to end. What the product can do that it could not before: a signed-in user states a goal,
+a frequency and a session length, and reads back a week of sessions built from it — where every
+number traces to a decision record and none of them was recalled.
+
+Two things the milestone changed about itself, both recorded where they happened rather than
+smoothed over: `TD-008`'s volume target was superseded by `TD-014` one step after it was made,
+because `S1.5`'s time arithmetic showed an ordinary configuration could never reach it; and the
+catalogue stayed flat against a two-level proposal, because the level a parent would add already
+exists as `movement_pattern` (`TD-015`).
 
 ### S1.1 — Research: training status and the cold start
 - **Status:** completed
@@ -440,4 +451,25 @@ tests pass and its acceptance criteria hold.
     the control says "generate again" rather than "refresh".
 
 ### S1.12 — The ladder, containerized
-- **Status:** pending
+- **Status:** completed
+- **Tests:** all eleven rungs, in order. Backend 55 unit / 34 integration (host **and** in
+  Docker), frontend 21 unit, E2E 20 in Docker, 0 warnings, 66 documents no drift.
+- **Observations:**
+  - **`W6` proved by a count, not by a green suite.** The development database held **8
+    accounts before the ladder and 8 after**, and **zero rows in `generated_weeks`** — despite
+    the E2E run generating a week in six different tests. The test stack owned every one of
+    them. A passing suite says the tests work; only the count says they stayed out of the
+    development data, and those are different claims.
+  - **Rungs 3/4 and 10 are the same suites and both were run.** They are not redundant: the
+    host run uses the machine's SDK and Testcontainers, the Docker run is what actually ships.
+    Both green, same numbers.
+  - **Standard 15 verified mechanically, and the result confirms the design rather than just
+    passing.** The only bare numbers left in `WeekGenerator` are calendar arithmetic, a
+    zeroed accumulator, loop indices and `deficit > 0`. Every training judgement lives in
+    `TrainingPrescription` beside its `TD-###` — the generator carries arithmetic and the
+    records carry the judgements.
+  - **The corpus index is complete**, checked file-by-file rather than by eye: 18 notes and 15
+    decisions on disk, 18 and 15 rows in the index, nothing unindexed.
+  - No new Docker trap surfaced in this milestone. The one that did bite repeatedly is already
+    documented: **a container keeps serving old code until its image is rebuilt** — hit at
+    `S1.7`, `S1.9`, `S1.10` and `S1.11`, every time after a migration or a route was added.

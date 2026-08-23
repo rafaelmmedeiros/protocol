@@ -459,19 +459,19 @@ afterwards from a researched one (standard 15).
 
 ## Deliverables
 
-- [ ] S1.1 — Research: training status and the cold start
-- [ ] S1.2 — Research: the split
-- [ ] S1.3 — Research: exercise selection and ordering
-- [ ] S1.4 — Research: the prescription per slot
-- [ ] S1.5 — Research: the time budget
-- [ ] S1.6 — The exercise catalogue
-- [ ] S1.7 — The training profile
-- [ ] S1.8 — The generator
-- [ ] S1.9 — Persisting a generated week
-- [ ] S1.10 — The Profile section
-- [ ] S1.11 — The generated week on screen
-- [ ] S1.12 — The ladder, containerized
-- [ ] The verification ladder from `/protocol-feature`, green
-- [ ] Every capability bullet above covered by at least one step
-- [ ] Every number in the generator carries a `TD-###` at the line (standard 15)
-- [ ] `/protocol-training`'s index lists every note and record this milestone produced
+- [x] S1.1 — Research: training status and the cold start
+- [x] S1.2 — Research: the split
+- [x] S1.3 — Research: exercise selection and ordering
+- [x] S1.4 — Research: the prescription per slot
+- [x] S1.5 — Research: the time budget
+- [x] S1.6 — The exercise catalogue
+- [x] S1.7 — The training profile
+- [x] S1.8 — The generator
+- [x] S1.9 — Persisting a generated week
+- [x] S1.10 — The Profile section
+- [x] S1.11 — The generated week on screen
+- [x] S1.12 — The ladder, containerized
+- [x] The verification ladder from `/protocol-feature`, green
+- [x] Every capability bullet above covered by at least one step
+- [x] Every number in the generator carries a `TD-###` at the line (standard 15)
+- [x] `/protocol-training`'s index lists every note and record this milestone produced
