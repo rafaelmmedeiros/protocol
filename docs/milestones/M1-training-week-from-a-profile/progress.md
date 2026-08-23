@@ -270,7 +270,32 @@ tests pass and its acceptance criteria hold.
     (root standard 18).
 
 ### S1.7 — The training profile
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 13 unit (`TrainingProfileTests`), 9 integration (`TrainingProfileEndpointsTests`).
+  Full suites green: 30 unit, 25 integration.
+- **Produced:** `Training/TrainingGoal`, `TrainingProfile`, `TrainingProfileRules`,
+  `TrainingErrorCodes` + `ApiError`, `TrainingEndpoints`; migration
+  `20260823..._TrainingProfile`.
+- **Observations:**
+  - **The goal is received as a string, not bound to an enum, and that is deliberate.** Binding
+    to `TrainingGoal` would turn `"powerlifting"` into a framework deserialization failure — an
+    error the frontend cannot translate. Parsing it ourselves makes every unrecognised goal
+    answer `GoalNotSupported`, which is a code (root standard 3). A goal the schema knows but
+    `M1` does not programme for gets the same answer, which is the honest one.
+  - **`Enum.TryParse` accepts numeric strings for any underlying value**, so `"7"` parses
+    cleanly into an undefined `TrainingGoal`. `Enum.IsDefined` closes it, and there is a unit
+    test pinning `"7"` specifically. This would have shipped silently.
+  - **`ApiError` carries `Min`/`Max` alongside the code**, so `S1.10` can render "between 2 and
+    6 days" without copying `TD-002` and `TD-012`'s bounds into a translation dictionary. A
+    range duplicated in the frontend is a range that drifts when the record is superseded — and
+    `TD-008` was superseded inside this milestone, so that is not hypothetical.
+  - **Validation is a pure static with no I/O**, which is why the bounds every generated week
+    stands on are covered by 13 unit tests and no container. The goal is checked before the
+    ranges: a profile for a goal we do not programme has no defensible bounds to report.
+  - **The development stack was serving pre-`S1.7` code until `api` was rebuilt** — the trap
+    `CLAUDE.md` already records, hit again. The migration only reached the development database
+    after `up -d --build api`.
+  - No rest column, verified in the generated migration rather than assumed (`ADR-007`).
 
 ### S1.8 — The generator
 - **Status:** pending

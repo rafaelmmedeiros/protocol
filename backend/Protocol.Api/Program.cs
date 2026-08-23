@@ -67,6 +67,7 @@ app.UseAuthorization();
 app.MapHealthChecks("/health");
 app.MapGroup("/auth").MapIdentityApi<AppUser>().WithTags("Auth");
 app.MapAuthEndpoints();
+app.MapTrainingEndpoints();
 
 app.Run();
 

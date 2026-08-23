@@ -13,6 +13,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 {
     public DbSet<Exercise> Exercises => Set<Exercise>();
 
+    public DbSet<TrainingProfile> TrainingProfiles => Set<TrainingProfile>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -49,6 +51,25 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
                 muscle.Property(m => m.Role).HasConversion<string>().IsRequired().HasMaxLength(16);
                 muscle.HasKey(m => new { m.ExerciseId, m.MuscleGroup });
             });
+        });
+
+        builder.Entity<TrainingProfile>(profile =>
+        {
+            profile.ToTable("training_profiles");
+            profile.HasKey(p => p.Id);
+
+            // One profile per user, enforced by the database rather than by the endpoint.
+            profile.Property(p => p.UserId).IsRequired().HasMaxLength(450);
+            profile.HasIndex(p => p.UserId).IsUnique();
+
+            profile.Property(p => p.Goal).HasConversion<string>().IsRequired().HasMaxLength(32);
+            profile.Property(p => p.DaysPerWeek).IsRequired();
+
+            // Seconds, never minutes -- the unit is in the field name (root standard 4).
+            profile.Property(p => p.SessionDurationSeconds).IsRequired();
+
+            // No rest column: rest is a property of the slot and the record decides it, not the
+            // user (ADR-007, TD-011). The absence is the decision.
         });
     }
 }
