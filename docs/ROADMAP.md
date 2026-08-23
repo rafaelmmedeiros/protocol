@@ -146,9 +146,10 @@ performed — including the repetitions in reserve they reported, converted inbo
 
 - Progressing a week into the next one, and prescribing a working load. Both are `M4`, both read
   the same observed data, and neither is possible before this milestone has produced any.
-- Prescribing effort into Hevy. A routine set has **no `rpe` field** — the API carries it only on
-  a logged workout — so the conversion runs inbound only, and the prescribed reserve reaches the
-  user as displayed text rather than as data.
+- Prescribing effort into Hevy as data. A routine set has **no `rpe` field**, and that is Hevy
+  modelling it correctly rather than a gap: RPE is feedback, reported after a set, and a plan does
+  not carry an observation (`ADR-016`). The conversion runs inbound only, and the prescribed
+  reserve reaches the user as displayed text.
 
 ### M4 — Programming from what actually happened
 

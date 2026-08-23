@@ -39,6 +39,14 @@ anchors say what the prescription says. **Only the inbound direction resolves an
 outbound one is lossless, which is the asymmetry worth remembering when someone proposes making
 them symmetric.
 
+**This direction has no consumer, and that is by design rather than by circumstance.** A Hevy
+routine set carries no `rpe` field, because `rpe` is *feedback* — reported after a set by the
+person who performed it — and a plan does not carry an observation. `ADR-016` records why writing
+a prescribed target into a field that means feedback would be actively harmful here: the workout
+would inherit our own number, and the distance between prescribed and performed reserve, which is
+the signal this whole conversion exists to expose, would collapse to zero and read as perfect
+adherence. **Read that record before wiring this direction into anything.**
+
 **Why Hevy's descriptors and not the published table.** They disagree, and by a whole repetition
 at 9.5 — Zourdos 2016 defines it as *no further repetitions but could increase load* (0 RIR, a
 statement about the weight) where Hevy says *maybe 1 more rep* ([0,1]). That is precisely the

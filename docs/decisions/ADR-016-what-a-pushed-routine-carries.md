@@ -19,7 +19,8 @@ prescribed until `M4`.
 **One does not exist. A routine set has no `rpe` field** — the API carries `rpe` only on a *logged
 workout's* set. So `TD-017`'s outbound conversion is correct as a mapping and has nowhere to
 write. Proximity to failure is the one prescription variable the user acts on set by set, and it
-is the one Hevy will not accept as data.
+is the one Hevy will not accept as data. **See the revision below before reading that absence as a
+shortcoming.**
 
 **Options for the prescribed reserve.**
 
@@ -63,3 +64,29 @@ proven non-propagation of notes makes it safe against being mistaken for data la
 - **`exercise_template_id` comes from our catalogue's external key** (`ADR-002`, standard 8). An
   exercise without one cannot be pushed, and that is a loud failure rather than a silent
   substitution.
+
+**Revisions.**
+
+- 2026-08-23 — **The missing field is correct modelling, not a gap, and this record was first
+  written as though it were one.** `rpe` is *feedback*: it exists after a set, reported by the
+  person who performed it. A routine is a plan, and a plan does not carry an observation. Hevy
+  placing the field only on a logged workout is the right shape, and the decision above (A) is
+  therefore permanent rather than a workaround waiting for the API to improve.
+
+  This matters because the two framings produce opposite future behaviour. Read as a shortcoming,
+  a later session would watch for `rpe` to appear on routine sets and wire the outbound conversion
+  into it — at which point a workout would inherit our prescribed number and the import would read
+  **our own prescription back as the user's report**. `TD-017` names the distance between
+  prescribed and performed reserve as the signal the whole loop exists to produce; that distance
+  would silently collapse to zero, and the result would look like perfect adherence.
+
+  **So: never write a prescribed target into a field that means feedback**, in this integration or
+  any other, and no future record should treat `rpe`-on-routines as a feature to adopt. The rule
+  is about the field's meaning rather than about proximity to failure — prescribing effort is
+  itself legitimate and well established (Helms et al. 2018 tested an RPE-prescribed programme
+  directly, and `TD-010` prescribes reserve here), which is exactly why the confusion is available
+  to be made.
+
+  Nothing about the decision changes. What changes is that option B is now rejected for a second
+  and stronger reason, and that `TD-017`'s outbound half has no consumer in this integration by
+  design rather than by circumstance.
