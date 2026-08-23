@@ -414,12 +414,12 @@ key first because everything else is untestable against a real account without i
 
 ## Deliverables
 
-- [ ] S3.1 — a per-user key, encrypted, validated, never returned
-- [ ] S3.2 — one mapper per direction, and no Hevy type in the domain
-- [ ] S3.3 — a week pushed as a folder of routines, identifiers stored
-- [ ] S3.4 — incremental import, versions and tombstones, raw payload retained
-- [ ] S3.5 — workouts bound to the sessions that prescribed them, and read side by side, sequence intact
-- [ ] S3.6 — equipment suggested from history, add-only and confirmed
-- [ ] S3.7 — the screens, both locales
-- [ ] S3.8 — the verification ladder from `/protocol-feature`, green
-- [ ] every capability bullet above covered by at least one step
+- [x] S3.1 — a per-user key, encrypted, validated, never returned
+- [x] S3.2 — one mapper per direction, and no Hevy type in the domain
+- [x] S3.3 — a week pushed as a folder of routines, identifiers stored
+- [x] S3.4 — incremental import, versions and tombstones, raw payload retained
+- [x] S3.5 — workouts bound to the sessions that prescribed them, and read side by side, sequence intact
+- [x] S3.6 — equipment suggested from history, add-only and confirmed
+- [x] S3.7 — the screens, both locales
+- [x] S3.8 — the verification ladder from `/protocol-feature`, green
+- [x] every capability bullet above covered by at least one step

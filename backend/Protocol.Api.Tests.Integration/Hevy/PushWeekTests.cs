@@ -160,6 +160,42 @@ public class PushWeekTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Another_users_training_never_refuses_my_push()
+    {
+        // A routine identifier is Hevy's, not ours, so nothing guarantees it is unique across
+        // accounts. Without a user filter on the "has this been trained from" lookup, one user's
+        // imported training refuses another user's push -- which is what the E2E suite found when
+        // sixteen workers ran against one API.
+        Hevy.Forget();
+        var (client, _, week) = await ReadyAsync();
+        var pushed = await PushAsync(client, week.Id);
+
+        var (_, otherUserId, _) = await ReadyAsync();
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            // Someone else's workout, carrying *our* routine identifier.
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.PerformedWorkouts.Add(new PerformedWorkout
+            {
+                Id = Guid.CreateVersion7(),
+                UserId = otherUserId,
+                ExternalWorkoutId = $"workout-{Guid.NewGuid():N}",
+                ExternalRoutineId = pushed!.Sessions[0].RoutineId,
+                StartedAt = DateTimeOffset.UtcNow,
+                EndedAt = DateTimeOffset.UtcNow,
+                ExternallyUpdatedAt = DateTimeOffset.UtcNow,
+                Version = 1,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var again = await client.PostAsJsonAsync($"/hevy/weeks/{week.Id}/push", new { locale = "en-US" });
+
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+    }
+
+    [Fact]
     public async Task A_routine_the_user_deleted_in_Hevy_is_a_push_failure_and_not_corruption()
     {
         Hevy.Forget();

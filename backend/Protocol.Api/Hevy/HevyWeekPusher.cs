@@ -42,7 +42,7 @@ public sealed class HevyWeekPusher(AppDbContext db, IHevyClient hevy, HevyKeyPro
         // workout pointing at a prescription that did not exist when it was performed (ADR-017).
         // A regenerated week never reaches this branch: ADR-009 makes it a new row, and a new row
         // has no folder, so it takes the create path and the old routines are left standing.
-        if (await HasBeenTrainedFromAsync(week, token))
+        if (await HasBeenTrainedFromAsync(week, userId, token))
         {
             return new PushResult(PushOutcome.AlreadyTrainedFrom);
         }
@@ -111,16 +111,24 @@ public sealed class HevyWeekPusher(AppDbContext db, IHevyClient hevy, HevyKeyPro
     /// trained from, because nothing has been read.
     /// </para>
     /// </summary>
-    private async Task<bool> HasBeenTrainedFromAsync(GeneratedWeek week, CancellationToken token)
+    private async Task<bool> HasBeenTrainedFromAsync(
+        GeneratedWeek week,
+        string userId,
+        CancellationToken token)
     {
         var routineIds = week.Sessions
             .Select(session => session.HevyRoutineId)
             .OfType<string>()
             .ToList();
 
+        // Scoped to this user, and the omission was a real bug: a routine identifier is Hevy's,
+        // not ours, so nothing guarantees it is unique across accounts -- and without this filter
+        // one user's imported training could refuse another user's push. Found by the E2E suite
+        // running sixteen workers against one API.
         return routineIds.Count != 0
             && await db.PerformedWorkouts.AnyAsync(
-                performed => performed.ExternalRoutineId != null
+                performed => performed.UserId == userId
+                    && performed.ExternalRoutineId != null
                     && routineIds.Contains(performed.ExternalRoutineId),
                 token);
     }

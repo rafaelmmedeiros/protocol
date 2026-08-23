@@ -27,7 +27,12 @@ public sealed class FakeHevyClient : IHevyClient
     /// <summary>The one key this fake rejects, so the failure path is reachable from a browser.</summary>
     public const string RejectedKey = "invalid-key";
 
-    private readonly ConcurrentDictionary<string, HevyRoutinePayload> _routines = new();
+    /// <summary>
+    /// Keyed by api key as well as routine, so one account never sees another's routines. The
+    /// real service is per-account and a fake that is not would let a suite pass on behaviour
+    /// the product does not have.
+    /// </summary>
+    private readonly ConcurrentDictionary<(string ApiKey, string RoutineId), HevyRoutinePayload> _routines = new();
     private long _nextFolderId;
     private int _nextRoutine;
 
@@ -43,7 +48,7 @@ public sealed class FakeHevyClient : IHevyClient
         CancellationToken token)
     {
         var id = $"7b2281f1-0000-4000-8000-{Interlocked.Increment(ref _nextRoutine):D12}";
-        _routines[id] = routine;
+        _routines[(apiKey, id)] = routine;
 
         return Task.FromResult(new HevyWrite<string>(HevyWriteOutcome.Ok, id));
     }
@@ -54,7 +59,7 @@ public sealed class FakeHevyClient : IHevyClient
         HevyRoutinePayload routine,
         CancellationToken token)
     {
-        _routines[routineId] = routine;
+        _routines[(apiKey, routineId)] = routine;
 
         return Task.FromResult(new HevyWrite<string>(HevyWriteOutcome.Ok, routineId));
     }
@@ -70,8 +75,9 @@ public sealed class FakeHevyClient : IHevyClient
         // timestamps are derived from the routine's position rather than from the clock, so the
         // suite is deterministic and a re-sync recognises what it already read.
         var events = _routines
-            .OrderBy(entry => entry.Key)
-            .Select((entry, index) => Trained(entry.Key, entry.Value, index))
+            .Where(entry => entry.Key.ApiKey == apiKey)
+            .OrderBy(entry => entry.Key.RoutineId, StringComparer.Ordinal)
+            .Select((entry, index) => Trained(entry.Key.RoutineId, entry.Value, index))
             .Where(change => change.Workout!.UpdatedAt >= since)
             .ToList();
 

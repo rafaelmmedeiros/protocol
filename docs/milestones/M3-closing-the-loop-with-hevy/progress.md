@@ -1,6 +1,6 @@
 # M3 — progress
 
-**Status:** in progress
+**Status:** completed
 
 One entry per step of `plan.md`, in the plan's linearised order. Git carries what changed; this
 file carries what a future session would otherwise rediscover.
@@ -199,4 +199,28 @@ file carries what a future session would otherwise rediscover.
     still work untouched for a user who never connects one — asserted by its own E2E.
 
 ### S3.8 — The ladder, containerized
-- **Status:** pending
+- **Status:** completed
+- **Tests:** all eleven rungs green — 185 unit and 113 integration in Docker, 36 E2E in Docker
+- **Observations:**
+  - **The containerized E2E found a real cross-user bug that no other rung could have.**
+    `HasBeenTrainedFromAsync` filtered `PerformedWorkouts` by routine identifier and **not by
+    user**. A routine identifier is Hevy's, not ours, so nothing guarantees it is unique across
+    accounts — and with sixteen Playwright workers against one API, one user's imported training
+    refused another user's push. Every in-process suite passed, because each test had the database
+    to itself. Fixed, and pinned by `Another_users_training_never_refuses_my_push`.
+  - **The fake was global across accounts, and that was hiding it.** `FakeHevyClient` keyed its
+    routines by identifier alone, so every account saw every other account's — which is not how the
+    real service behaves and is exactly the sort of fake that lets a suite pass on behaviour the
+    product does not have. Now keyed by api key as well.
+  - **The restart trap is verified where only a container can verify it.** An account was connected
+    on the test stack, `docker compose restart api` was run, and `/hevy/sync` — which cannot work
+    without `Unprotect` — answered 200 rather than 500. `ADR-014`'s failure mode is closed in the
+    environment it would actually have appeared in.
+  - **A first run of rung 9 was polluted by that restart experiment.** Reusing the containers left
+    the fake's in-memory routines and the tmpfs database from earlier work, which is why the run
+    took 52s instead of 7 and failed. `down -v` on the test stack — safe and expected there — and a
+    clean run passed 36 of 36. Worth knowing: **the test stack is only throwaway if you throw it
+    away.**
+  - **The development database is untouched, counted rather than assumed.** Eight accounts, none
+    matching `e2e-%` and none matching the `restart-%` prefix the trap check used — the same eight
+    `M1` and `M2` closed with.
