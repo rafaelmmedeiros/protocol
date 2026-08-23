@@ -70,7 +70,42 @@ plan's dependency order.
     figure. All flagged in-note.
 
 ### S2.2 — Available equipment
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 8 unit (`EquipmentFilterTests`), 8 integration (`EquipmentEndpointsTests`), 1 added
+  to `ExerciseCatalogueTests`. Suites green: 66 unit, 44 integration.
+- **Produced:** `EquipmentItem`, `ExerciseRequirement`, `UserEquipment`, the 36-row requirement
+  table, `GET`/`PUT /training/equipment`, migration `..._EquipmentRequirements`.
+- **Observations:**
+  - **The backfill is the part no test could have caught.** The seeder is idempotent by external
+    template id, so the 36 rows already in the development database would never have been
+    touched by the insert — and an exercise with no requirements is unperformable under
+    `ADR-013`, so **every existing catalogue would have generated an empty week**. Fixed in the
+    seeder rather than a migration, because a migration cannot read the catalogue. Verified on
+    the real database: 36 exercises, 63 requirements, 0 without.
+  - **Static initialiser order cost an attempt.** `All` is declared before the requirement
+    table and C# runs field initialisers in textual order, so `Make` read a null dictionary and
+    the type initialiser threw. The tables are now declared above `All` with a comment saying
+    why the order matters.
+  - **A small gym exposed a real generator defect: an empty training day.** With a
+    barbell-and-bench catalogue the first two full-body sessions carried every trainable muscle
+    to target, and Friday came out blank. A week now contains only sessions that have work in
+    them — padding one would mean prescribing volume above the target, which is the one thing
+    the target exists to prevent. Pinned by a property test across three gyms and every
+    frequency.
+  - **A conflict `S1.6` left behind, found by curating requirements:** the catalogue seeds
+    `Preacher Curl (Barbell)` and `TD-004`'s assumed gym never listed a preacher bench. Resolved
+    by requiring `AdjustableBench` — an adjustable bench set upright serves — rather than
+    inventing an item and quietly widening `TD-004`.
+  - **`Bodyweight` is an item, not an empty set.** An empty requirement set cannot be told apart
+    from a row nobody curated, and `TD-005` already names miscuration as this catalogue's soft
+    spot. A missing row now throws at startup.
+  - **`AdjustableBench` does not imply `Bench`.** An inclined movement requires both, which
+    avoids an implication rule entirely; someone with an adjustable bench owns both items.
+  - **The vocabulary holds only what the catalogue asks for**, asserted by a test. A checkbox
+    with no exercise behind it is worse than an absent one — which means **describing a machine
+    the catalogue has no exercise for is still impossible.** That is the honest limit of this
+    step: equipment currently only *subtracts*. Adding machine exercises is catalogue growth and
+    is not in this plan.
 
 ### S2.5 — Estimated session duration
 - **Status:** pending

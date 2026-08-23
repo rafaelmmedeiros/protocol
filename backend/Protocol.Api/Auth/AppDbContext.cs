@@ -17,6 +17,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<GeneratedWeek> GeneratedWeeks => Set<GeneratedWeek>();
 
+    public DbSet<UserEquipment> UserEquipment => Set<UserEquipment>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -53,6 +55,24 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
                 muscle.Property(m => m.Role).HasConversion<string>().IsRequired().HasMaxLength(16);
                 muscle.HasKey(m => new { m.ExerciseId, m.MuscleGroup });
             });
+
+            exercise.OwnsMany(e => e.Requirements, requirement =>
+            {
+                requirement.ToTable("exercise_requirements");
+                requirement.WithOwner().HasForeignKey(r => r.ExerciseId);
+                requirement.Property(r => r.Item).HasConversion<string>().IsRequired().HasMaxLength(32);
+                requirement.HasKey(r => new { r.ExerciseId, r.Item });
+            });
+        });
+
+        builder.Entity<UserEquipment>(item =>
+        {
+            item.ToTable("user_equipment");
+            item.HasKey(i => i.Id);
+            item.Property(i => i.UserId).IsRequired().HasMaxLength(450);
+            item.Property(i => i.Item).HasConversion<string>().IsRequired().HasMaxLength(32);
+            // One row per user per item, so owning a thing twice is impossible.
+            item.HasIndex(i => new { i.UserId, i.Item }).IsUnique();
         });
 
         builder.Entity<TrainingProfile>(profile =>

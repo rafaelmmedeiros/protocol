@@ -80,6 +80,64 @@ public static class TrainingEndpoints
             })
             .WithName("PutTrainingProfile");
 
+        group.MapGet("/equipment", async (ClaimsPrincipal user, AppDbContext db, CancellationToken token) =>
+            {
+                var owned = await OwnedItemsAsync(db, UserIdOf(user), token);
+
+                return Results.Ok(new EquipmentResponse(
+                    [.. owned.Select(item => item.ToString()).Order()],
+                    [.. Enum.GetValues<EquipmentItem>().Select(item => item.ToString())]));
+            })
+            .WithName("GetEquipment");
+
+        group.MapPut("/equipment", async (
+                EquipmentRequest request,
+                ClaimsPrincipal user,
+                AppDbContext db,
+                CancellationToken token) =>
+            {
+                var parsed = new List<EquipmentItem>();
+                foreach (var name in request.Items ?? [])
+                {
+                    if (!Enum.TryParse<EquipmentItem>(name, ignoreCase: true, out var item)
+                        || !Enum.IsDefined(item))
+                    {
+                        // Parsed here rather than bound to the enum, so an unknown value becomes
+                        // a code the frontend can translate instead of a framework error it
+                        // cannot (root standard 3).
+                        return Results.BadRequest(new ApiError(TrainingErrorCodes.UnknownEquipmentItem));
+                    }
+
+                    parsed.Add(item);
+                }
+
+                if (parsed.Count == 0)
+                {
+                    // A gym with nothing in it cannot be programmed for, and an empty set would
+                    // otherwise be indistinguishable from "never described", which means the
+                    // TD-004 default -- the opposite of what the user just said.
+                    return Results.BadRequest(new ApiError(TrainingErrorCodes.EquipmentSetEmpty));
+                }
+
+                var userId = UserIdOf(user);
+                var current = await db.UserEquipment.Where(row => row.UserId == userId).ToListAsync(token);
+
+                db.UserEquipment.RemoveRange(current);
+                db.UserEquipment.AddRange(parsed.Distinct().Select(item => new UserEquipment
+                {
+                    Id = Guid.CreateVersion7(),
+                    UserId = userId,
+                    Item = item,
+                }));
+
+                await db.SaveChangesAsync(token);
+
+                return Results.Ok(new EquipmentResponse(
+                    [.. parsed.Distinct().Select(item => item.ToString()).Order()],
+                    [.. Enum.GetValues<EquipmentItem>().Select(item => item.ToString())]));
+            })
+            .WithName("PutEquipment");
+
         group.MapPost("/weeks", async (ClaimsPrincipal user, AppDbContext db, CancellationToken token) =>
             {
                 var userId = UserIdOf(user);
@@ -94,8 +152,11 @@ public static class TrainingEndpoints
 
                 var catalogue = await db.Exercises
                     .Include(exercise => exercise.Muscles)
+                    .Include(exercise => exercise.Requirements)
                     .AsNoTracking()
                     .ToListAsync(token);
+
+                var owned = await OwnedItemsAsync(db, userId, token);
 
                 // Truncated to the microsecond because that is all Postgres `timestamptz`
                 // keeps, while a DateTimeOffset holds 100-nanosecond ticks. Without this the
@@ -106,7 +167,8 @@ public static class TrainingEndpoints
                 var plan = WeekGenerator.Generate(
                     profile,
                     catalogue,
-                    DateOnly.FromDateTime(generatedAt.UtcDateTime));
+                    DateOnly.FromDateTime(generatedAt.UtcDateTime),
+                    owned);
 
                 var current = await db.GeneratedWeeks
                     .AsNoTracking()
@@ -239,6 +301,25 @@ public static class TrainingEndpoints
             ],
         };
 
+    /// <summary>
+    /// What the user owns, or `TD-004`'s assumed gym when they have never said. No rows is not
+    /// an empty gym — the endpoint refuses an empty set precisely so the two cannot be confused
+    /// (ADR-013).
+    /// </summary>
+    private static async Task<IReadOnlySet<EquipmentItem>> OwnedItemsAsync(
+        AppDbContext db,
+        string userId,
+        CancellationToken token)
+    {
+        var rows = await db.UserEquipment
+            .AsNoTracking()
+            .Where(row => row.UserId == userId)
+            .Select(row => row.Item)
+            .ToListAsync(token);
+
+        return rows.Count == 0 ? ExerciseCatalogue.AssumedGym : rows.ToHashSet();
+    }
+
     private static string UserIdOf(ClaimsPrincipal user) =>
         user.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new InvalidOperationException("Authenticated principal has no identifier.");
@@ -337,3 +418,16 @@ public sealed record GeneratedPrescriptionResponse(
             prescription.RepsInReserve,
             prescription.RestSeconds);
 }
+
+/// <summary>
+/// What the user has, and everything they could say they have. The vocabulary travels with the
+/// answer so the screen never hardcodes a list that would drift from the enum.
+/// </summary>
+public sealed record EquipmentResponse(IReadOnlyList<string> Items, IReadOnlyList<string> Vocabulary);
+
+/// <summary>
+/// Items arrive as strings rather than bound to the enum, so an unrecognised one becomes
+/// <see cref="TrainingErrorCodes.UnknownEquipmentItem"/> — a code the frontend can translate —
+/// instead of a deserialization failure it cannot.
+/// </summary>
+public sealed record EquipmentRequest(IReadOnlyList<string>? Items);

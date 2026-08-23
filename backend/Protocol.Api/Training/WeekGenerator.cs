@@ -27,10 +27,17 @@ public static class WeekGenerator
     public static WeekPlan Generate(
         TrainingProfile profile,
         IReadOnlyList<Exercise> catalogue,
-        DateOnly reference)
+        DateOnly reference,
+        IReadOnlySet<EquipmentItem>? owned = null)
     {
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(catalogue);
+
+        // An exercise is performable when everything it needs is present. Nothing owned means
+        // TD-004's assumed gym, so a user who never described theirs gets M1's week (ADR-013).
+        var available = owned ?? ExerciseCatalogue.AssumedGym;
+        catalogue = [.. catalogue.Where(exercise =>
+            exercise.Requirements.All(requirement => available.Contains(requirement.Item)))];
 
         var split = SplitTemplate.For(profile.DaysPerWeek);
         var weekStart = WeekStartFor(reference, split); // ADR-008
@@ -129,7 +136,19 @@ public static class WeekGenerator
             var day = split[index];
             var slots = FillSession(
                 day, index, schedule, catalogue, profile.SessionDurationSeconds, cut, setsPerSlot, volumes);
-            sessions.Add(new PlannedSession(index + 1, day.Day, day.Kind, slots));
+
+            // A session with nothing in it is not a training day, and emitting one is worse than
+            // emitting fewer days. It happens when the available catalogue is small enough that
+            // the earlier sessions already carried every trainable muscle to target -- a real
+            // outcome once equipment filtering exists (ADR-013), and the honest answer is that
+            // the week is finished, not that Friday is blank. Padding it would mean prescribing
+            // volume above the target, which is the one thing the target is for.
+            if (slots.Count == 0)
+            {
+                continue;
+            }
+
+            sessions.Add(new PlannedSession(sessions.Count + 1, day.Day, day.Kind, slots));
         }
 
         var shortfalls = volumes

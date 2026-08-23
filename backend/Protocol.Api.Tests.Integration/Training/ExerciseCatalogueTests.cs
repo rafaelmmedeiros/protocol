@@ -84,6 +84,26 @@ public class ExerciseCatalogueTests(ApiFactory factory) : IClassFixture<ApiFacto
     }
 
     [Fact]
+    public async Task Every_seeded_exercise_declares_what_it_needs_to_be_performed()
+    {
+        // Catalogue integrity for ADR-013. A row with no requirements is unperformable by the
+        // subset rule, so a forgotten curation would silently remove an exercise from every
+        // week rather than failing anywhere.
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var catalogue = await db.Exercises
+            .Include(exercise => exercise.Requirements)
+            .AsNoTracking()
+            .ToListAsync();
+
+        Assert.All(catalogue, exercise => Assert.NotEmpty(exercise.Requirements));
+        Assert.All(
+            catalogue.SelectMany(exercise => exercise.Requirements),
+            requirement => Assert.True(Enum.IsDefined(requirement.Item)));
+    }
+
+    [Fact]
     public async Task Seeding_again_neither_duplicates_nor_rewrites_the_catalogue()
     {
         // Identifiers a generated week references must survive a restart (root standard 7).

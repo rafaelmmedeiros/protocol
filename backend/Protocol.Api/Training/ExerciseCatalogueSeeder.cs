@@ -26,24 +26,49 @@ public sealed class ExerciseCatalogueSeeder(IServiceProvider services, ILogger<E
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-        var known = await db.Exercises
-            .Select(exercise => exercise.ExternalTemplateId)
+        var existing = await db.Exercises
+            .Include(exercise => exercise.Requirements)
             .ToListAsync(cancellationToken);
+
+        var known = existing.Select(exercise => exercise.ExternalTemplateId).ToHashSet();
 
         var missing = ExerciseCatalogue.All
             .Where(exercise => !known.Contains(exercise.ExternalTemplateId))
             .ToList();
 
-        if (missing.Count == 0)
+        db.Exercises.AddRange(missing);
+
+        // Backfill: a row seeded before requirements existed has none, and an exercise with no
+        // requirements is unperformable under ADR-013 -- so every already-seeded catalogue would
+        // generate an empty week. Idempotency by external id means the insert above would never
+        // touch them, which is exactly why this has to be here and not in a migration.
+        var backfilled = 0;
+        foreach (var exercise in existing.Where(exercise => exercise.Requirements.Count == 0))
+        {
+            var source = ExerciseCatalogue.All
+                .SingleOrDefault(row => row.ExternalTemplateId == exercise.ExternalTemplateId);
+            if (source is null) continue;
+
+            foreach (var requirement in source.Requirements)
+            {
+                exercise.Requirements.Add(new ExerciseRequirement { Item = requirement.Item });
+            }
+
+            backfilled++;
+        }
+
+        if (missing.Count == 0 && backfilled == 0)
         {
             logger.LogInformation("Exercise catalogue already seeded ({Count} exercises).", known.Count);
             return;
         }
 
-        db.Exercises.AddRange(missing);
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Exercise catalogue seeded with {Count} exercises.", missing.Count);
+        logger.LogInformation(
+            "Exercise catalogue seeded with {Added} exercises; {Backfilled} had requirements added.",
+            missing.Count,
+            backfilled);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

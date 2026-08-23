@@ -20,6 +20,93 @@ namespace Protocol.Api.Training;
 public static class ExerciseCatalogue
 {
     /// <summary>
+    /// What each exercise needs to be performed at all, keyed by Hevy's template id because that
+    /// is the one identifier stable across a re-seed (our own key is generated).
+    /// <para>
+    /// Kept as a table rather than a parameter on every row so the whole gym is readable in one
+    /// place — this is the list to check against a real gym, and against `TD-004`'s assumption.
+    /// A row missing from here throws at startup rather than seeding an exercise nobody can
+    /// perform (ADR-013).
+    /// </para>
+    /// <para>
+    /// Two judgements worth arguing with. A bench press requires a <c>Bench</c> and not a
+    /// <c>SquatRack</c>, because a bench with uprights is the ordinary case. And a preacher curl
+    /// requires an <c>AdjustableBench</c> rather than a preacher bench of its own — an adjustable
+    /// bench set upright serves, which keeps `TD-004`'s assumed gym intact instead of quietly
+    /// widening it.
+    /// </para>
+    /// <para>
+    /// <b>Declared before <see cref="All"/> on purpose.</b> Static field initialisers run in
+    /// textual order, and <see cref="All"/> reads this while building every row — below it, this
+    /// dictionary is still null and the type initialiser throws.
+    /// </para>
+    /// </summary>
+    private static readonly Dictionary<string, EquipmentItem[]> Requirements = new()
+    {
+        // Lower body
+        ["D04AC939"] = [EquipmentItem.Barbell, EquipmentItem.WeightPlates, EquipmentItem.SquatRack],
+        ["6622E5A0"] = [EquipmentItem.Barbell, EquipmentItem.WeightPlates, EquipmentItem.SquatRack],
+        ["2B4B7310"] = [EquipmentItem.Barbell, EquipmentItem.WeightPlates],
+        ["C6272009"] = [EquipmentItem.Barbell, EquipmentItem.WeightPlates],
+        ["72CFFAD5"] = [EquipmentItem.Dumbbells],
+        ["B5D3A742"] = [EquipmentItem.Dumbbells, EquipmentItem.Bench],
+        ["20C1A3CB"] = [EquipmentItem.Dumbbells],
+        ["D57C2EC7"] = [EquipmentItem.Barbell, EquipmentItem.WeightPlates, EquipmentItem.Bench],
+        ["8C331CD8"] = [EquipmentItem.CableStation],
+        ["6DA40660"] = [EquipmentItem.Dumbbells],
+        ["E53CCBE5"] = [EquipmentItem.Barbell, EquipmentItem.WeightPlates],
+
+        // Upper body, push
+        ["79D0BB3A"] = [EquipmentItem.Barbell, EquipmentItem.WeightPlates, EquipmentItem.Bench],
+        ["50DFDFAB"] = [EquipmentItem.Barbell, EquipmentItem.WeightPlates, EquipmentItem.Bench, EquipmentItem.AdjustableBench],
+        ["3601968B"] = [EquipmentItem.Dumbbells, EquipmentItem.Bench],
+        ["07B38369"] = [EquipmentItem.Dumbbells, EquipmentItem.Bench, EquipmentItem.AdjustableBench],
+        ["7B8D84E8"] = [EquipmentItem.Barbell, EquipmentItem.WeightPlates],
+        ["6AC96645"] = [EquipmentItem.Dumbbells],
+        ["651F844C"] = [EquipmentItem.CableStation],
+        ["12017185"] = [EquipmentItem.Dumbbells, EquipmentItem.Bench],
+        ["422B08F1"] = [EquipmentItem.Dumbbells],
+        ["BE289E45"] = [EquipmentItem.CableStation],
+        ["93A552C6"] = [EquipmentItem.CableStation],
+        ["3765684D"] = [EquipmentItem.Dumbbells],
+
+        // Upper body, pull
+        ["1B2B1E7C"] = [EquipmentItem.PullUpBar],
+        ["6A6C31A5"] = [EquipmentItem.LatPulldownStation],
+        ["55E6546F"] = [EquipmentItem.Barbell, EquipmentItem.WeightPlates],
+        ["0393F233"] = [EquipmentItem.CableStation],
+        ["23E92538"] = [EquipmentItem.Dumbbells],
+        ["B582299E"] = [EquipmentItem.Dumbbells, EquipmentItem.Bench, EquipmentItem.AdjustableBench],
+        ["A5AC6449"] = [EquipmentItem.Barbell, EquipmentItem.WeightPlates],
+        ["4F942934"] = [EquipmentItem.Barbell, EquipmentItem.WeightPlates, EquipmentItem.Bench, EquipmentItem.AdjustableBench],
+        ["37FCC2BB"] = [EquipmentItem.Dumbbells],
+        ["ADA8623C"] = [EquipmentItem.CableStation],
+
+        // Trunk
+        ["23A48484"] = [EquipmentItem.CableStation],
+        ["DCF3B31B"] = [EquipmentItem.Bodyweight],
+        ["CC55119B"] = [EquipmentItem.CableStation],
+    };
+
+    /// <summary>
+    /// The gym `TD-004` assumed, expressed as items. A user with no equipment rows is treated as
+    /// having exactly this, so a user who never opens the screen gets `M1`'s week unchanged.
+    /// </summary>
+    public static IReadOnlySet<EquipmentItem> AssumedGym { get; } = new HashSet<EquipmentItem>
+    {
+        EquipmentItem.Bodyweight,
+        EquipmentItem.Barbell,
+        EquipmentItem.WeightPlates,
+        EquipmentItem.Dumbbells,
+        EquipmentItem.Bench,
+        EquipmentItem.AdjustableBench,
+        EquipmentItem.SquatRack,
+        EquipmentItem.PullUpBar,
+        EquipmentItem.CableStation,
+        EquipmentItem.LatPulldownStation,
+    };
+
+    /// <summary>
     /// Every exercise M1 can prescribe. Ordering within this list is irrelevant: selection
     /// draws on <see cref="Exercise.PreferenceRank"/>, never on insertion order, identifier or
     /// title (TD-005, ADR-005).
@@ -197,6 +284,15 @@ public static class ExerciseCatalogue
         {
             Id = Guid.CreateVersion7(),
             ExternalTemplateId = externalTemplateId,
+            Requirements =
+            [
+                .. (Requirements.TryGetValue(externalTemplateId, out var items)
+                        ? items
+                        : throw new InvalidOperationException(
+                            $"'{title}' has no equipment requirements. Every exercise needs at least "
+                            + "one (ADR-013); a bodyweight movement requires EquipmentItem.Bodyweight."))
+                    .Select(item => new ExerciseRequirement { Item = item }),
+            ],
             Title = title,
             MovementPattern = movementPattern,
             Mechanic = mechanic,

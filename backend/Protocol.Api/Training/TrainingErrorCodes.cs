@@ -19,6 +19,12 @@ public static class TrainingErrorCodes
     /// <summary>Days per week outside the supported range (TD-002).</summary>
     public const string FrequencyOutOfRange = "FrequencyOutOfRange";
 
+    /// <summary>A gym with nothing in it cannot be programmed for (ADR-013).</summary>
+    public const string EquipmentSetEmpty = "EquipmentSetEmpty";
+
+    /// <summary>An item outside the EquipmentItem vocabulary (ADR-013).</summary>
+    public const string UnknownEquipmentItem = "UnknownEquipmentItem";
+
     /// <summary>Session duration outside the supported range (TD-012).</summary>
     public const string DurationOutOfRange = "DurationOutOfRange";
 

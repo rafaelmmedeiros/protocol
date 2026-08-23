@@ -56,4 +56,10 @@ public sealed class Exercise
 
     /// <summary>The muscles this exercise loads, and how directly (TD-006).</summary>
     public ICollection<ExerciseMuscle> Muscles { get; init; } = [];
+
+    /// <summary>
+    /// Everything that has to be present for this to be performed (ADR-013). Performable when
+    /// this is a subset of what the user owns.
+    /// </summary>
+    public ICollection<ExerciseRequirement> Requirements { get; init; } = [];
 }

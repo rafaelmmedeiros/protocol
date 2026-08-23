@@ -11,7 +11,7 @@ Protocol.slnx                      the solution (.NET 10 emits .slnx, not .sln)
 Protocol.Api/
   Program.cs                       composition root: CORS, Identity, cookie, health, endpoints
   Auth/                            AppUser, AppDbContext, AuthEndpoints, DatabaseMigrator
-  Training/                        the domain: exercise catalogue and its vocabulary
+  Training/                        the domain: catalogue, profile, equipment, generator, weeks
   Migrations/                      EF Core migrations, forward-only
   appsettings.json                 defaults; every value is overridable by environment
 Protocol.Api.Tests.Unit/           xUnit, no I/O
