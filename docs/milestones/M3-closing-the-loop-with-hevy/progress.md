@@ -92,7 +92,31 @@ file carries what a future session would otherwise rediscover.
     that what decides it should be as visible as it is.
 
 ### S3.4 — Importing history
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 7 unit (`ImportedVolumeTests`), 16 integration (`ImportHistoryTests`, `ReconciliationTests`)
+- **Observations:**
+  - **A test caught a real bug, and it was the C# nullable-comparison trap.** The cursor advanced
+    with `at > connection.SyncCursor`, and a lifted comparison against a **null** operand is
+    `false` — so the null cursor, which is every first sync, never moved and every sync would have
+    re-read the whole history from the epoch forever. Nothing else would have shown it: the
+    duplicate-suppression check made the re-read a silent no-op, so the only visible symptom was a
+    slow sync. `The_cursor_advances_so_the_next_sync_asks_for_less` exists because of it.
+  - **The open question from `S3.2` is answered, and retention is what made the answer cheap.**
+    The payload is stored **before** it is mapped, so a workout carrying an unmodelled set type is
+    still captured; the sync records the reason, counts it as `Unmapped`, advances the cursor and
+    continues. Aborting or holding the cursor would have let one odd workout block every future
+    sync permanently, with the offending data sitting in a third party's account where the user
+    could not fix it. Recorded as an `ADR-018` revision.
+  - **The feed's cursor is inclusive, which makes idempotence the importer's job.** "At or after"
+    means the last event of one sync is the first event of the next, so an update whose
+    `updated_at` already has a row is skipped and a deletion whose latest version is already a
+    tombstone is skipped. Without that, every sync would append a duplicate of the boundary event.
+  - **A tombstone carries no exercises.** It says "this stopped counting"; the sets it used to
+    carry stay readable on the version below it, which is root standard 7 in its literal form.
+  - **`PerformedVolume` had to exist here rather than in `S3.5`.** The acceptance criterion is that
+    a deleted workout *stops counting toward volume*, which is unassertable without the arithmetic.
+    It reuses the generator's own credit constants, because planned and performed must be counted
+    the same way or the comparison compares two different quantities.
 
 ### S3.5 — Prescribed against performed
 - **Status:** pending

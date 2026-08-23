@@ -29,6 +29,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<PerformedWorkout> PerformedWorkouts => Set<PerformedWorkout>();
 
+    public DbSet<HevyWorkoutSnapshot> HevyWorkoutSnapshots => Set<HevyWorkoutSnapshot>();
+
     public DbSet<Exercise> Exercises => Set<Exercise>();
 
     public DbSet<TrainingProfile> TrainingProfiles => Set<TrainingProfile>();
@@ -158,7 +160,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             // overwriting, so one Hevy workout legitimately owns several rows. S3.4 adds the
             // version column that distinguishes them.
             workout.Property(w => w.ExternalWorkoutId).IsRequired().HasMaxLength(64);
-            workout.HasIndex(w => new { w.UserId, w.ExternalWorkoutId });
+
+            // One row per version of one workout, enforced by the database. This is what makes a
+            // re-delivered event idempotent rather than a duplicate: the events feed is asked for
+            // everything at or after a cursor, so the boundary event arrives twice by design.
+            workout.Property(w => w.Version).IsRequired();
+            workout.HasIndex(w => new { w.UserId, w.ExternalWorkoutId, w.Version }).IsUnique();
+
+            workout.Property(w => w.IsDeleted).IsRequired();
 
             // Indexed because ADR-019 binds a workout to a session by exactly this value, and
             // because ADR-017 asks "has anything trained from this week" before re-pushing it.
@@ -176,6 +185,22 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
                 .WithOne()
                 .HasForeignKey(e => e.PerformedWorkoutId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<HevyWorkoutSnapshot>(snapshot =>
+        {
+            snapshot.ToTable("hevy_workout_snapshots");
+            snapshot.HasKey(s => s.Id);
+
+            snapshot.Property(s => s.UserId).IsRequired().HasMaxLength(450);
+            snapshot.Property(s => s.ExternalWorkoutId).IsRequired().HasMaxLength(64);
+            snapshot.Property(s => s.Version).IsRequired();
+            snapshot.HasIndex(s => new { s.UserId, s.ExternalWorkoutId, s.Version }).IsUnique();
+
+            snapshot.Property(s => s.ExternallyUpdatedAt).IsRequired();
+            snapshot.Property(s => s.RawJson).IsRequired();
+            snapshot.Property(s => s.FetchedAt).IsRequired();
+            snapshot.Property(s => s.MappingFailure).HasMaxLength(500);
         });
 
         builder.Entity<PerformedExercise>(exercise =>

@@ -41,6 +41,27 @@ public sealed class PerformedWorkout
     /// </summary>
     public required DateTimeOffset ExternallyUpdatedAt { get; init; }
 
+    /// <summary>
+    /// Which reading of this workout this row is, from one upward.
+    /// <para>
+    /// One Hevy workout owns several rows here, and that is the point: an upstream edit appends a
+    /// new version rather than overwriting (root standard 7, ADR-018). Reads take the highest
+    /// version, and every earlier one stays legible so an analysis produced last month can still
+    /// be explained.
+    /// </para>
+    /// </summary>
+    public required int Version { get; init; }
+
+    /// <summary>
+    /// Whether this version records the workout being removed upstream.
+    /// <para>
+    /// A tombstone, not a deletion. Nothing here is ever removed — the user meant to delete the
+    /// session, so it stops counting toward volume, but the rows that earlier analyses were
+    /// computed against survive (root standard 7).
+    /// </para>
+    /// </summary>
+    public bool IsDeleted { get; init; }
+
     public ICollection<PerformedExercise> Exercises { get; init; } = [];
 }
 

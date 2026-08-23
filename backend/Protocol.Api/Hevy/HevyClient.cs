@@ -98,6 +98,50 @@ public sealed class HevyClient(HttpClient http, ILogger<HevyClient> logger, IHev
             updated => updated.Id,
             token);
 
+    public async Task<HevyWrite<HevyWorkoutEventPage>> ListWorkoutEventsAsync(
+        string apiKey,
+        DateTimeOffset since,
+        int page,
+        int pageSize,
+        CancellationToken token)
+    {
+        // Round-trip format, so the cursor survives the wire exactly as stored. A local-time
+        // string here would shift the window by the server's offset and silently re-read or skip.
+        var query = $"workouts/events?since={Uri.EscapeDataString(since.UtcDateTime.ToString("O"))}"
+            + $"&page={page}&pageSize={pageSize}";
+
+        var response = await SendWithBackoffAsync(
+            () =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, query);
+                request.Headers.Add(KeyHeader, apiKey);
+                return request;
+            },
+            token);
+
+        if (response is null)
+        {
+            return new HevyWrite<HevyWorkoutEventPage>(HevyWriteOutcome.Unreachable);
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                return new HevyWrite<HevyWorkoutEventPage>(
+                    response.StatusCode == HttpStatusCode.TooManyRequests
+                        ? HevyWriteOutcome.RateLimited
+                        : HevyWriteOutcome.Unreachable);
+            }
+
+            var payload = await response.Content.ReadFromJsonAsync<HevyWorkoutEventPage>(token);
+
+            return payload is null
+                ? new HevyWrite<HevyWorkoutEventPage>(HevyWriteOutcome.Unreachable)
+                : new HevyWrite<HevyWorkoutEventPage>(HevyWriteOutcome.Ok, payload);
+        }
+    }
+
     /// <summary>
     /// One shape for every write: send, retry per ADR-021, then turn the answer into our own
     /// vocabulary. Nothing above this method sees a status code.

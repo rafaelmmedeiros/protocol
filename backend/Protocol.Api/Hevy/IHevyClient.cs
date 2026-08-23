@@ -39,6 +39,22 @@ public interface IHevyClient
         string routineId,
         HevyRoutinePayload routine,
         CancellationToken token);
+
+    /// <summary>
+    /// One page of what changed at or after <paramref name="since"/> (ADR-018).
+    /// <para>
+    /// The events feed rather than the workouts list, because it is the only surface that reports
+    /// **deletions**: on the plain list a removed workout simply stops appearing, which is
+    /// indistinguishable from a paging bug. Its page is capped at ten items by Hevy, so the
+    /// caller pages rather than assuming a size.
+    /// </para>
+    /// </summary>
+    Task<HevyWrite<HevyWorkoutEventPage>> ListWorkoutEventsAsync(
+        string apiKey,
+        DateTimeOffset since,
+        int page,
+        int pageSize,
+        CancellationToken token);
 }
 
 /// <summary>

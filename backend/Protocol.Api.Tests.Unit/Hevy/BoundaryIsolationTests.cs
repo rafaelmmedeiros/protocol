@@ -115,6 +115,7 @@ public class BoundaryIsolationTests
             StartedAt = DateTimeOffset.UnixEpoch,
             EndedAt = DateTimeOffset.UnixEpoch,
             ExternallyUpdatedAt = DateTimeOffset.UnixEpoch,
+            Version = 1,
             Exercises =
             [
                 new PerformedExercise

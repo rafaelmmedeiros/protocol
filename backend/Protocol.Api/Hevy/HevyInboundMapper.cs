@@ -24,6 +24,10 @@ public static class HevyInboundMapper
     /// lookup rather than a match: the catalogue is keyed to Hevy by an external identifier
     /// (ADR-002), so this is never a comparison of titles.
     /// </param>
+    /// <param name="version">
+    /// Which reading of this workout this is. Decided by the caller, because only the importer
+    /// knows what has already been stored — the mapper is a translation and holds no state.
+    /// </param>
     /// <exception cref="HevyMappingException">
     /// A set carries a type we do not model, or an RPE outside Hevy's own anchors. Loud, because
     /// silently counting an unknown set as a working one would inflate every volume number the
@@ -32,7 +36,8 @@ public static class HevyInboundMapper
     public static PerformedWorkout ToPerformedWorkout(
         HevyWorkout workout,
         string userId,
-        Func<string, Guid?> exerciseIdFor)
+        Func<string, Guid?> exerciseIdFor,
+        int version = 1)
     {
         var exercises = (workout.Exercises ?? [])
             .OrderBy(exercise => exercise.Index)
@@ -52,6 +57,7 @@ public static class HevyInboundMapper
             StartedAt = workout.StartTime.ToUniversalTime(),
             EndedAt = workout.EndTime.ToUniversalTime(),
             ExternallyUpdatedAt = workout.UpdatedAt.ToUniversalTime(),
+            Version = version,
             // Ordered on the way in and kept ordered by Position on the way out. The sequence is
             // never reduced to a total: 11/9/8 and 8/9/11 are different facts.
             Exercises = exercises,

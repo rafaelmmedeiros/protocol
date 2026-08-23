@@ -46,6 +46,21 @@ public sealed class StubHevyClient : IHevyClient
     /// </summary>
     public HashSet<string> Missing { get; } = [];
 
+    /// <summary>
+    /// The events feed's contents. A test writes the history it wants; the stub pages over it
+    /// with Hevy's own ten-item cap so the importer's paging is exercised rather than assumed.
+    /// </summary>
+    public List<HevyWorkoutEvent> Events { get; } = [];
+
+    /// <summary>Every `since` the importer asked for, in order — the cursor, observed from outside.</summary>
+    public List<DateTimeOffset> Requested { get; } = [];
+
+    /// <summary>
+    /// Refuse from this page onward, as a rate limit would. Zero means never, which is the
+    /// ordinary case.
+    /// </summary>
+    public int RefuseFromPage { get; set; }
+
     public void Forget()
     {
         lock (_gate)
@@ -54,6 +69,9 @@ public sealed class StubHevyClient : IHevyClient
             Created.Clear();
             Updated.Clear();
             Missing.Clear();
+            Events.Clear();
+            Requested.Clear();
+            RefuseFromPage = 0;
         }
     }
 
@@ -88,6 +106,45 @@ public sealed class StubHevyClient : IHevyClient
             return Task.FromResult(new HevyWrite<string>(HevyWriteOutcome.Ok, id));
         }
     }
+
+    public Task<HevyWrite<HevyWorkoutEventPage>> ListWorkoutEventsAsync(
+        string apiKey,
+        DateTimeOffset since,
+        int page,
+        int pageSize,
+        CancellationToken token)
+    {
+        lock (_gate)
+        {
+            Requested.Add(since);
+
+            if (RefuseFromPage > 0 && page >= RefuseFromPage)
+            {
+                return Task.FromResult(new HevyWrite<HevyWorkoutEventPage>(HevyWriteOutcome.RateLimited));
+            }
+
+            // "At or after", exactly as the real feed behaves -- which is why the event sitting on
+            // the cursor is re-delivered every time, and why the importer has to recognise it.
+            var matching = Events
+                .Where(change => At(change) >= since)
+                .OrderBy(At)
+                .ToList();
+
+            var pageCount = Math.Max(1, (int)Math.Ceiling(matching.Count / (double)pageSize));
+
+            var slice = matching
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return Task.FromResult(new HevyWrite<HevyWorkoutEventPage>(
+                HevyWriteOutcome.Ok,
+                new HevyWorkoutEventPage(page, pageCount, slice)));
+        }
+    }
+
+    private static DateTimeOffset At(HevyWorkoutEvent change) =>
+        change.Workout?.UpdatedAt ?? change.DeletedAt ?? DateTimeOffset.UnixEpoch;
 
     public Task<HevyWrite<string>> UpdateRoutineAsync(
         string apiKey,

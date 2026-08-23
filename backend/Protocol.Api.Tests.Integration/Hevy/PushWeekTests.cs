@@ -144,6 +144,7 @@ public class PushWeekTests(ApiFactory factory) : IClassFixture<ApiFactory>
                 StartedAt = DateTimeOffset.UtcNow,
                 EndedAt = DateTimeOffset.UtcNow,
                 ExternallyUpdatedAt = DateTimeOffset.UtcNow,
+                Version = 1,
             });
             await db.SaveChangesAsync();
         }

@@ -66,3 +66,31 @@ expects to correct.
   on the way in would be discarding a fact to save an `if`.
 - **The mapping runs in one place** on the way in (standard 17), and `TD-017` is the whole of the
   effort conversion.
+
+**Revisions.**
+
+- 2026-08-23 — **What a sync does with a workout it cannot map**, decided while building `S3.4`
+  and left open on purpose by `S3.2`. The inbound mapper refuses an unmodelled set type rather
+  than defaulting it to a working set, because a silent default would inflate every fractional
+  volume figure the system produces. That refusal needed a policy at the sync level, and the three
+  candidates were: abort the sync, skip without advancing the cursor, or skip and continue.
+
+  The first two are the same failure wearing different clothes — **one odd workout would block
+  every future sync, permanently**, and the user could not fix it because the offending data is in
+  a third party's account.
+
+  So the sync **stores the payload first, then maps**, and a mapping failure costs a report rather
+  than the data. The snapshot lands with the reason recorded beside it, no mapped rows are written,
+  the cursor advances, and the run continues. `Unmapped` is returned as its own count so a number
+  that stops being zero is a visible signal that the catalogue or a record needs widening.
+
+  This is retention doing the work it was retained for: because the payload is kept, deciding later
+  what an unknown set type means is a **recomputation**, not a re-fetch of a history the vendor may
+  no longer hold. The option this record chose is what made the cheap answer available.
+
+- 2026-08-23 — **The cursor is inclusive, so the boundary event is re-delivered by design.** The
+  feed answers "at or after", which means the last event of one sync is the first event of the
+  next. Idempotence is therefore a requirement of the importer rather than a property of the feed:
+  an update whose `updated_at` already has a row is skipped, and a deletion whose latest version is
+  already a tombstone is skipped. Without that, every sync would append a duplicate version of
+  whatever sat on the boundary.

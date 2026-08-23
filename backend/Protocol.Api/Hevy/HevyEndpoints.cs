@@ -136,6 +136,38 @@ public static class HevyEndpoints
             })
             .WithName("PushWeekToHevy");
 
+        group.MapPost("/sync", async (
+                ClaimsPrincipal user,
+                HevyHistoryImporter importer,
+                CancellationToken token) =>
+            {
+                // Explicit, like the push. A sync reads a third party over many sequential calls,
+                // and the user should know when that is happening.
+                var result = await importer.SyncAsync(UserIdOf(user), token);
+
+                var body = new HevySyncResponse(
+                    result.Imported,
+                    result.Tombstoned,
+                    result.Unmapped);
+
+                return result.Outcome switch
+                {
+                    SyncOutcome.Ok => Results.Ok(body),
+                    SyncOutcome.NotConnected =>
+                        Results.BadRequest(new ApiError(HevyErrorCodes.HevyNotConnected)),
+                    // A partial sync is not an error state -- everything that committed stays and
+                    // the cursor moved with it -- but the caller is told, because the number it
+                    // just read is not the whole history (ADR-021).
+                    SyncOutcome.RateLimited => Results.Json(
+                        new ApiError(HevyErrorCodes.HevyRateLimited),
+                        statusCode: StatusCodes.Status503ServiceUnavailable),
+                    _ => Results.Json(
+                        new ApiError(HevyErrorCodes.HevyUnreachable),
+                        statusCode: StatusCodes.Status502BadGateway),
+                };
+            })
+            .WithName("SyncHevyHistory");
+
         return app;
     }
 
@@ -159,6 +191,17 @@ public sealed record HevyPushRequest(string? Locale);
 
 /// <summary>Where the week now lives in Hevy. Identifiers, so the caller can confirm what happened.</summary>
 public sealed record HevyPushResponse(long? FolderId, IReadOnlyList<PushedSession> Sessions);
+
+/// <summary>
+/// What a sync brought back. Counts, not rows — the screen says what happened and the history is
+/// read through its own endpoints.
+/// <para>
+/// <c>Unmapped</c> is reported rather than hidden: it is the count of workouts whose payload we
+/// kept but could not translate, and a number that stops being zero is the signal that the
+/// catalogue or a record needs widening (ADR-018).
+/// </para>
+/// </summary>
+public sealed record HevySyncResponse(int Imported, int Tombstoned, int Unmapped);
 
 /// <summary>
 /// Whether an account is connected — and nothing else.
