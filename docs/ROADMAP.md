@@ -75,6 +75,74 @@ recalled.
   surface is its own milestone, with its own failure modes.
 - Progressing a week into the next one. `M1` generates a week, not a block.
 
+### M2 — A week the user can live with
+
+**Depends on:** `M1`. It replaces the assumption `M1` programmes against and gives the user the
+first say in what they are asked to do.
+
+`M1` proved the system can build a defensible week. `M2` is about the week being **performable
+and acceptable** to the person reading it — which is a different property and, on this corpus's
+own evidence, the one that decides whether they train at all. The strongest finding behind
+exercise variety is motivation rather than growth, and the strongest predictor of long-term
+adherence is consistency in the first weeks. A week nobody follows is worth less than a
+slightly worse week somebody does.
+
+It also closes the two gaps `M1` left surfaced rather than patched: three muscle groups with no
+direct exercise under the assumed gym, and the `knee_flexion` hole `TD-004` names.
+
+**Capabilities:**
+
+- Describe the equipment actually available, replacing the single assumed gym `M1` programmes
+  against
+- State a preference between variants of the same movement, and have the generator honour it
+  where honouring it does not cost coverage
+- Substitute one exercise in a generated week for another that trains the same thing
+- Show how long a generated session is expected to take, before it is trained
+
+**Deliverables:** a signed-in user describes their gym, swaps a prescribed exercise they will
+not do for one they will, sees the estimated duration of each session, and regenerates a week
+that no longer contains movements their gym cannot perform. Every rule about what a preference
+may and may not override traces to a `TD-###`.
+
+**Not in this milestone:**
+
+- Reading training history out of Hevy. Preference here is **stated**, not derived —
+  `TD-004` records that deriving it from logged training is the better answer, and that is the
+  milestone after this one.
+- Progressing a week into the next one. Progression needs observed performance, not a described
+  gym; see the note under `M3`.
+- Writing anything back into Hevy.
+
+### M3 — Programming from what actually happened
+
+**Depends on:** `M2`.
+
+The milestone that makes the product worth its name: the system stops programming from what the
+user *said* and starts programming from what they *did*.
+
+**Capabilities:**
+
+- Import training history out of Hevy, reconciling records that changed upstream
+- Progress a week into the next one from observed performance rather than from a schedule
+- Derive the available equipment from what has actually been trained, rather than from a
+  description
+
+**Deliverables:** a second generated week differs from the first because of what was logged
+between them, and the reason it differs is readable.
+
+**Not in this milestone:**
+
+- Writing anything back into Hevy. Reading and writing have different failure modes and are not
+  worth shipping together.
+
+**Why progression waits for this and not for `M2`.** The scheme is already researched —
+double progression on ACSM's 2-10% rule, with repetition progression where the load increment
+is too coarse, and no load carried across variants
+(`/protocol-training`, `load-increment-granularity-and-progression`). What is missing is not the
+rule but the input. Progressing without observing what was performed is adding sets by
+calendar, and ACSM's 2026 overview finds progression is not necessary for benefit at all
+outside continued long-term progress. Blind progression is worse than none.
+
 ## The horizon
 
 Beyond the numbered milestones, and deliberately unscheduled — recorded because decisions taken

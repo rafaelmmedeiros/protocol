@@ -41,4 +41,8 @@ each other — so a week regenerated a month later is a different week, silently
 expected, and produces a new row rather than editing one.
 
 **Revisions.**
-- _(none)_
+- 2026-08-23 — "a user regenerating their week is expected, and produces a new row rather than
+  editing one" is refined by `ADR-009`: a regeneration that produces a week **identical** to the
+  stored one writes nothing at all. Immutability is unchanged — nothing here is edited or
+  deleted — but this record's claim that regenerating always produces a row stopped being true,
+  and it is corrected here rather than left to disagree with the code (standard 18).
