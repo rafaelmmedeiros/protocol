@@ -19,6 +19,12 @@ public static class TrainingErrorCodes
     /// <summary>Days per week outside the supported range (TD-002).</summary>
     public const string FrequencyOutOfRange = "FrequencyOutOfRange";
 
+    /// <summary>Excluding or preferring an exercise that is not ours.</summary>
+    public const string ExerciseNotFound = "ExerciseNotFound";
+
+    /// <summary>A preferred variant that does not belong to the pattern it is preferred for.</summary>
+    public const string NotACandidate = "NotACandidate";
+
     /// <summary>A gym with nothing in it cannot be programmed for (ADR-013).</summary>
     public const string EquipmentSetEmpty = "EquipmentSetEmpty";
 

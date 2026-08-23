@@ -28,16 +28,24 @@ public static class WeekGenerator
         TrainingProfile profile,
         IReadOnlyList<Exercise> catalogue,
         DateOnly reference,
-        IReadOnlySet<EquipmentItem>? owned = null)
+        IReadOnlySet<EquipmentItem>? owned = null,
+        TrainingPreferences? preferences = null)
     {
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(catalogue);
 
+        preferences ??= TrainingPreferences.None;
+
         // An exercise is performable when everything it needs is present. Nothing owned means
         // TD-004's assumed gym, so a user who never described theirs gets M1's week (ADR-013).
         var available = owned ?? ExerciseCatalogue.AssumedGym;
+
+        // An exclusion is honoured unconditionally, including the last exercise that trains a
+        // muscle. Refusing one would turn it into an unlogged skip -- a shortfall the system can
+        // count becomes one it cannot, and the history records a plan nobody executed (TD-016).
         catalogue = [.. catalogue.Where(exercise =>
-            exercise.Requirements.All(requirement => available.Contains(requirement.Item)))];
+            !preferences.ExcludedExerciseIds.Contains(exercise.Id)
+            && exercise.Requirements.All(requirement => available.Contains(requirement.Item)))];
 
         var split = SplitTemplate.For(profile.DaysPerWeek);
         var weekStart = WeekStartFor(reference, split); // ADR-008
@@ -48,7 +56,7 @@ public static class WeekGenerator
         // here -- nothing ever overflows.
         foreach (var cut in (CutLevel[])[CutLevel.None, CutLevel.RestToFloor, CutLevel.RestToFloorAndFewerSets])
         {
-            var week = Build(profile, catalogue, weekStart, split, cut);
+            var week = Build(profile, catalogue, weekStart, split, cut, preferences);
             if (week.MeetsFloor)
             {
                 return week;
@@ -58,7 +66,7 @@ public static class WeekGenerator
         // Every rung exhausted and some muscle is still short. The week is returned with the
         // gap named rather than refused: a shortfall the user can see beats a week that looks
         // complete and is not (TD-013, step 5).
-        return Build(profile, catalogue, weekStart, split, CutLevel.RestToFloorAndFewerSets);
+        return Build(profile, catalogue, weekStart, split, CutLevel.RestToFloorAndFewerSets, preferences);
     }
 
     /// <summary>
@@ -100,7 +108,8 @@ public static class WeekGenerator
         IReadOnlyList<Exercise> catalogue,
         DateOnly weekStart,
         IReadOnlyList<SplitDay> split,
-        CutLevel cut)
+        CutLevel cut,
+        TrainingPreferences preferences)
     {
         var setsPerSlot = cut == CutLevel.RestToFloorAndFewerSets
             ? TrainingPrescription.ReducedSetsPerSlot   // TD-013
@@ -135,7 +144,8 @@ public static class WeekGenerator
         {
             var day = split[index];
             var slots = FillSession(
-                day, index, schedule, catalogue, profile.SessionDurationSeconds, cut, setsPerSlot, volumes);
+                day, index, schedule, catalogue, profile.SessionDurationSeconds, cut, setsPerSlot, volumes,
+                preferences);
 
             // A session with nothing in it is not a training day, and emitting one is worse than
             // emitting fewer days. It happens when the available catalogue is small enough that
@@ -169,7 +179,8 @@ public static class WeekGenerator
         int sessionDurationSeconds,
         CutLevel cut,
         int setsPerSlot,
-        Dictionary<MuscleGroup, decimal> volumes)
+        Dictionary<MuscleGroup, decimal> volumes,
+        TrainingPreferences preferences)
     {
         // How much of each muscle's weekly target this session is responsible for: an even share
         // across the sessions that can train it, accumulated so far. This is what makes
@@ -191,7 +202,7 @@ public static class WeekGenerator
 
         while (true)
         {
-            var next = NextExercise(catalogue, targets, chosen, volumes);
+            var next = NextExercise(catalogue, targets, chosen, volumes, preferences);
             if (next is null)
             {
                 break;
@@ -241,7 +252,8 @@ public static class WeekGenerator
         IReadOnlyList<Exercise> catalogue,
         Dictionary<MuscleGroup, decimal> targets,
         List<Exercise> chosen,
-        Dictionary<MuscleGroup, decimal> volumes)
+        Dictionary<MuscleGroup, decimal> volumes,
+        TrainingPreferences preferences)
     {
         var neediest = targets
             .Select(entry => (Muscle: entry.Key, Deficit: entry.Value - volumes[entry.Key]))
@@ -255,7 +267,13 @@ public static class WeekGenerator
             var exercise = catalogue
                 .Where(candidate => PrimaryOf(candidate) == muscle)
                 .Where(candidate => !chosen.Contains(candidate))
-                .OrderBy(candidate => candidate.OrderClass)
+                // A stated preference outranks the catalogue's curated order without exception
+                // (TD-016). It reorders the *draw*, which is why it sits above OrderClass here --
+                // a user who wants dumbbells over a barbell is asking for the secondary compound.
+                // It does not reorder the session: the slot is still placed by its own
+                // OrderClass when the session is sorted (TD-007).
+                .OrderByDescending(candidate => preferences.IsPreferred(candidate)) // TD-016
+                .ThenBy(candidate => candidate.OrderClass)
                 .ThenBy(candidate => candidate.PreferenceRank)
                 .ThenBy(candidate => candidate.MovementPattern)
                 .ThenBy(candidate => candidate.Equipment)

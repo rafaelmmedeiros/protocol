@@ -19,6 +19,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<UserEquipment> UserEquipment => Set<UserEquipment>();
 
+    public DbSet<ExerciseExclusion> ExerciseExclusions => Set<ExerciseExclusion>();
+
+    public DbSet<PreferredVariant> PreferredVariants => Set<PreferredVariant>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -63,6 +67,36 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
                 requirement.Property(r => r.Item).HasConversion<string>().IsRequired().HasMaxLength(32);
                 requirement.HasKey(r => new { r.ExerciseId, r.Item });
             });
+        });
+
+        builder.Entity<ExerciseExclusion>(exclusion =>
+        {
+            exclusion.ToTable("exercise_exclusions");
+            exclusion.HasKey(e => e.Id);
+            exclusion.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            exclusion.HasIndex(e => new { e.UserId, e.ExerciseId }).IsUnique();
+
+            // Restrict: an exercise a user has excluded cannot be deleted out from under the
+            // exclusion, for the same reason a stored week pins its exercises.
+            exclusion.HasOne<Exercise>()
+                .WithMany()
+                .HasForeignKey(e => e.ExerciseId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<PreferredVariant>(preferred =>
+        {
+            preferred.ToTable("preferred_variants");
+            preferred.HasKey(p => p.Id);
+            preferred.Property(p => p.UserId).IsRequired().HasMaxLength(450);
+            preferred.Property(p => p.MovementPattern).HasConversion<string>().IsRequired().HasMaxLength(32);
+            // One preferred exercise per movement pattern, enforced by the database.
+            preferred.HasIndex(p => new { p.UserId, p.MovementPattern }).IsUnique();
+
+            preferred.HasOne<Exercise>()
+                .WithMany()
+                .HasForeignKey(p => p.ExerciseId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<UserEquipment>(item =>

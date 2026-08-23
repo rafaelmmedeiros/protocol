@@ -138,6 +138,87 @@ public static class TrainingEndpoints
             })
             .WithName("PutEquipment");
 
+        group.MapGet("/preferences", async (ClaimsPrincipal user, AppDbContext db, CancellationToken token) =>
+            {
+                var userId = UserIdOf(user);
+
+                var excluded = await db.ExerciseExclusions
+                    .AsNoTracking()
+                    .Where(row => row.UserId == userId)
+                    .Select(row => row.ExerciseId)
+                    .ToListAsync(token);
+
+                var preferred = await db.PreferredVariants
+                    .AsNoTracking()
+                    .Where(row => row.UserId == userId)
+                    .Select(row => new PreferredVariantResponse(row.MovementPattern.ToString(), row.ExerciseId))
+                    .ToListAsync(token);
+
+                return Results.Ok(new PreferencesResponse(excluded, preferred));
+            })
+            .WithName("GetPreferences");
+
+        group.MapPut("/preferences", async (
+                PreferencesRequest request,
+                ClaimsPrincipal user,
+                AppDbContext db,
+                CancellationToken token) =>
+            {
+                var userId = UserIdOf(user);
+                var excluded = (request.ExcludedExerciseIds ?? []).Distinct().ToList();
+                var preferred = request.PreferredVariants ?? [];
+
+                var known = await db.Exercises
+                    .AsNoTracking()
+                    .Select(exercise => new { exercise.Id, exercise.MovementPattern })
+                    .ToDictionaryAsync(exercise => exercise.Id, exercise => exercise.MovementPattern, token);
+
+                if (excluded.Any(id => !known.ContainsKey(id))
+                    || preferred.Any(row => !known.ContainsKey(row.ExerciseId)))
+                {
+                    return Results.NotFound(new ApiError(TrainingErrorCodes.ExerciseNotFound));
+                }
+
+                // A preferred variant has to belong to the pattern it is preferred for, or the
+                // preference could never fire and would look like the generator ignoring it.
+                if (preferred.Any(row =>
+                        !Enum.TryParse<MovementPattern>(row.MovementPattern, ignoreCase: true, out var pattern)
+                        || !Enum.IsDefined(pattern)
+                        || known[row.ExerciseId] != pattern))
+                {
+                    return Results.BadRequest(new ApiError(TrainingErrorCodes.NotACandidate));
+                }
+
+                db.ExerciseExclusions.RemoveRange(
+                    await db.ExerciseExclusions.Where(row => row.UserId == userId).ToListAsync(token));
+                db.PreferredVariants.RemoveRange(
+                    await db.PreferredVariants.Where(row => row.UserId == userId).ToListAsync(token));
+
+                db.ExerciseExclusions.AddRange(excluded.Select(id => new ExerciseExclusion
+                {
+                    Id = Guid.CreateVersion7(),
+                    UserId = userId,
+                    ExerciseId = id,
+                }));
+
+                db.PreferredVariants.AddRange(preferred.Select(row => new PreferredVariant
+                {
+                    Id = Guid.CreateVersion7(),
+                    UserId = userId,
+                    MovementPattern = known[row.ExerciseId],
+                    ExerciseId = row.ExerciseId,
+                }));
+
+                await db.SaveChangesAsync(token);
+
+                return Results.Ok(new PreferencesResponse(
+                    excluded,
+                    [.. preferred.Select(row => new PreferredVariantResponse(
+                        known[row.ExerciseId].ToString(),
+                        row.ExerciseId))]));
+            })
+            .WithName("PutPreferences");
+
         group.MapPost("/weeks", async (ClaimsPrincipal user, AppDbContext db, CancellationToken token) =>
             {
                 var userId = UserIdOf(user);
@@ -157,6 +238,7 @@ public static class TrainingEndpoints
                     .ToListAsync(token);
 
                 var owned = await OwnedItemsAsync(db, userId, token);
+                var preferences = await PreferencesOf(db, userId, token);
 
                 // Truncated to the microsecond because that is all Postgres `timestamptz`
                 // keeps, while a DateTimeOffset holds 100-nanosecond ticks. Without this the
@@ -168,7 +250,8 @@ public static class TrainingEndpoints
                     profile,
                     catalogue,
                     DateOnly.FromDateTime(generatedAt.UtcDateTime),
-                    owned);
+                    owned,
+                    preferences);
 
                 var current = await db.GeneratedWeeks
                     .AsNoTracking()
@@ -306,6 +389,32 @@ public static class TrainingEndpoints
     /// an empty gym — the endpoint refuses an empty set precisely so the two cannot be confused
     /// (ADR-013).
     /// </summary>
+    /// <summary>
+    /// What the user has said about exercises, in the shape the generator consumes. Absent rows
+    /// mean no preference, which is a different thing from an empty gym — nothing here has a
+    /// default to fall back to.
+    /// </summary>
+    private static async Task<TrainingPreferences> PreferencesOf(
+        AppDbContext db,
+        string userId,
+        CancellationToken token)
+    {
+        var excluded = await db.ExerciseExclusions
+            .AsNoTracking()
+            .Where(row => row.UserId == userId)
+            .Select(row => row.ExerciseId)
+            .ToListAsync(token);
+
+        var preferred = await db.PreferredVariants
+            .AsNoTracking()
+            .Where(row => row.UserId == userId)
+            .ToListAsync(token);
+
+        return new TrainingPreferences(
+            excluded.ToHashSet(),
+            preferred.ToDictionary(row => row.MovementPattern, row => row.ExerciseId));
+    }
+
     private static async Task<IReadOnlySet<EquipmentItem>> OwnedItemsAsync(
         AppDbContext db,
         string userId,
@@ -458,3 +567,20 @@ public sealed record EquipmentResponse(IReadOnlyList<string> Items, IReadOnlyLis
 /// instead of a deserialization failure it cannot.
 /// </summary>
 public sealed record EquipmentRequest(IReadOnlyList<string>? Items);
+
+/// <summary>
+/// What the user has said about exercises. Two lists and no scores — a blended rank would let an
+/// invented weight override a real preference (`ADR-011`, `TD-016`).
+/// </summary>
+public sealed record PreferencesResponse(
+    IReadOnlyList<Guid> ExcludedExerciseIds,
+    IReadOnlyList<PreferredVariantResponse> PreferredVariants);
+
+/// <summary>The exercise chosen for a movement pattern, whenever that pattern is needed.</summary>
+public sealed record PreferredVariantResponse(string MovementPattern, Guid ExerciseId);
+
+public sealed record PreferencesRequest(
+    IReadOnlyList<Guid>? ExcludedExerciseIds,
+    IReadOnlyList<PreferredVariantRequest>? PreferredVariants);
+
+public sealed record PreferredVariantRequest(string MovementPattern, Guid ExerciseId);

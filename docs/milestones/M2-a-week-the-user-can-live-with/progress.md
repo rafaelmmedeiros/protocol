@@ -129,7 +129,34 @@ plan's dependency order.
     information. Replaced by the estimate rather than adding a second line.
 
 ### S2.3 — Preference: exclusions and preferred variants
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 9 unit (`PreferenceTests`), 8 integration (`PreferenceEndpointsTests`). Suites
+  green: 84 unit, 52 integration.
+- **Produced:** `ExerciseExclusion`, `PreferredVariant`, `TrainingPreferences`, the generator's
+  filter and draw reordering, `GET`/`PUT /training/preferences`, migration
+  `..._ExercisePreferences`.
+- **Observations:**
+  - **A preference has to outrank `order_class` in the *draw* to have any effect at all**, and
+    that looked at first like a violation of `TD-016`, which forbids overriding `order_class`.
+    It is not: `order_class` does two jobs. It orders the *selection* — which the preference now
+    sits above, because asking for dumbbells is asking for the secondary compound — and it
+    orders the *session* (`TD-007`), which the preference never touches. There is a test for
+    each half.
+  - **A preferred variant is validated against its own movement pattern.** Preferring a dumbbell
+    press for `Squat` would be stored happily and could never fire, and the user would see a
+    generator ignoring what they asked for. Refused with `NotACandidate`.
+  - **The exclusion path needed no new shortfall machinery.** Excluding shrinks the catalogue
+    exactly as missing equipment does, so a starved muscle already lands in the existing
+    reporting. **What is not distinguished is the cause** — "rear delts unreachable" reads the
+    same whether the gym lacks a cable station or the user excluded all three exercises. That is
+    a reporting gap, not an arithmetic one, and it belongs with `S2.6`'s screens.
+  - **`Restrict` on both foreign keys.** An exercise a user has excluded, or prefers, cannot be
+    deleted out from under that statement — same reasoning as a stored week pinning its
+    exercises (root standard 7).
+  - The acceptance criterion is covered end to end and it is the engineer's own case: excluding
+    `Overhead Press (Barbell)` yields the dumbbell one, **and the prescription follows the
+    exercise across the `order_class` boundary** — 8-12 at 2 RIR instead of 6-10 at 3. `ADR-011`
+    predicted this would look like a bug; it is now pinned by two tests so nobody "fixes" it.
 
 ### S2.4 — Substituting one exercise
 - **Status:** pending
