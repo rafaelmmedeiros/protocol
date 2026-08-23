@@ -92,3 +92,30 @@ settle a class of question in advance: wherever a choice makes Hevy load-bearing
 the one that keeps it removable. That is why an exercise is ours with their identifier in a
 column beside it (`ADR-002`), why their identifiers never become primary keys (standard 8), and
 why what this system derives is stored rather than recomputed on demand (`ADR-003`).
+
+### What matching prescribed against performed will need
+
+Undecided, and recorded now because the shape of a generated week is already stored and is
+append-only. Comparing what was prescribed against what was logged is the product's reason to
+exist, and these are constraints on it that were read out of Hevy's live payload rather than
+assumed:
+
+- **A pushed routine's identifier has to be stored beside the week that produced it** — a
+  routine id per session, a folder id per week, as external columns (standard 8). Nothing in
+  `M1` writes them, and adding them later is a forward-only migration over rows that will
+  legitimately have nulls.
+- **That identifier is necessary and not sufficient.** A logged workout carries `routine_id`,
+  but it can be `null` — an observed session in this account is titled `Pull`, is plainly
+  structured, and has no routine on it. So the match cannot depend on it, and whatever fallback
+  is chosen — date plus `exercise_template_id` plus set structure is the obvious one — is lossy
+  and is a decision that needs a record rather than an implementation.
+- **Sets carry a `type`, and `warmup` is one of its values.** Counting warm-up sets as
+  fractional volume would inflate every number the system produces (`TD-006`). The import
+  filters on this or it is wrong from the first row.
+- **A set carries `rpe`.** It is null in the observed data, but it is the channel that would
+  close the gap `TD-010` names as the largest in the whole prescription: a prescribed RIR is not
+  necessarily the RIR performed, and nothing observes the set.
+- **Logged exercises will fall outside the catalogue and outside the assumed gym.** The same
+  account logs `Iso-Lateral Row (Machine)`, which `TD-004` excludes by assumption. That is the
+  loud failure `TD-004` chose over a silent one, and it is the signal that deriving equipment
+  from history beats assuming it.
