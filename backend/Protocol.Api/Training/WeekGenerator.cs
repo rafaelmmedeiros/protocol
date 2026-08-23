@@ -32,8 +32,8 @@ public static class WeekGenerator
         ArgumentNullException.ThrowIfNull(profile);
         ArgumentNullException.ThrowIfNull(catalogue);
 
-        var weekStart = MondayOf(reference);
         var split = SplitTemplate.For(profile.DaysPerWeek);
+        var weekStart = WeekStartFor(reference, split); // ADR-008
 
         // TD-013's ladder, in order. Each rung buys time: rest first because it is 74-79% of the
         // clock and near-free for growth, sets second because they move a muscle down the volume
@@ -60,7 +60,33 @@ public static class WeekGenerator
     /// must not redraw the boundaries of an existing block (root standard 6).
     /// </summary>
     private static DateOnly MondayOf(DateOnly date) =>
-        date.AddDays(-(((int)date.DayOfWeek + 6) % 7));
+        date.AddDays(-DaysFromMonday(date.DayOfWeek));
+
+    /// <summary>Monday is zero, Sunday is six — the training week's own order, not the locale's.</summary>
+    private static int DaysFromMonday(DayOfWeek day) => ((int)day + 6) % 7;
+
+    /// <summary>
+    /// The week a plan can actually be trained in.
+    /// <para>
+    /// Anchoring to the reference date's own Monday produces a week that is mostly in the past
+    /// whenever it is generated after Monday — on a Sunday, a one-day week. That is not merely
+    /// untidy: the volume target and floor are <b>weekly</b> (TD-014, TD-008), so a week whose
+    /// sessions cannot all still happen fails its own floor by construction, and the shortfall
+    /// it reports would be blamed on the time budget rather than on the calendar.
+    /// </para>
+    /// <para>
+    /// So the current week is used only when every day the split assigns still lies ahead;
+    /// otherwise the next one. The rule comes from TD-003's templates rather than from a
+    /// threshold constant, which is what makes it defensible (ADR-008).
+    /// </para>
+    /// </summary>
+    private static DateOnly WeekStartFor(DateOnly reference, IReadOnlyList<SplitDay> split)
+    {
+        var monday = MondayOf(reference);
+        var everyDayStillAhead = split.All(day => monday.AddDays(DaysFromMonday(day.Day)) >= reference);
+
+        return everyDayStillAhead ? monday : monday.AddDays(7); // ADR-008
+    }
 
     private static WeekPlan Build(
         TrainingProfile profile,

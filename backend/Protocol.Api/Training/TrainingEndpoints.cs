@@ -97,14 +97,35 @@ public static class TrainingEndpoints
                     .AsNoTracking()
                     .ToListAsync(token);
 
-                var generatedAt = DateTimeOffset.UtcNow;
+                // Truncated to the microsecond because that is all Postgres `timestamptz`
+                // keeps, while a DateTimeOffset holds 100-nanosecond ticks. Without this the
+                // value returned by this endpoint and the value read back a moment later differ
+                // in their last digit -- equal to any human, unequal to any comparison.
+                var now = DateTimeOffset.UtcNow;
+                var generatedAt = new DateTimeOffset(now.Ticks - (now.Ticks % 10), now.Offset);
                 var plan = WeekGenerator.Generate(
                     profile,
                     catalogue,
                     DateOnly.FromDateTime(generatedAt.UtcDateTime));
 
-                // A new row every time. Regenerating is expected and never edits what is already
-                // stored -- the week the user trained under has to stay readable (ADR-003).
+                var current = await db.GeneratedWeeks
+                    .AsNoTracking()
+                    .Include(w => w.Sessions).ThenInclude(s => s.Prescriptions)
+                    .Where(w => w.UserId == userId)
+                    .OrderByDescending(w => w.GeneratedAt)
+                    .FirstOrDefaultAsync(token);
+
+                // Regenerating never edits what is stored (ADR-003) -- but it also does not write
+                // a week identical to the one already there. The generator is deterministic
+                // (ADR-005), so an unchanged profile can only reproduce what exists, and an
+                // identical row is not a discarded alternative: it is the same answer written
+                // twice, carrying none of the explanatory value that justified storing weeks at
+                // all (ADR-009).
+                if (current is not null && Matches(current, plan))
+                {
+                    return Results.Ok(GeneratedWeekResponse.From(current, catalogue));
+                }
+
                 var week = Persist(plan, profile, userId, generatedAt);
                 db.GeneratedWeeks.Add(week);
                 await db.SaveChangesAsync(token);
@@ -135,6 +156,44 @@ public static class TrainingEndpoints
             .WithName("GetCurrentTrainingWeek");
 
         return app;
+    }
+
+    /// <summary>
+    /// Whether a freshly generated plan is the week already stored.
+    /// <para>
+    /// Compares everything a week asserts — the Monday it starts on, its sessions, and every
+    /// number on every slot. When in doubt the safe direction is to report <c>false</c> and
+    /// write: a duplicate row is noise, and a skipped write that should have happened is a lost
+    /// week (ADR-009).
+    /// </para>
+    /// </summary>
+    private static bool Matches(GeneratedWeek stored, WeekPlan plan)
+    {
+        if (stored.WeekStartDate != plan.WeekStartDate) return false;
+
+        var storedSessions = stored.Sessions.OrderBy(session => session.Position).ToList();
+        if (storedSessions.Count != plan.Sessions.Count) return false;
+
+        return storedSessions.Zip(plan.Sessions).All(pair =>
+        {
+            var (left, right) = pair;
+            if (left.Day != right.Day || left.Kind != right.Kind) return false;
+
+            var storedSlots = left.Prescriptions.OrderBy(slot => slot.Position).ToList();
+            if (storedSlots.Count != right.Slots.Count) return false;
+
+            return storedSlots.Zip(right.Slots).All(slots =>
+            {
+                var (a, b) = slots;
+                return a.Position == b.Position
+                    && a.ExerciseId == b.Exercise.Id
+                    && a.Sets == b.Sets
+                    && a.MinReps == b.Prescription.MinReps
+                    && a.MaxReps == b.Prescription.MaxReps
+                    && a.RepsInReserve == b.Prescription.RepsInReserve
+                    && a.RestSeconds == b.Prescription.RestSeconds;
+            });
+        });
     }
 
     /// <summary>

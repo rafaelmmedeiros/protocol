@@ -12,7 +12,12 @@ public class WeekGeneratorTests
     /// <summary>A Wednesday, chosen so the Monday anchoring is not accidentally satisfied.</summary>
     private static readonly DateOnly Reference = new(2026, 8, 26);
 
-    private static readonly DateOnly ExpectedMonday = new(2026, 8, 24);
+    /// <summary>
+    /// The Monday *after* the reference, not the one before it. Generating mid-week means some
+    /// of the split's days have already passed, and a week that cannot hold all its sessions
+    /// fails its own weekly floor by construction (ADR-008).
+    /// </summary>
+    private static readonly DateOnly ExpectedMonday = new(2026, 8, 31);
 
     private static TrainingProfile Profile(int daysPerWeek, int seconds = 3_600) => new()
     {
@@ -86,6 +91,55 @@ public class WeekGeneratorTests
         finally
         {
             CultureInfo.CurrentCulture = original;
+        }
+    }
+
+    [Fact]
+    public void Generating_on_a_Monday_uses_that_very_week()
+    {
+        // 2026-08-24 is a Monday and every session of the template still lies ahead of it, so
+        // there is nothing to move (ADR-008).
+        var monday = new DateOnly(2026, 8, 24);
+
+        var week = WeekGenerator.Generate(Profile(4), ExerciseCatalogue.All, monday);
+
+        Assert.Equal(monday, week.WeekStartDate);
+    }
+
+    [Fact]
+    public void Generating_on_a_Sunday_gives_the_week_that_is_about_to_start()
+    {
+        // The case found by using the product: a week generated on Sunday used to come back
+        // starting the previous Monday, with six of its days already gone (ADR-008).
+        var sunday = new DateOnly(2026, 8, 30);
+
+        var week = WeekGenerator.Generate(Profile(5), ExerciseCatalogue.All, sunday);
+
+        Assert.Equal(new DateOnly(2026, 8, 31), week.WeekStartDate);
+        Assert.Equal(DayOfWeek.Monday, week.WeekStartDate.DayOfWeek);
+    }
+
+    [Fact]
+    public void A_week_is_never_generated_with_a_session_in_the_past()
+    {
+        // The property behind ADR-008, checked across every frequency and every day someone
+        // could press the button. A session before the reference date is one that cannot be
+        // trained, and a week that cannot hold its sessions cannot meet a weekly floor.
+        foreach (var days in (int[])[2, 3, 4, 5, 6])
+        {
+            for (var offset = 0; offset < 14; offset++)
+            {
+                var reference = new DateOnly(2026, 8, 24).AddDays(offset);
+                var week = WeekGenerator.Generate(Profile(days), ExerciseCatalogue.All, reference);
+
+                Assert.All(week.Sessions, session =>
+                {
+                    var date = week.WeekStartDate.AddDays(((int)session.Day + 6) % 7);
+                    Assert.True(
+                        date >= reference,
+                        $"{days}d generated on {reference:yyyy-MM-dd} put {session.Day} on {date:yyyy-MM-dd}");
+                });
+            }
         }
     }
 

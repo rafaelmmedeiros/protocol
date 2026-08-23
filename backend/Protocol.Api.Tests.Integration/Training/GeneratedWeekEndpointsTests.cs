@@ -162,6 +162,28 @@ public class GeneratedWeekEndpointsTests(ApiFactory factory) : IClassFixture<Api
     }
 
     [Fact]
+    public async Task Generating_twice_without_changing_anything_writes_nothing_the_second_time()
+    {
+        // The generator is deterministic (ADR-005), so an unchanged profile can only reproduce
+        // what is stored. An identical row is the same answer written twice and explains
+        // nothing, which is the whole justification ADR-003 gave for storing weeks (ADR-009).
+        var client = await SignedInClientAsync();
+        await SetProfileAsync(client, 4, 3_600);
+
+        var first = await GenerateAsync(client);
+        var second = await GenerateAsync(client);
+
+        Assert.Equal(first.Id, second.Id);
+        Assert.Equal(first.GeneratedAt, second.GeneratedAt);
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var stored = await db.GeneratedWeeks.AsNoTracking().CountAsync(week => week.Id == first.Id);
+
+        Assert.Equal(1, stored);
+    }
+
+    [Fact]
     public async Task Generating_twice_leaves_two_weeks_and_the_first_is_unchanged()
     {
         // Reads the context rather than the API, deliberately and for the same reason
