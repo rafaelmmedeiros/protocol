@@ -3,7 +3,19 @@
 Written by `/protocol-feature` in milestone mode. One entry per step of `plan.md`, in the
 plan's dependency order.
 
-**Milestone status:** in progress
+**Milestone status:** completed
+
+All eight steps done — seven planned plus `S2.0`, the `ADR-008`/`ADR-009` debt carried over
+from `M1` — every deliverable ticked, and the ladder green end to end. What the product can do
+that it could not before: the user describes the gym they actually train in, refuses exercises
+they will not do, swaps one for another that trains the same thing, and sees how long each
+session should take.
+
+Two decisions changed mid-milestone and both are recorded where they happened. `ADR-010` was
+superseded by `ADR-013` before a line was written, because an exercise needs several things at
+once and a single-valued column cannot say so — the engineer caught it. And `TD-016` came back
+narrower than the plan assumed: for muscles compounds cover, starving one is contested and
+possibly free, so the cost of an exclusion concentrates on side delts, rear delts and calves.
 
 ### S2.0 — ADR-008 and ADR-009, carried over from M1
 - **Status:** completed
@@ -214,4 +226,24 @@ plan's dependency order.
     the week response if it stops being — noted at the line rather than pre-optimised.
 
 ### S2.7 — The ladder, containerized
-- **Status:** pending
+- **Status:** completed
+- **Tests:** all eleven rungs. 84 unit and 61 integration on the host **and** in Docker, 21
+  Vitest, 29 E2E in Docker, 0 warnings, 77 documents no drift.
+- **Observations:**
+  - **Rung 10 earned its place: a test that passed on the host failed in Docker.**
+    `An_exercise_that_trains_something_else_is_refused` picked "the first slot that is not the
+    calf raise" — and the barbell calf raise is a different exercise and a **legitimate**
+    candidate for the dumbbell one, so the substitution succeeded and the assertion did not.
+    The two machines returned unordered rows in different orders, so the test had been passing
+    by luck since `S2.4`. Fixed at the root: the slot must train a different *movement*, and
+    `StoredSlotsAsync` now orders explicitly.
+  - **The second attempt failed differently and it was my fix that was wrong** — the repaired
+    test read the whole `Exercise` where a `Guid` was expected and posted the entire object,
+    which came back as a non-JSON 400. Worth recording because the first failure looked like
+    the same test failing twice and was not.
+  - **`W6` proved again by a count.** The development database held 8 accounts, 3 weeks, 0
+    equipment rows and 0 exclusions before the ladder and exactly the same after — despite the
+    E2E run creating accounts, describing gyms, excluding exercises and generating weeks in
+    nine separate tests.
+  - No new Docker trap. The one that keeps biting is still the same: **a container serves old
+    code until its image is rebuilt** — hit at `S2.2`, `S2.5` and `S2.6`.

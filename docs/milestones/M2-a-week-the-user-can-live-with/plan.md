@@ -317,13 +317,13 @@ its corpus is built from recalled numbers, which is the whole of standard 15.
 
 ## Deliverables
 
-- [ ] S2.1 — Research: what a preference may override
-- [ ] S2.2 — Available equipment
-- [ ] S2.3 — Preference: exclusions and preferred variants
-- [ ] S2.4 — Substituting one exercise
-- [ ] S2.5 — Estimated session duration
-- [ ] S2.6 — The equipment and preference screens
-- [ ] S2.7 — The ladder, containerized
-- [ ] The verification ladder from `/protocol-feature`, green
-- [ ] Every capability bullet above covered by at least one step
-- [ ] A user whose equipment matches `TD-004` still gets `M1`'s week, byte for byte
+- [x] S2.1 — Research: what a preference may override
+- [x] S2.2 — Available equipment
+- [x] S2.3 — Preference: exclusions and preferred variants
+- [x] S2.4 — Substituting one exercise
+- [x] S2.5 — Estimated session duration
+- [x] S2.6 — The equipment and preference screens
+- [x] S2.7 — The ladder, containerized
+- [x] The verification ladder from `/protocol-feature`, green
+- [x] Every capability bullet above covered by at least one step
+- [x] A user whose equipment matches `TD-004` still gets `M1`'s week, byte for byte

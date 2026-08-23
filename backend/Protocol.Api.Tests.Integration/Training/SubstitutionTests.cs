@@ -48,10 +48,14 @@ public class SubstitutionTests(ApiFactory factory) : IClassFixture<ApiFactory>
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+        // Ordered explicitly. Without it Postgres is free to return rows in any order, and a
+        // test that picks "the first slot" then means something different on two machines —
+        // which is exactly how the previous version passed on the host and failed in Docker.
         return await db.GeneratedWeeks
             .Where(week => week.Id == weekId)
             .SelectMany(week => week.Sessions)
-            .SelectMany(session => session.Prescriptions)
+            .OrderBy(session => session.Position)
+            .SelectMany(session => session.Prescriptions.OrderBy(prescription => prescription.Position))
             .Select(prescription => new ValueTuple<Guid, Guid>(prescription.Id, prescription.ExerciseId))
             .ToListAsync();
     }
@@ -186,17 +190,22 @@ public class SubstitutionTests(ApiFactory factory) : IClassFixture<ApiFactory>
 
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        // Standing Calf Raise (Dumbbell) is a candidate for essentially nothing else.
         var calfRaise = await db.Exercises
-            .Where(exercise => exercise.ExternalTemplateId == "6DA40660")
-            .Select(exercise => exercise.Id)
-            .SingleAsync();
+            .SingleAsync(exercise => exercise.ExternalTemplateId == "6DA40660");
 
-        var pressSlot = slots.First(slot => slot.ExerciseId != calfRaise);
+        // Not merely "a slot that is not this exercise" — the barbell calf raise is a different
+        // exercise and a *legitimate* candidate for it, so that test passed only when the
+        // unordered query happened to return something else first. The slot has to train a
+        // different movement entirely.
+        var patterns = await db.Exercises
+            .AsNoTracking()
+            .ToDictionaryAsync(exercise => exercise.Id, exercise => exercise.MovementPattern);
+
+        var pressSlot = slots.First(slot => patterns[slot.ExerciseId] != calfRaise.MovementPattern);
 
         var response = await client.PostAsJsonAsync(
             $"/training/weeks/current/prescriptions/{pressSlot.Id}/substitute",
-            new { exerciseId = calfRaise });
+            new { exerciseId = calfRaise.Id });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var error = await response.Content.ReadFromJsonAsync<ApiError>();
