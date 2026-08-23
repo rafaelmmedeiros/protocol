@@ -298,7 +298,44 @@ tests pass and its acceptance criteria hold.
   - No rest column, verified in the generated migration rather than assumed (`ADR-007`).
 
 ### S1.8 — The generator
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 25 unit (`WeekGeneratorTests`). Full suites green: 55 unit, 25 integration, 0
+  warnings.
+- **Produced:** `Training/WeekGenerator`, `GeneratedWeek` (+ session, slot, shortfall, cut
+  level), `TrainingPrescription`, `SplitTemplate`, `SessionTimeBudget`.
+- **Observations:**
+  - **`TD-014` was recomputed against the real catalogue and holds.** 36 primaries and 51
+    secondaries at 3 sets is `3 x (36 + 51x0.5) / 36` = **5.125 fractional credits per slot**,
+    against the 4.5 the record estimated before `S1.6` existed. `TD-014` says its conclusion
+    holds across 4.0-6.0, so it does **not** reopen. Pinned as a test, so a catalogue change
+    that pushes it out of range fails loudly instead of silently invalidating the record.
+  - **Two real design defects, found by the tests and fixed at the root** — neither test was
+    weakened:
+    - **The cut ladder was chasing a gap no cut can close.** The floor was checked against all
+      16 muscle groups, but three have no direct exercise under `TD-004`'s gym, so `MeetsFloor`
+      was never true and *every* week climbed to the last rung: rest always at the floor, and
+      40 vs 90 minutes producing identical volume. Fixed by splitting `Shortfalls` (time-budget
+      gaps, the user can act) from `UncoveredMuscles` (catalogue gaps, only `M2` can act). They
+      look identical in the data and are different problems.
+    - **Greedy filling starved later sessions.** A muscle's whole weekly target could be spent
+      in session one, so the second Push day of a 6-day split generated **zero slots**. Fixed by
+      spreading each muscle's target across the sessions that can train it — which is also what
+      makes per-muscle frequency land at 2-3x, the thing `TD-003`'s templates exist for.
+  - **One test was wrong and was corrected, not the code.** "Every muscle trained at least twice"
+    failed on `FrontDelts`, which reaches target almost entirely through indirect credit from
+    pressing. That is `TD-006` working as designed. Counting only direct slots asserted something
+    the records never ask for, and would fail precisely on the muscles the fractional scheme is
+    built around. Now counted over any credited role.
+  - **The additive time model was implemented rather than `TD-012`'s 7.5-minute shortcut.** The
+    shortcut assumes a representative slot ordering and a greedy fill does not guarantee one.
+    Warm-up is reserved for every session rather than only those containing a primary compound —
+    slightly conservative, and `TD-012` says over-predicting is the safe direction.
+  - **Four sessions of an hour reaches the floor with `CutLevel.None`**, asserted as a test: if
+    the product's best-served configuration ever needs the ladder, either the time model or the
+    weekly target is wrong.
+  - Purity verified by grep, not by intent: the five generator files have **zero `using`
+    directives** — no EF, no HTTP, no clock. The reference date is a parameter precisely so the
+    week can be asserted whole (`ADR-005`).
 
 ### S1.9 — Persisting a generated week
 - **Status:** pending

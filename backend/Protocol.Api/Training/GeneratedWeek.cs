@@ -1,0 +1,81 @@
+namespace Protocol.Api.Training;
+
+/// <summary>
+/// A week of training, as the generator produces it. Pure data: no database, no HTTP, nothing
+/// that could not be recomputed from a profile and a catalogue (ADR-005, ADR-006).
+/// </summary>
+/// <param name="Shortfalls">
+/// Muscles the catalogue can train that still finished below TD-008's floor — a time-budget gap
+/// the user can act on.
+/// </param>
+/// <param name="UncoveredMuscles">
+/// Muscles no exercise in the catalogue trains <i>directly</i>, so they reach volume only
+/// through 0.5-weighted secondary roles. Under TD-004's assumed gym these are
+/// <c>Forearms</c>, <c>SpinalErectors</c> and <c>Adductors</c>. A catalogue coverage failure,
+/// surfaced rather than patched: padding the catalogue to hide it would be the wrong fix, and
+/// TD-004 is where the assumption gets superseded. These never drive the cut ladder, because no
+/// amount of cutting closes a gap in what the gym contains.
+/// </param>
+public sealed record GeneratedWeek(
+    DateOnly WeekStartDate,
+    IReadOnlyList<GeneratedSession> Sessions,
+    IReadOnlyList<MuscleShortfall> Shortfalls,
+    IReadOnlyList<MuscleGroup> UncoveredMuscles,
+    CutLevel CutApplied)
+{
+    /// <summary>
+    /// True when every muscle the catalogue can actually train reached TD-008's floor. A week
+    /// with shortfalls is still returned rather than refused — the user gets the best week their
+    /// time allows, and the gap is surfaced as data for the frontend to say out loud (TD-013).
+    /// </summary>
+    public bool MeetsFloor => Shortfalls.Count == 0;
+}
+
+/// <summary>One training day.</summary>
+public sealed record GeneratedSession(
+    int Position,
+    DayOfWeek Day,
+    SessionKind Kind,
+    IReadOnlyList<GeneratedSlot> Slots);
+
+/// <summary>
+/// A position in a session holding one exercise and the prescription attached to it — the unit
+/// TD-005 defines and TD-013 cuts.
+/// </summary>
+public sealed record GeneratedSlot(
+    int Position,
+    Exercise Exercise,
+    int Sets,
+    SlotPrescription Prescription);
+
+/// <summary>
+/// A muscle the catalogue <i>can</i> train that still finished the week below TD-008's floor of
+/// four fractional sets. This is a time-budget failure and the user can act on it: train longer,
+/// or train more days.
+/// <para>
+/// Kept apart from <see cref="GeneratedWeek.UncoveredMuscles"/> on purpose. The two look
+/// identical in the data and are different problems — one is fixed by the user, the other only
+/// by changing what equipment is assumed, and mixing them would make the cut ladder chase a gap
+/// no amount of cutting can close.
+/// </para>
+/// </summary>
+public sealed record MuscleShortfall(MuscleGroup MuscleGroup, decimal FractionalSets);
+
+/// <summary>
+/// How far down TD-013's cut ladder the generator had to go for the week to fit.
+/// <para>
+/// Reported rather than hidden, because it is not an edge case: at three sessions of forty
+/// minutes the ladder runs in full on an entirely ordinary configuration.
+/// </para>
+/// </summary>
+public enum CutLevel
+{
+    /// <summary>Nothing cut. Prescribed rest, three sets a slot.</summary>
+    None,
+
+    /// <summary>Rest trimmed to TD-011's floor of ninety seconds (TD-013, step 1).</summary>
+    RestToFloor,
+
+    /// <summary>Rest at the floor and two sets a slot, spread evenly (TD-013, step 3).</summary>
+    RestToFloorAndFewerSets,
+}
