@@ -20,4 +20,16 @@ public static class HevyErrorCodes
     /// backoff (ADR-021) — this code means the retries were exhausted, not that one call failed.
     /// </summary>
     public const string HevyRateLimited = "HevyRateLimited";
+
+    /// <summary>A prescribed exercise has no external key and cannot be named to Hevy (ADR-016).</summary>
+    public const string ExerciseNotMappable = "ExerciseNotMappable";
+
+    /// <summary>A routine we meant to replace no longer exists in Hevy (ADR-017).</summary>
+    public const string PushedRoutineMissing = "PushedRoutineMissing";
+
+    /// <summary>
+    /// The week's routines have already been trained from, so they are evidence and are not
+    /// rewritten (ADR-017). Not a fault — regenerating produces a new week, which pushes freely.
+    /// </summary>
+    public const string WeekAlreadyTrainedFrom = "WeekAlreadyTrainedFrom";
 }

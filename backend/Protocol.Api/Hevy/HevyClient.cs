@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http.Json;
 
 namespace Protocol.Api.Hevy;
 
@@ -57,6 +58,94 @@ public sealed class HevyClient(HttpClient http, ILogger<HevyClient> logger, IHev
             }
 
             return HevyKeyCheck.Unreachable;
+        }
+    }
+
+    public async Task<HevyWrite<long>> CreateFolderAsync(
+        string apiKey,
+        string title,
+        CancellationToken token) =>
+        await WriteAsync<HevyRoutineFolder, long>(
+            apiKey,
+            HttpMethod.Post,
+            "routine_folders",
+            new HevyFolderRequest(new HevyFolderPayload(title)),
+            folder => folder.Id,
+            token);
+
+    public async Task<HevyWrite<string>> CreateRoutineAsync(
+        string apiKey,
+        HevyRoutinePayload routine,
+        CancellationToken token) =>
+        await WriteAsync<HevyRoutine, string>(
+            apiKey,
+            HttpMethod.Post,
+            "routines",
+            new HevyRoutineRequest(routine),
+            created => created.Id,
+            token);
+
+    public async Task<HevyWrite<string>> UpdateRoutineAsync(
+        string apiKey,
+        string routineId,
+        HevyRoutinePayload routine,
+        CancellationToken token) =>
+        await WriteAsync<HevyRoutine, string>(
+            apiKey,
+            HttpMethod.Put,
+            $"routines/{Uri.EscapeDataString(routineId)}",
+            new HevyRoutineRequest(routine),
+            updated => updated.Id,
+            token);
+
+    /// <summary>
+    /// One shape for every write: send, retry per ADR-021, then turn the answer into our own
+    /// vocabulary. Nothing above this method sees a status code.
+    /// </summary>
+    private async Task<HevyWrite<TValue>> WriteAsync<TResponse, TValue>(
+        string apiKey,
+        HttpMethod method,
+        string path,
+        object body,
+        Func<TResponse, TValue> select,
+        CancellationToken token)
+    {
+        var response = await SendWithBackoffAsync(
+            () =>
+            {
+                var request = new HttpRequestMessage(method, path)
+                {
+                    Content = JsonContent.Create(body, options: null),
+                };
+                request.Headers.Add(KeyHeader, apiKey);
+                return request;
+            },
+            token);
+
+        if (response is null)
+        {
+            return new HevyWrite<TValue>(HevyWriteOutcome.Unreachable);
+        }
+
+        using (response)
+        {
+            if (response.IsSuccessStatusCode)
+            {
+                var payload = await response.Content.ReadFromJsonAsync<TResponse>(token);
+
+                return payload is null
+                    ? new HevyWrite<TValue>(HevyWriteOutcome.Unreachable)
+                    : new HevyWrite<TValue>(HevyWriteOutcome.Ok, select(payload));
+            }
+
+            return new HevyWrite<TValue>(response.StatusCode switch
+            {
+                // The routine we meant to replace is gone -- the user deleted it in Hevy. A fact
+                // about their account, not a fault of ours (ADR-017).
+                HttpStatusCode.NotFound => HevyWriteOutcome.NotFound,
+                HttpStatusCode.TooManyRequests => HevyWriteOutcome.RateLimited,
+                _ => HevyWriteOutcome.Unreachable,
+            });
         }
     }
 

@@ -52,6 +52,8 @@ public static class HevyInboundMapper
             StartedAt = workout.StartTime.ToUniversalTime(),
             EndedAt = workout.EndTime.ToUniversalTime(),
             ExternallyUpdatedAt = workout.UpdatedAt.ToUniversalTime(),
+            // Ordered on the way in and kept ordered by Position on the way out. The sequence is
+            // never reduced to a total: 11/9/8 and 8/9/11 are different facts.
             Exercises = exercises,
         };
     }

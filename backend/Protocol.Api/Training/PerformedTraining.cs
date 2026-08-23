@@ -41,12 +41,16 @@ public sealed class PerformedWorkout
     /// </summary>
     public required DateTimeOffset ExternallyUpdatedAt { get; init; }
 
-    public required IReadOnlyList<PerformedExercise> Exercises { get; init; }
+    public ICollection<PerformedExercise> Exercises { get; init; } = [];
 }
 
 /// <summary>One exercise inside a performed workout.</summary>
 public sealed class PerformedExercise
 {
+    public Guid Id { get; init; }
+
+    public Guid PerformedWorkoutId { get; init; }
+
     /// <summary>Order within the workout, as performed.</summary>
     public required int Position { get; init; }
 
@@ -63,7 +67,7 @@ public sealed class PerformedExercise
     /// <summary>Display only (standard 9). For an exercise outside our catalogue it is the only human handle.</summary>
     public string? ExternalTitle { get; init; }
 
-    public required IReadOnlyList<PerformedSet> Sets { get; init; }
+    public ICollection<PerformedSet> Sets { get; init; } = [];
 }
 
 /// <summary>
@@ -76,6 +80,10 @@ public sealed class PerformedExercise
 /// </summary>
 public sealed class PerformedSet
 {
+    public Guid Id { get; init; }
+
+    public Guid PerformedExerciseId { get; init; }
+
     /// <summary>Order within the exercise, as performed.</summary>
     public required int Position { get; init; }
 

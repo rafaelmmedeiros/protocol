@@ -54,27 +54,3 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await _postgres.DisposeAsync();
     }
 }
-
-/// <summary>
-/// Hevy, as the suite sees it. Deterministic by key prefix so a test states its intent in the
-/// value it sends rather than in setup.
-/// </summary>
-public sealed class StubHevyClient : IHevyClient
-{
-    /// <summary>A key Hevy accepts.</summary>
-    public const string ValidKey = "valid-0000-4a1b-9c3d-abcdefabcdef";
-
-    /// <summary>A key Hevy answers about, and rejects.</summary>
-    public const string InvalidKey = "wrong-0000-4a1b-9c3d-abcdefabcdef";
-
-    /// <summary>A key Hevy never answers about at all.</summary>
-    public const string UnreachableKey = "unreachable-4a1b-9c3d-abcdefabcd";
-
-    public Task<HevyKeyCheck> CheckKeyAsync(string apiKey, CancellationToken token) =>
-        Task.FromResult(apiKey switch
-        {
-            ValidKey => HevyKeyCheck.Valid,
-            UnreachableKey => HevyKeyCheck.Unreachable,
-            _ => HevyKeyCheck.Invalid,
-        });
-}

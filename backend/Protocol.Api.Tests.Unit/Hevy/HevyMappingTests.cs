@@ -143,7 +143,9 @@ public class HevyMappingTests
         Assert.Equal("7b2281f1-0000-4000-8000-000000000000", performed.ExternalRoutineId);
 
         var exercise = Assert.Single(performed.Exercises);
-        Assert.Equal([11d, 9d, 8d], exercise.Sets.Select(set => set.Reps));
+        Assert.Equal(
+            [11d, 9d, 8d],
+            exercise.Sets.OrderBy(set => set.Position).Select(set => set.Reps));
     }
 
     [Fact]
@@ -172,7 +174,7 @@ public class HevyMappingTests
 
         Assert.Equal(
             [SetKind.WarmUp, SetKind.Working, SetKind.DropSet, SetKind.ToFailure],
-            performed.Exercises.Single().Sets.Select(set => set.Kind));
+            performed.Exercises.Single().Sets.OrderBy(set => set.Position).Select(set => set.Kind));
     }
 
     [Fact]
@@ -196,7 +198,9 @@ public class HevyMappingTests
 
         var sets = HevyInboundMapper
             .ToPerformedWorkout(workout, "user-1", _ => null)
-            .Exercises.Single().Sets;
+            .Exercises.Single().Sets
+            .OrderBy(set => set.Position)
+            .ToList();
 
         Assert.Equal(1, sets[0].RepsInReserve);   // 8.5 -> discard the "maybe" -> 1
         Assert.Null(sets[1].RepsInReserve);       // reported nothing, which is not "nothing left"

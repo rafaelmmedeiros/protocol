@@ -38,6 +38,16 @@ public sealed class GeneratedWeek
     /// <summary>The session duration in force when this week was generated (ADR-003).</summary>
     public required int SessionDurationSeconds { get; init; }
 
+    /// <summary>
+    /// The Hevy routine folder this week was pushed into, if it has been pushed (ADR-015).
+    /// <para>
+    /// Their identifier, in its own column, never a key of ours (root standard 8) — and a
+    /// number, where a routine's is a string, because that is what their API returns. Null means
+    /// never pushed, which is the ordinary state of a week that is still being regenerated.
+    /// </para>
+    /// </summary>
+    public long? HevyRoutineFolderId { get; set; }
+
     public ICollection<GeneratedSession> Sessions { get; init; } = [];
 }
 
@@ -54,6 +64,13 @@ public sealed class GeneratedSession
     public required DayOfWeek Day { get; init; }
 
     public required SessionKind Kind { get; init; }
+
+    /// <summary>
+    /// The Hevy routine this session was pushed as (ADR-015). **The join** — a workout started
+    /// from this routine comes back carrying this identifier, and that is the only association
+    /// Hevy provides (ADR-019). External, and never a key of ours (root standard 8).
+    /// </summary>
+    public string? HevyRoutineId { get; set; }
 
     public ICollection<GeneratedPrescription> Prescriptions { get; init; } = [];
 }

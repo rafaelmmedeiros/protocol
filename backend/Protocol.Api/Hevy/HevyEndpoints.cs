@@ -102,6 +102,40 @@ public static class HevyEndpoints
             })
             .WithName("SaveHevyConnection");
 
+        group.MapPost("/weeks/{weekId:guid}/push", async (
+                Guid weekId,
+                HevyPushRequest? request,
+                ClaimsPrincipal user,
+                HevyWeekPusher pusher,
+                CancellationToken token) =>
+            {
+                // Explicit, never automatic. Pushing writes into a surface this system cannot
+                // clean up afterwards, so it is always something the user asked for.
+                var result = await pusher.PushAsync(weekId, UserIdOf(user), request?.Locale, token);
+
+                return result.Outcome switch
+                {
+                    PushOutcome.Ok => Results.Ok(new HevyPushResponse(result.FolderId, result.Sessions ?? [])),
+                    PushOutcome.WeekNotFound =>
+                        Results.NotFound(new ApiError(TrainingErrorCodes.WeekNotFound)),
+                    PushOutcome.NotConnected =>
+                        Results.BadRequest(new ApiError(HevyErrorCodes.HevyNotConnected)),
+                    PushOutcome.AlreadyTrainedFrom =>
+                        Results.Conflict(new ApiError(HevyErrorCodes.WeekAlreadyTrainedFrom)),
+                    PushOutcome.ExerciseNotMappable =>
+                        Results.BadRequest(new ApiError(HevyErrorCodes.ExerciseNotMappable)),
+                    PushOutcome.RoutineMissing =>
+                        Results.Conflict(new ApiError(HevyErrorCodes.PushedRoutineMissing)),
+                    PushOutcome.RateLimited => Results.Json(
+                        new ApiError(HevyErrorCodes.HevyRateLimited),
+                        statusCode: StatusCodes.Status503ServiceUnavailable),
+                    _ => Results.Json(
+                        new ApiError(HevyErrorCodes.HevyUnreachable),
+                        statusCode: StatusCodes.Status502BadGateway),
+                };
+            })
+            .WithName("PushWeekToHevy");
+
         return app;
     }
 
@@ -112,6 +146,19 @@ public static class HevyEndpoints
 
 /// <summary>The key, on its way in. This is the only direction it ever travels.</summary>
 public sealed record HevyConnectionRequest(string? ApiKey);
+
+/// <summary>
+/// What a push needs beyond the week itself: the user's language.
+/// <para>
+/// Carried explicitly rather than sniffed from a header, because the routine note is the one
+/// piece of display text this backend composes (ADR-016) and the locale that decides it should
+/// be as visible as the text is.
+/// </para>
+/// </summary>
+public sealed record HevyPushRequest(string? Locale);
+
+/// <summary>Where the week now lives in Hevy. Identifiers, so the caller can confirm what happened.</summary>
+public sealed record HevyPushResponse(long? FolderId, IReadOnlyList<PushedSession> Sessions);
 
 /// <summary>
 /// Whether an account is connected — and nothing else.

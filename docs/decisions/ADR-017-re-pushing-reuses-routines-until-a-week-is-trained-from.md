@@ -72,3 +72,23 @@ accumulation is meaningful.
   push failure rather than as corruption.
 - **This does not change `ADR-003` or `ADR-009`.** Our generated week stays immutable and
   append-only on our side regardless of what happens in Hevy; this record governs only the mirror.
+
+**Revisions.**
+
+- 2026-08-23 — **The "create new once trained" half needs no branch, and what replaces it is a
+  refusal.** Building `S3.3` made the shape plain. `ADR-009` already makes a regenerated week a
+  **new row**, and a new row has no folder — so it takes the create path on its own, and the old
+  routines are left standing exactly as this record intends. There is nothing to detect.
+
+  What the detection is actually for is the other case: **the same week pushed again after
+  something has been logged against it.** Neither available action is safe there. Replacing its
+  routines would leave a logged workout pointing at a prescription that did not exist when it was
+  performed, which is the invisible corruption option C was rejected for. Creating fresh routines
+  for that same week would overwrite the stored identifiers and orphan the workout that already
+  matched, which breaks `ADR-019`'s join in the other direction.
+
+  So a week that has been trained from is **refused**, with `WeekAlreadyTrainedFrom`, and the user
+  regenerates instead — which is not a workaround but the ordinary path, since the new week pushes
+  freely. Option A is unchanged in substance: overwrite where nothing can be corrupted, accumulate
+  only where the accumulation is meaningful. What changed is that the second half is reached by
+  regenerating rather than by a branch inside the push.

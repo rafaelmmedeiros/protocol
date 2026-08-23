@@ -159,6 +159,12 @@ identifiers come back and are stored.
 
 **Depends on:** S3.1, S3.2
 
+**A missing dependency, found while building and resolved here.** Action 5 needs to know whether a
+week has been trained from, and nothing that records imported training existed — the plan listed
+that as `S3.4`'s. `S3.3` therefore lands the **performed-training schema** it must query, and
+`S3.4` implements the sync that fills it. No step moved and no order changed; what was wrong was
+the implication that `S3.3` reads nothing.
+
 **Acceptance criteria:**
 
 - A pushed week yields one folder identifier and as many routine identifiers as it has sessions,
@@ -174,6 +180,9 @@ payload.
 
 **Technical actions:**
 
+0. The `performed_workouts`, `performed_exercises` and `performed_sets` tables already exist —
+   `S3.3` created them because it had to read them. This step adds the version and tombstone
+   columns `ADR-018` needs and the behaviour that fills all of it.
 1. Page `GET /v1/workouts/events?since=<cursor>` and advance a per-user cursor (per `ADR-018`).
 2. Append a new version row per `updated` event and a tombstone version per `deleted` event —
    never update, never delete (per `ADR-018`, standard 7).
@@ -365,6 +374,7 @@ encoding out for nothing.
 | `WeekNotPushed` | a sync-dependent operation ran against a week never pushed |
 | `ExerciseNotMappable` | a prescribed exercise has no external key and cannot be pushed |
 | `PushedRoutineMissing` | a `PUT` target no longer exists in Hevy |
+| `WeekAlreadyTrainedFrom` | the week's routines are evidence and are not rewritten (`ADR-017` revision) |
 
 **The comparison read model.** One entry per prescribed slot, in session order:
 

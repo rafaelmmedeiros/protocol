@@ -36,6 +36,7 @@ builder.Services.AddHttpClient<IHevyClient, HevyClient>(client =>
 
 builder.Services.AddSingleton<IHevyBackoff, ExponentialHevyBackoff>();
 builder.Services.AddScoped<HevyKeyProtector>();
+builder.Services.AddScoped<HevyWeekPusher>();
 
 builder.Services.AddAuthorization();
 builder.Services.AddIdentityApiEndpoints<AppUser>()

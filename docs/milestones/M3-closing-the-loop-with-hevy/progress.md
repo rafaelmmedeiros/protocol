@@ -62,7 +62,34 @@ file carries what a future session would otherwise rediscover.
     would have given one request two names.
 
 ### S3.3 — Pushing a week
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 15 unit (`RoutinePayloadTests`, `RoutineNoteTests`), 9 integration (`PushWeekTests`)
+- **Observations:**
+  - **The plan had a missing dependency, and it was real.** Action 5 needs to know whether a week
+    has been trained from, and nothing recording imported training existed — the plan gave that to
+    `S3.4`. Resolved by landing the performed-training schema here, because this step must query
+    it; `S3.4` adds the version and tombstone columns and the sync that fills them. Recorded in the
+    plan under `S3.3` and `S3.4` rather than left as a surprise.
+  - **`ADR-017`'s second branch turned out not to need a branch.** `ADR-009` already makes a
+    regenerated week a new row, and a new row has no folder, so it takes the create path on its
+    own. What detection is actually for is the *same* week pushed again after training — where
+    replacing breaks the join forward and creating fresh routines orphans it backward. Refusal with
+    `WeekAlreadyTrainedFrom` is what replaced it, recorded as a `Revisions` bullet.
+  - **The push saves after every write, on purpose.** The folder identifier is stored before any
+    routine is created, and each routine identifier as it comes back. An interrupted push therefore
+    resumes into the same folder and replaces the routines it already made, rather than creating a
+    second folder and duplicating. This is what makes `ADR-021`'s "safe to retry" true rather than
+    aspirational, and it costs one round trip per session.
+  - **`StubHevyClient` became a recording stub and moved to its own file.** Push is only observable
+    through what Hevy received — asserting on our stored identifiers would prove we saved
+    something, not that we sent the right thing.
+  - **`PerformedTraining` had to adopt the codebase's entity pattern.** `IReadOnlyList` with
+    `required` does not map cleanly; the aggregate now mirrors `GeneratedWeek`/`GeneratedSession`
+    with an `Id` and a foreign key per level. The ordering guarantee moved from the collection type
+    to `Position`, which is where it belonged anyway since EF does not preserve insertion order.
+  - **The routine note is the only display text the backend composes**, and the locale is carried
+    explicitly in the push body rather than sniffed from a header — the string is unusual enough
+    that what decides it should be as visible as it is.
 
 ### S3.4 — Importing history
 - **Status:** pending

@@ -1,0 +1,183 @@
+using Microsoft.EntityFrameworkCore;
+using Protocol.Api.Auth;
+using Protocol.Api.Training;
+
+namespace Protocol.Api.Hevy;
+
+/// <summary>
+/// Puts a generated week into Hevy: a folder for the week, one routine per session (ADR-015).
+/// <para>
+/// Sequential, and safe to retry. Nothing here ever deletes, because Hevy has no endpoint for it
+/// — ADR-017 is built on that fact rather than around it, and a half-created week is recovered by
+/// pushing again rather than by cleaning up.
+/// </para>
+/// </summary>
+public sealed class HevyWeekPusher(AppDbContext db, IHevyClient hevy, HevyKeyProtector protector)
+{
+    public async Task<PushResult> PushAsync(
+        Guid weekId,
+        string userId,
+        string? locale,
+        CancellationToken token)
+    {
+        var connection = await db.HevyConnections.SingleOrDefaultAsync(c => c.UserId == userId, token);
+
+        if (connection is null)
+        {
+            return new PushResult(PushOutcome.NotConnected);
+        }
+
+        var week = await db.GeneratedWeeks
+            .Include(w => w.Sessions.OrderBy(s => s.Position))
+                .ThenInclude(s => s.Prescriptions.OrderBy(p => p.Position))
+                    .ThenInclude(p => p.Exercise)
+            .SingleOrDefaultAsync(w => w.Id == weekId && w.UserId == userId, token);
+
+        if (week is null)
+        {
+            return new PushResult(PushOutcome.WeekNotFound);
+        }
+
+        // Anything already trained from is evidence, and rewriting it would leave a logged
+        // workout pointing at a prescription that did not exist when it was performed (ADR-017).
+        // A regenerated week never reaches this branch: ADR-009 makes it a new row, and a new row
+        // has no folder, so it takes the create path and the old routines are left standing.
+        if (await HasBeenTrainedFromAsync(week, token))
+        {
+            return new PushResult(PushOutcome.AlreadyTrainedFrom);
+        }
+
+        var apiKey = protector.Unprotect(connection.ProtectedApiKey);
+
+        if (week.HevyRoutineFolderId is null)
+        {
+            var folder = await hevy.CreateFolderAsync(apiKey, FolderTitle(week), token);
+
+            if (!folder.Ok)
+            {
+                return Failed(folder.Outcome);
+            }
+
+            week.HevyRoutineFolderId = folder.Value;
+            // Saved before the routines are created. A push interrupted after this point resumes
+            // into the same folder instead of creating a second one.
+            await db.SaveChangesAsync(token);
+        }
+
+        foreach (var session in week.Sessions.OrderBy(session => session.Position))
+        {
+            HevyRoutinePayload routine;
+
+            try
+            {
+                routine = HevyOutboundMapper.ToRoutine(
+                    RoutineTitle(week, session),
+                    week.HevyRoutineFolderId,
+                    [.. session.Prescriptions],
+                    prescription => RoutineNotes.For(prescription, locale));
+            }
+            catch (HevyMappingException)
+            {
+                // An exercise with no external key. Loud rather than substituted (ADR-016).
+                return new PushResult(PushOutcome.ExerciseNotMappable);
+            }
+
+            var written = session.HevyRoutineId is { } existing
+                ? await hevy.UpdateRoutineAsync(apiKey, existing, routine, token)
+                : await hevy.CreateRoutineAsync(apiKey, routine, token);
+
+            if (!written.Ok)
+            {
+                return Failed(written.Outcome);
+            }
+
+            session.HevyRoutineId = written.Value;
+            // One save per session, so an interrupted push keeps every routine it managed to
+            // create and the retry replaces them rather than duplicating them.
+            await db.SaveChangesAsync(token);
+        }
+
+        return new PushResult(
+            PushOutcome.Ok,
+            week.HevyRoutineFolderId,
+            [.. week.Sessions.OrderBy(s => s.Position).Select(s => new PushedSession(s.Id, s.HevyRoutineId!))]);
+    }
+
+    /// <summary>
+    /// Whether any imported workout was started from one of this week's routines.
+    /// <para>
+    /// The same lookup ADR-019 binds on, asked of the whole week. It returns false for every week
+    /// until the import lands, which is correct rather than a placeholder: nothing has been
+    /// trained from, because nothing has been read.
+    /// </para>
+    /// </summary>
+    private async Task<bool> HasBeenTrainedFromAsync(GeneratedWeek week, CancellationToken token)
+    {
+        var routineIds = week.Sessions
+            .Select(session => session.HevyRoutineId)
+            .OfType<string>()
+            .ToList();
+
+        return routineIds.Count != 0
+            && await db.PerformedWorkouts.AnyAsync(
+                performed => performed.ExternalRoutineId != null
+                    && routineIds.Contains(performed.ExternalRoutineId),
+                token);
+    }
+
+    /// <summary>
+    /// What the folder is called in Hevy. Display only, never read back — the binding is on
+    /// identifiers alone (ADR-019, standard 9), so this exists for a human scrolling their app.
+    /// </summary>
+    private static string FolderTitle(GeneratedWeek week) =>
+        $"Protocol · {week.WeekStartDate:yyyy-MM-dd}";
+
+    private static string RoutineTitle(GeneratedWeek week, GeneratedSession session) =>
+        $"{session.Kind} · {session.Day} · {week.WeekStartDate:MM-dd}";
+
+    private static PushResult Failed(HevyWriteOutcome outcome) => new(outcome switch
+    {
+        HevyWriteOutcome.NotFound => PushOutcome.RoutineMissing,
+        HevyWriteOutcome.RateLimited => PushOutcome.RateLimited,
+        _ => PushOutcome.Unreachable,
+    });
+}
+
+/// <summary>What a push produced, in our vocabulary rather than in status codes.</summary>
+public sealed record PushResult(
+    PushOutcome Outcome,
+    long? FolderId = null,
+    IReadOnlyList<PushedSession>? Sessions = null);
+
+/// <summary>One session and the routine it now lives in.</summary>
+public sealed record PushedSession(Guid SessionId, string RoutineId);
+
+/// <summary>Every way a push can end. Each one is a different sentence and a different next action.</summary>
+public enum PushOutcome
+{
+    Ok,
+
+    /// <summary>No Hevy key saved for this user.</summary>
+    NotConnected,
+
+    /// <summary>No such week, or not this user's.</summary>
+    WeekNotFound,
+
+    /// <summary>
+    /// Something has already been logged against this week's routines, so they are evidence and
+    /// are not rewritten (ADR-017). Regenerating produces a new week, which pushes freely.
+    /// </summary>
+    AlreadyTrainedFrom,
+
+    /// <summary>A prescribed exercise has no external key and cannot be named to Hevy.</summary>
+    ExerciseNotMappable,
+
+    /// <summary>A routine we meant to replace no longer exists — the user deleted it in Hevy.</summary>
+    RoutineMissing,
+
+    /// <summary>Refused for rate reasons after the retries were exhausted (ADR-021).</summary>
+    RateLimited,
+
+    /// <summary>Hevy did not answer.</summary>
+    Unreachable,
+}

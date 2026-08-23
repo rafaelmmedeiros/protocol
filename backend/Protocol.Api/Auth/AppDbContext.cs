@@ -27,6 +27,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<HevyConnection> HevyConnections => Set<HevyConnection>();
 
+    public DbSet<PerformedWorkout> PerformedWorkouts => Set<PerformedWorkout>();
+
     public DbSet<Exercise> Exercises => Set<Exercise>();
 
     public DbSet<TrainingProfile> TrainingProfiles => Set<TrainingProfile>();
@@ -144,6 +146,82 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             connection.Property(c => c.SyncCursor);
         });
 
+        builder.Entity<PerformedWorkout>(workout =>
+        {
+            workout.ToTable("performed_workouts");
+            workout.HasKey(w => w.Id);
+
+            workout.Property(w => w.UserId).IsRequired().HasMaxLength(450);
+
+            // Their identifiers, beside ours (root standard 8). The workout identifier is not
+            // unique here on purpose: ADR-018 appends a version per upstream change rather than
+            // overwriting, so one Hevy workout legitimately owns several rows. S3.4 adds the
+            // version column that distinguishes them.
+            workout.Property(w => w.ExternalWorkoutId).IsRequired().HasMaxLength(64);
+            workout.HasIndex(w => new { w.UserId, w.ExternalWorkoutId });
+
+            // Indexed because ADR-019 binds a workout to a session by exactly this value, and
+            // because ADR-017 asks "has anything trained from this week" before re-pushing it.
+            workout.Property(w => w.ExternalRoutineId).HasMaxLength(64);
+            workout.HasIndex(w => w.ExternalRoutineId);
+
+            workout.Property(w => w.ExternalTitle).HasMaxLength(200);
+
+            // timestamptz throughout. UTC in, UTC out (root standard 5).
+            workout.Property(w => w.StartedAt).IsRequired();
+            workout.Property(w => w.EndedAt).IsRequired();
+            workout.Property(w => w.ExternallyUpdatedAt).IsRequired();
+
+            workout.HasMany(w => w.Exercises)
+                .WithOne()
+                .HasForeignKey(e => e.PerformedWorkoutId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PerformedExercise>(exercise =>
+        {
+            exercise.ToTable("performed_exercises");
+            exercise.HasKey(e => e.Id);
+
+            exercise.Property(e => e.Position).IsRequired();
+            exercise.Property(e => e.ExternalTemplateId).IsRequired().HasMaxLength(64);
+            exercise.Property(e => e.ExternalTitle).HasMaxLength(200);
+
+            // Restrict, not cascade: an exercise that imported history references cannot be
+            // deleted out from under it. Training history is append-only (root standard 7).
+            // Optional, because a logged movement outside our catalogue has no row of ours --
+            // which is a gap in the catalogue rather than in the training (ADR-020).
+            exercise.HasOne<Exercise>()
+                .WithMany()
+                .HasForeignKey(e => e.ExerciseId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            exercise.HasMany(e => e.Sets)
+                .WithOne()
+                .HasForeignKey(s => s.PerformedExerciseId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PerformedSet>(set =>
+        {
+            set.ToTable("performed_sets");
+            set.HasKey(s => s.Id);
+
+            set.Property(s => s.Position).IsRequired();
+
+            // Text, not an ordinal. An ordinal silently changes meaning when a value is inserted
+            // into the enum, and training history is append-only (root standard 7).
+            set.Property(s => s.Kind).HasConversion<string>().IsRequired().HasMaxLength(16);
+
+            // Nullable and meant to be: no load on bodyweight work, no repetitions on a timed or
+            // distance set, and no reserve whenever the user reported none -- which, in every
+            // workout observed from a real account, is every set (TD-017).
+            set.Property(s => s.WeightKg);
+            set.Property(s => s.Reps);
+            set.Property(s => s.RepsInReserve);
+        });
+
         builder.Entity<TrainingProfile>(profile =>
         {
             profile.ToTable("training_profiles");
@@ -183,6 +261,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             week.Property(w => w.DaysPerWeek).IsRequired();
             week.Property(w => w.SessionDurationSeconds).IsRequired();
 
+            // Their folder, in its own column and never a key (root standard 8). A number, where
+            // a routine's identifier is a string, because that is what their API returns.
+            week.Property(w => w.HevyRoutineFolderId);
+
             week.HasMany(w => w.Sessions)
                 .WithOne()
                 .HasForeignKey(s => s.GeneratedWeekId)
@@ -197,6 +279,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             session.Property(s => s.Position).IsRequired();
             session.Property(s => s.Day).HasConversion<string>().IsRequired().HasMaxLength(16);
             session.Property(s => s.Kind).HasConversion<string>().IsRequired().HasMaxLength(16);
+
+            // The join (ADR-019). Indexed because the only read is "which session did this
+            // workout come from", which is a lookup by exactly this value.
+            session.Property(s => s.HevyRoutineId).HasMaxLength(64);
+            session.HasIndex(s => s.HevyRoutineId);
 
             session.HasMany(s => s.Prescriptions)
                 .WithOne()
