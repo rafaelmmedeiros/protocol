@@ -97,6 +97,28 @@ test("every prescription shows its sets, repetitions and rest", async ({ page })
   await expect(rest).toContainText(/min|\bs\b/);
 });
 
+test("every session says how long it is expected to take, within what the user has", async ({
+  page,
+}) => {
+  await register(page);
+  await saveProfile(page, "4", "60");
+
+  await page.goto("/week");
+  await page.getByTestId("week-generate").click();
+  await expect(page.getByTestId("week-sessions")).toBeVisible();
+
+  const estimates = page.getByTestId("session-estimate");
+  await expect(estimates).toHaveCount(4);
+
+  // Two of the terms behind this number are engineering constants (TD-012). Showing it is what
+  // makes them falsifiable, so the assertion is that it is a real number inside the budget.
+  for (const text of await estimates.allInnerTexts()) {
+    const minutes = Number(text.replace(/\D+/g, ""));
+    expect(minutes).toBeGreaterThan(0);
+    expect(minutes).toBeLessThanOrEqual(60);
+  }
+});
+
 test("a week survives a full page load, and generating again replaces what is shown", async ({
   page,
 }) => {

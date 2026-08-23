@@ -353,8 +353,22 @@ public sealed record GeneratedWeekResponse(
     string Goal,
     int DaysPerWeek,
     int SessionDurationSeconds,
+    int EstimatedSeconds,
     IReadOnlyList<GeneratedSessionResponse> Sessions)
 {
+    /// <summary>
+    /// A session's expected duration: its warm-up, plus what each slot costs in sets, rest and
+    /// the transition to the next exercise (`TD-012`). Computed from the prescriptions actually
+    /// stored, never from a column.
+    /// </summary>
+    internal static int EstimatedSecondsFor(GeneratedSession session) =>
+        SessionTimeBudget.WarmUpSeconds // TD-012
+        + session.Prescriptions.Sum(prescription => SessionTimeBudget.SlotCostSeconds(
+            prescription.MinReps,
+            prescription.MaxReps,
+            prescription.Sets,
+            prescription.RestSeconds));
+
     public static GeneratedWeekResponse From(GeneratedWeek week, IReadOnlyList<Exercise> catalogue)
     {
         var titles = catalogue.ToDictionary(exercise => exercise.Id);
@@ -366,6 +380,7 @@ public sealed record GeneratedWeekResponse(
             week.Goal.ToString(),
             week.DaysPerWeek,
             week.SessionDurationSeconds,
+            week.Sessions.Sum(EstimatedSecondsFor),
             [
                 .. week.Sessions
                     .OrderBy(session => session.Position)
@@ -373,6 +388,7 @@ public sealed record GeneratedWeekResponse(
                         session.Position,
                         session.Day.ToString(),
                         session.Kind.ToString(),
+                        EstimatedSecondsFor(session),
                         [
                             .. session.Prescriptions
                                 .OrderBy(prescription => prescription.Position)
@@ -385,10 +401,21 @@ public sealed record GeneratedWeekResponse(
 }
 
 /// <summary>One day of a stored week.</summary>
+/// <param name="EstimatedSeconds">
+/// How long this session is expected to take, computed on read and **never stored**. It is
+/// derivable from the prescriptions beside it, and a derived column can disagree with its own
+/// source — the reasoning `S1.9` used to decline `cut_applied`.
+/// <para>
+/// Two of the terms behind it — the transition between exercises and the warm-up — are
+/// engineering estimates with no source (`TD-012`). Showing the number is what makes them
+/// falsifiable: a session that reads 52 minutes and takes 70 says the constants are wrong.
+/// </para>
+/// </param>
 public sealed record GeneratedSessionResponse(
     int Position,
     string Day,
     string Kind,
+    int EstimatedSeconds,
     IReadOnlyList<GeneratedPrescriptionResponse> Prescriptions);
 
 /// <summary>

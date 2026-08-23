@@ -38,8 +38,18 @@ public static class SessionTimeBudget
     public static int SlotCostSeconds(OrderClass orderClass, int sets, int restSeconds)
     {
         var prescription = TrainingPrescription.For(orderClass);
-        var secondsPerSet = (prescription.MinReps + prescription.MaxReps) * RepetitionSeconds / 2;
+        return SlotCostSeconds(prescription.MinReps, prescription.MaxReps, sets, restSeconds);
+    }
 
+    /// <summary>
+    /// The same cost from the numbers a stored prescription actually carries, rather than from
+    /// the <see cref="OrderClass"/> they came from. Reading a week back must use what was
+    /// written down: a record superseded since then would otherwise re-price a week under rules
+    /// it was never generated under (ADR-003).
+    /// </summary>
+    public static int SlotCostSeconds(int minReps, int maxReps, int sets, int restSeconds)
+    {
+        var secondsPerSet = (minReps + maxReps) * RepetitionSeconds / 2;
         return (sets * secondsPerSet) + ((sets - 1) * restSeconds) + TransitionSeconds;
     }
 

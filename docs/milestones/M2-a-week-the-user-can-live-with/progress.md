@@ -108,7 +108,25 @@ plan's dependency order.
     is not in this plan.
 
 ### S2.5 — Estimated session duration
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 9 unit (`SessionEstimateTests`), 1 E2E. Suites green: 75 unit, 44 integration,
+  21 E2E in Docker, typecheck clean.
+- **Observations:**
+  - **The estimate is computed from the numbers the prescription actually stores, not from the
+    `order_class` they came from.** That distinction matters and is not cosmetic: a week is
+    immutable and the records behind it are append-only, so pricing a stored week from
+    `TD-011`'s *current* rest values would re-price it under rules it was never generated
+    under. There is a test pinning it.
+  - **The point of the number is falsifiability, not convenience.** Two of the three terms —
+    the 60-second transition and the 180-second warm-up — are engineering estimates with no
+    source (`TD-012` says so at the line). A session that reads 52 minutes and takes 70 is the
+    first real evidence those constants are wrong, and nothing before this step could produce
+    it.
+  - **Nothing was stored.** The estimate is derivable from the prescriptions beside it, and a
+    derived column can disagree with its own source — the same reasoning `S1.9` used to decline
+    `cut_applied`.
+  - The session card's meta slot showed a bare prescription count, which carried no
+    information. Replaced by the estimate rather than adding a second line.
 
 ### S2.3 — Preference: exclusions and preferred variants
 - **Status:** pending

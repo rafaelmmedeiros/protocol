@@ -93,6 +93,7 @@ export const enUS = {
     regenerate: "Generate again",
     generating: "Generating...",
     generatedAt: "Generated",
+    estimate: "about",
     sets: "sets",
     reps: "reps",
     rest: "rest",

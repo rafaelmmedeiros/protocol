@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pill } from "@/components/ui/pill";
 import { API_URL } from "@/lib/api";
-import { splitDuration } from "@/lib/duration";
+import { secondsToMinutes, splitDuration } from "@/lib/duration";
 import { getDictionary, getLocale } from "@/lib/i18n";
 import { formatSessionDay } from "@/lib/week";
 import { GenerateForm } from "./generate-form";
@@ -26,6 +26,8 @@ type Session = {
   position: number;
   day: string;
   kind: string;
+  /** Computed on read, never stored — see the API's own note on why. */
+  estimatedSeconds: number;
   prescriptions: Prescription[];
 };
 
@@ -128,7 +130,15 @@ export default async function WeekPage() {
                   </Pill>
                 </span>
               }
-              meta={`${session.prescriptions.length}`}
+              // Seconds arrive canonical and become minutes here (root standard 4). Shown as an
+              // estimate rather than a duration because two of the terms behind it are
+              // engineering constants — and a visible number is what lets them be wrong out loud.
+              meta={
+                <span data-testid="session-estimate">
+                  {strings.estimate} {secondsToMinutes(session.estimatedSeconds)}{" "}
+                  {strings.minutesShort}
+                </span>
+              }
             />
 
             <ul className="flex flex-col divide-y divide-line">

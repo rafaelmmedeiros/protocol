@@ -90,6 +90,7 @@ export const ptBR: Dictionary = {
     regenerate: "Gerar de novo",
     generating: "Gerando...",
     generatedAt: "Gerada em",
+    estimate: "cerca de",
     sets: "séries",
     reps: "repetições",
     rest: "descanso",
