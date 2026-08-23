@@ -33,6 +33,7 @@ app/
     layout.tsx              the guard and the chrome -- header, nav, account menu
     dashboard/              Painel
     workouts/               Treinos
+    week/                   the generated week, session by session, and the button that makes it
     profile/                goal, days a week, minutes a session -- what the generator reads
     equipment/              Equipamentos -- what a generated session is allowed to ask for
     template/               the living style guide
@@ -48,6 +49,7 @@ lib/
   problem.ts                reads the error *code* out of a ProblemDetails body
   api-error.ts              reads our own error shape: a code plus the bounds it was rejected against
   duration.ts               seconds to minutes and back, at the render edge
+  week.ts                   resolves a session day to a real date, formatted by Intl
   preferences.ts            the theme and locale cookies
   cn.ts                     class-name join
   i18n/                     locales.ts, dictionaries/, index.ts (server-side)

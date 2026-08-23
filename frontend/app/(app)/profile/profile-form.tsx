@@ -95,20 +95,45 @@ export function ProfileForm({
         required
       />
 
-      <div className="flex items-center gap-3">
+      <Outcome saved={state.saved} savedLabel={strings.saved} error={message}>
         <SubmitButton save={strings.save} saving={strings.saving} />
-        {state.saved && (
-          <p data-testid="profile-saved" role="status" className="text-sm text-ok">
-            {strings.saved}
-          </p>
-        )}
-        {message && (
-          <p data-testid="profile-error" role="alert" className="text-sm text-danger">
-            {message}
-          </p>
-        )}
-      </div>
+      </Outcome>
     </form>
+  );
+}
+
+/**
+ * The result of the *last* save, hidden while the next one is in flight. A "saved" message
+ * sitting next to a pending submit claims something that is not true yet, and it is also what
+ * makes a test unable to tell one save from the next.
+ */
+function Outcome({
+  saved,
+  savedLabel,
+  error,
+  children,
+}: {
+  saved: boolean;
+  savedLabel: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  const { pending } = useFormStatus();
+
+  return (
+    <div className="flex items-center gap-3">
+      {children}
+      {!pending && saved && (
+        <p data-testid="profile-saved" role="status" className="text-sm text-ok">
+          {savedLabel}
+        </p>
+      )}
+      {!pending && error && (
+        <p data-testid="profile-error" role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 

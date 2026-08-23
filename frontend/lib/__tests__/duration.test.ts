@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { minutesToSeconds, secondsToMinutes } from "../duration";
+import { minutesToSeconds, secondsToMinutes, splitDuration } from "../duration";
 
 describe("duration", () => {
   it("converts the supported range in both directions", () => {
@@ -25,5 +25,16 @@ describe("duration", () => {
     // every session that did not divide evenly.
     expect(secondsToMinutes(3_040)).toBe(51);
     expect(secondsToMinutes(3_029)).toBe(50);
+  });
+
+  it("splits the rest intervals TD-011 prescribes into minutes and seconds", () => {
+    expect(splitDuration(180)).toEqual({ minutes: 3, seconds: 0 });
+    expect(splitDuration(150)).toEqual({ minutes: 2, seconds: 30 });
+    expect(splitDuration(90)).toEqual({ minutes: 1, seconds: 30 });
+  });
+
+  it("never returns a negative or fractional split", () => {
+    expect(splitDuration(-10)).toEqual({ minutes: 0, seconds: 0 });
+    expect(splitDuration(90.4)).toEqual({ minutes: 1, seconds: 30 });
   });
 });

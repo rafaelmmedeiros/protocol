@@ -16,3 +16,13 @@ export function secondsToMinutes(seconds: number): number {
 export function minutesToSeconds(minutes: number): number {
   return Math.round(minutes * 60);
 }
+
+/**
+ * Splits a rest interval into whole minutes and the remainder, so a screen can write "1 min
+ * 30 s" instead of "90 s". The words themselves live in the dictionary; this only does the
+ * arithmetic, which is why it is testable without a locale.
+ */
+export function splitDuration(totalSeconds: number): { minutes: number; seconds: number } {
+  const safe = Math.max(0, Math.round(totalSeconds));
+  return { minutes: Math.floor(safe / 60), seconds: safe % 60 };
+}

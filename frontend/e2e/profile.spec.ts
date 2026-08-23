@@ -22,7 +22,15 @@ async function register(page: Page) {
 async function fillProfile(page: Page, days: string, minutes: string) {
   await page.getByTestId("profile-days").fill(days);
   await page.getByTestId("profile-duration").fill(minutes);
+
+  // Wait for the Server Function's own round trip, not for the confirmation message. The
+  // message survives the previous save, so asserting on it passes instantly on a second submit
+  // and lets a reload race the write that is still in flight.
+  const saved = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.url().includes("/profile"),
+  );
   await page.getByTestId("profile-submit").click();
+  await saved;
 }
 
 test("the profile section is closed to an anonymous visitor", async ({ page }) => {

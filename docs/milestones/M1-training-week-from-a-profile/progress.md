@@ -410,7 +410,34 @@ tests pass and its acceptance criteria hold.
     the development data clean.
 
 ### S1.11 — The generated week on screen
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 8 unit added (`week.test.ts`, `duration.test.ts`), 6 E2E (`e2e/week.spec.ts`).
+  Typecheck clean; Vitest 21; containerized E2E **20 passed, no flakes**.
+- **Produced:** `app/(app)/week/` (page, Server Function, generate form), `lib/week.ts`,
+  `splitDuration` in `lib/duration.ts`, both dictionaries, nav entry.
+- **Observations:**
+  - **A flaky test from `S1.10` surfaced here and was a real defect in both the test and the
+    UI.** `fillProfile` waited for the "saved" message, which **survives the previous save** —
+    so on a second submit the assertion passed instantly and the reload raced a write still in
+    flight. Fixed twice over: the helper now waits for the Server Function's actual round trip,
+    and the form hides the confirmation while a save is pending. A "saved" message beside a
+    pending submit claims something untrue to the user as well as to the test.
+  - **Day names come from `Intl`, not from the dictionary.** The API sends `"Monday"` as a
+    stable name and the page resolves it to a real date against the week's Monday, so the
+    dictionary carries six session kinds rather than seven weekdays per locale — and the screen
+    shows the actual date, which is more useful.
+  - **The date is built and formatted in UTC deliberately.** `new Date("2026-08-24")` is
+    midnight UTC; formatting that in a zone behind UTC renders the day before, which would make
+    the training week silently start on Sunday for any reader west of Greenwich. There is a
+    test pinning it.
+  - **Two absences are told apart, and that is the whole design of the screen.** No profile
+    means there is nothing to generate *from* (link to the profile); a profile with no week
+    means nothing generated *yet* (the generate button). Collapsing them into one empty state
+    would blame the user for the first case.
+  - `Button` has no `asChild`, so the first draft's `<Button asChild><Link/></Button>` was
+    wrong. Navigation is a link and now looks like one — no new component invented for it.
+  - Regenerating is deliberately **not** idempotent (`ADR-003` writes a new row every time), so
+    the control says "generate again" rather than "refresh".
 
 ### S1.12 — The ladder, containerized
 - **Status:** pending
