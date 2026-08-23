@@ -90,3 +90,20 @@ proven non-propagation of notes makes it safe against being mistaken for data la
   Nothing about the decision changes. What changes is that option B is now rejected for a second
   and stronger reason, and that `TD-017`'s outbound half has no consumer in this integration by
   design rather than by circumstance.
+
+- 2026-08-23 — **The note frames the range as something to terminate on effort within, not a
+  number to reach.** `references/separating-execution-modes-from-a-bare-log.md` established that a
+  fixed repetition target **censors** the observation: a lifter who stops at 12 because the plan
+  says 12 cannot log more than 12, so the number carries no information about the effort behind it,
+  and no amount of history recovers it. A range the lifter is told to terminate on effort *within*
+  produces an uncensored count instead.
+
+  **This is the only intervention identified that makes the log more informative without asking the
+  user anything**, and it costs one sentence: the exercise note reads as "8-12 — stop when the
+  movement slows, with about 2 left" rather than "3 x 12". The data model does not move —
+  `rep_range` was already being sent, `TD-009` already prescribes ranges, and `TD-018` already
+  supplies one reserve for every exercise.
+
+  The decision above (A) is unchanged; what changed is what the sentence says. Recorded here rather
+  than left to the screen copy because it is the difference between a log the progression rule can
+  read and one it cannot, and nothing would fail if the wording quietly reverted.

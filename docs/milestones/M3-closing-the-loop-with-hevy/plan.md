@@ -23,15 +23,15 @@ Verbatim from `docs/ROADMAP.md`:
 
 ## Open questions
 
-- **What does "prescribed against performed" show, and at what grain?** Per set, per exercise, or
-  a per-session summary with detail on demand. This decides the read model in `S3.5` and the
-  screen in `S3.7`, and the three are materially different amounts of work. A recommendation is
-  offered with the question rather than assumed here.
-- **What are Hevy's rate limits, and what does the import do when it hits one?** The OpenAPI
-  document declares none, and the events feed caps a page at ten items, so a first backfill of a
-  long history is many sequential calls. Whether `S3.4` needs backoff, a throttle, or a resumable
-  backfill depends on a fact this plan does not have, and finding it out by hammering the
-  engineer's real account is not acceptable. Needs either documentation or one careful probe.
+**None.** Two stood when this plan was written, and both are closed:
+
+- *What the comparison shows, and at what grain.* Settled as **one row per exercise slot with the
+  performed sequence inline** — see **Specifications**. The grain follows from what the research
+  established rather than from taste: the unit is the slot, not the muscle and not the set, and the
+  sequence itself is the thing worth seeing.
+- *Hevy's rate limits.* Settled by `ADR-021` **without the fact, because the fact does not exist**
+  — the OpenAPI document declares no 429, no `Retry-After` and no rate-limit header. The client is
+  written to survive a limit it cannot know rather than provoking one on a real account.
 
 _(Execution does not start while this section is non-empty.)_
 
@@ -40,10 +40,20 @@ _(Execution does not start while this section is non-empty.)_
 Unusually for a milestone this size, `M3` asks `/protocol-training` for nothing new, and that is a
 consequence of the scope split rather than an oversight. Everything it needs is already recorded:
 `TD-017` converts effort in both directions, `TD-006` keeps `warmup` sets out of the fractional
-arithmetic, `TD-009` and `TD-011` supply the rep ranges and rest the push writes, and `TD-010`
-supplies the reserve the routine note displays. `M3` observes and compares; it asserts nothing
+arithmetic, `TD-009` and `TD-011` supply the rep ranges and rest the push writes, and `TD-018`
+supplies the one reserve the routine note displays. `M3` observes and compares; it asserts nothing
 about how anyone should train. The judgements arrive in `M4`, which is why the research for them
 belongs there and not here.
+
+Three notes landed while this plan sat unexecuted, and none of them adds work to `M3` — they
+constrain `M4` and they change one sentence here.
+`references/separating-execution-modes-from-a-bare-log.md` establishes that effort cannot be
+recovered from a bare log at all, which is why `ADR-016`'s routine note now frames the range as
+something to terminate on effort within rather than a number to reach — the one change that makes
+the log this milestone imports worth reading.
+`references/progression-trigger-under-constant-effort-execution.md` and
+`references/muscle-specific-repetition-drop-off-and-fibre-type.md` decide nothing here and are why
+`S3.5` keeps the performed sequence ordered rather than summing it.
 
 ## Steps
 
@@ -136,6 +146,8 @@ identifiers come back and are stored.
 6. Never call a delete — none exists (per `ADR-017`). A `PUT` against a routine the user removed
    is a push failure, surfaced as a code.
 7. An exercise with no external key cannot be pushed and fails loudly (per `ADR-016`).
+8. Writes are sequential with backoff, and a partly-created week is safe to retry because
+   re-pushing reuses what exists (per `ADR-021`, `ADR-017`).
 
 **Tests:**
 
@@ -173,6 +185,9 @@ payload.
    `TD-006`).
 6. The first sync is a backfill from the feed's epoch and is written to page rather than to assume
    a page size.
+7. Requests are sequential, the cursor is persisted **as each page commits**, and a refusal is
+   retried with backoff — a sync that gives up is a partial success with progress kept, never a
+   restart (per `ADR-021`).
 
 **Tests:**
 
@@ -203,7 +218,8 @@ side by side.
 2. Read no title anywhere in the binding (per `ADR-019`, standard 9).
 3. Convert reported effort inbound with `TD-017`; a set with no `rpe` yields no reserve rather
    than a default.
-4. Expose the comparison read model at the grain settled in the open question above.
+4. Expose the comparison read model at the settled grain — one entry per prescribed slot,
+   carrying the performed sequence in set order (see **Specifications**).
 5. Report the proportion of imported workouts that bind, as the evidence `ADR-019` says would
    justify revisiting it.
 
@@ -222,6 +238,7 @@ side by side.
 - A workout started from a pushed routine binds to the session that produced it.
 - A workout with the same title and no `routine_id` does not bind.
 - A set with no reported effort produces no reserve, and the screen can tell that from a zero.
+- A performed sequence reads back in set order, so 11/9/8 is distinguishable from 8/9/11.
 
 ### S3.6 — Equipment the history reveals
 
@@ -264,7 +281,10 @@ side by side.
 2. An explicit push control on the week. Pushing writes to a third party and is never automatic.
 3. An explicit sync control, with the outcome reported — how many workouts arrived, how many
    bound.
-4. The comparison view at the settled grain, and the equipment suggestions list.
+4. The comparison view — one block per exercise, prescription above and the performed sequence
+   below, with a marker where the sequence fell outside the prescribed range. Slots with no
+   matching work read as not performed; exercises performed but never prescribed are listed after
+   them; workouts bound to no session at all are listed separately (per `ADR-019`).
 5. Every string in both dictionaries, no hardcoded text (standard 2); every error rendered from a
    code (standard 3).
 6. Semantic elements, labelled controls, keyboard reachable (standard 13).
@@ -284,6 +304,8 @@ side by side.
 - The key is never rendered, including after a reload.
 - Push and sync are deliberate actions with visible outcomes.
 - Every new screen reads correctly in `pt-BR`.
+- A session shows its prescribed slots and its performed sequences on one screen without
+  navigating, and an unprescribed exercise is visible rather than dropped.
 
 ### S3.8 — The ladder, containerized
 
@@ -337,6 +359,25 @@ a user who never connected has no key.
 | `ExerciseNotMappable` | a prescribed exercise has no external key and cannot be pushed |
 | `PushedRoutineMissing` | a `PUT` target no longer exists in Hevy |
 
+**The comparison read model.** One entry per prescribed slot, in session order:
+
+| Field | Source |
+|---|---|
+| exercise | ours, by our key (`ADR-002`, standard 9) |
+| prescribed sets, range, reserve, rest | the stored week (`ADR-003`, `TD-009`, `TD-011`, `TD-018`) |
+| performed sets | the bound workout's `normal` sets **in set order**, each carrying its own load and repetitions |
+| performed reserve | `TD-017` inbound, per set, **absent when `rpe` is absent** — which is every set observed so far |
+| outcome | in range / above / below / not performed, derived per set and summarised per slot |
+
+Two rules the model must not break. **The sequence is ordered and is never reduced to a total** —
+11/9/8 and 8/9/11 are different facts, and `references/progression-trigger-under-constant-effort-execution.md`
+is why. And **an absent reserve is absent, never zero**: with `rpe` null on every set observed, the
+distinction between "reported nothing" and "reported no reserve left" is the difference between an
+empty column and a false claim about how hard the user worked.
+
+Exercises performed but never prescribed, and workouts bound to no session, are carried alongside
+rather than discarded — `ADR-019` makes unbound history first-class, and it is what `ADR-020` reads.
+
 **Effort conversion** is `TD-017` and is not restated here; the table lives in the record.
 
 ## Dependency order
@@ -360,7 +401,7 @@ key first because everything else is untestable against a real account without i
 - [ ] S3.2 — one mapper per direction, and no Hevy type in the domain
 - [ ] S3.3 — a week pushed as a folder of routines, identifiers stored
 - [ ] S3.4 — incremental import, versions and tombstones, raw payload retained
-- [ ] S3.5 — workouts bound to the sessions that prescribed them, and read side by side
+- [ ] S3.5 — workouts bound to the sessions that prescribed them, and read side by side, sequence intact
 - [ ] S3.6 — equipment suggested from history, add-only and confirmed
 - [ ] S3.7 — the screens, both locales
 - [ ] S3.8 — the verification ladder from `/protocol-feature`, green
