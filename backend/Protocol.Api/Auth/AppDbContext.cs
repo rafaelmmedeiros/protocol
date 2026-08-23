@@ -15,6 +15,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<TrainingProfile> TrainingProfiles => Set<TrainingProfile>();
 
+    public DbSet<GeneratedWeek> GeneratedWeeks => Set<GeneratedWeek>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -70,6 +72,67 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
             // No rest column: rest is a property of the slot and the record decides it, not the
             // user (ADR-007, TD-011). The absence is the decision.
+        });
+
+        builder.Entity<GeneratedWeek>(week =>
+        {
+            week.ToTable("generated_weeks");
+            week.HasKey(w => w.Id);
+
+            week.Property(w => w.UserId).IsRequired().HasMaxLength(450);
+            // Read pattern is "this user's most recent week", so the index matches it.
+            week.HasIndex(w => new { w.UserId, w.GeneratedAt });
+
+            week.Property(w => w.WeekStartDate).IsRequired();
+
+            // timestamptz. UTC in, UTC out (root standard 5).
+            week.Property(w => w.GeneratedAt).IsRequired();
+
+            // The profile, snapshotted (ADR-003). Editing the profile must not reach back into
+            // a week the user already trained.
+            week.Property(w => w.Goal).HasConversion<string>().IsRequired().HasMaxLength(32);
+            week.Property(w => w.DaysPerWeek).IsRequired();
+            week.Property(w => w.SessionDurationSeconds).IsRequired();
+
+            week.HasMany(w => w.Sessions)
+                .WithOne()
+                .HasForeignKey(s => s.GeneratedWeekId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<GeneratedSession>(session =>
+        {
+            session.ToTable("generated_sessions");
+            session.HasKey(s => s.Id);
+
+            session.Property(s => s.Position).IsRequired();
+            session.Property(s => s.Day).HasConversion<string>().IsRequired().HasMaxLength(16);
+            session.Property(s => s.Kind).HasConversion<string>().IsRequired().HasMaxLength(16);
+
+            session.HasMany(s => s.Prescriptions)
+                .WithOne()
+                .HasForeignKey(p => p.GeneratedSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<GeneratedPrescription>(prescription =>
+        {
+            prescription.ToTable("generated_prescriptions");
+            prescription.HasKey(p => p.Id);
+
+            prescription.Property(p => p.Position).IsRequired();
+            prescription.Property(p => p.Sets).IsRequired();
+            prescription.Property(p => p.MinReps).IsRequired();
+            prescription.Property(p => p.MaxReps).IsRequired();
+            prescription.Property(p => p.RepsInReserve).IsRequired();
+            prescription.Property(p => p.RestSeconds).IsRequired();
+
+            // Restrict, not cascade: an exercise that a stored week references cannot be deleted
+            // out from under it. Training history is append-only (root standard 7).
+            prescription.HasOne(p => p.Exercise)
+                .WithMany()
+                .HasForeignKey(p => p.ExerciseId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

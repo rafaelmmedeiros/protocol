@@ -1,81 +1,97 @@
 namespace Protocol.Api.Training;
 
 /// <summary>
-/// A week of training, as the generator produces it. Pure data: no database, no HTTP, nothing
-/// that could not be recomputed from a profile and a catalogue (ADR-005, ADR-006).
+/// A week that was generated for a user, stored as it was generated and never edited.
+/// <para>
+/// Immutable is about the record, not the interface (ADR-003): regenerating is expected and
+/// writes a new row. What the user read yesterday has to stay readable, and it has to stay
+/// explainable against the decisions in force when it was produced — a superseded <c>TD</c>
+/// would otherwise rewrite history that was never recorded as history (root standard 7).
+/// </para>
+/// <para>
+/// The profile's values are <b>snapshotted</b> here rather than referenced. A profile is current
+/// state and a generated week is not; a week whose frequency changed when the user edited their
+/// profile would be a week nobody ever trained.
+/// </para>
 /// </summary>
-/// <param name="Shortfalls">
-/// Muscles the catalogue can train that still finished below TD-008's floor — a time-budget gap
-/// the user can act on.
-/// </param>
-/// <param name="UncoveredMuscles">
-/// Muscles no exercise in the catalogue trains <i>directly</i>, so they reach volume only
-/// through 0.5-weighted secondary roles. Under TD-004's assumed gym these are
-/// <c>Forearms</c>, <c>SpinalErectors</c> and <c>Adductors</c>. A catalogue coverage failure,
-/// surfaced rather than patched: padding the catalogue to hide it would be the wrong fix, and
-/// TD-004 is where the assumption gets superseded. These never drive the cut ladder, because no
-/// amount of cutting closes a gap in what the gym contains.
-/// </param>
-public sealed record GeneratedWeek(
-    DateOnly WeekStartDate,
-    IReadOnlyList<GeneratedSession> Sessions,
-    IReadOnlyList<MuscleShortfall> Shortfalls,
-    IReadOnlyList<MuscleGroup> UncoveredMuscles,
-    CutLevel CutApplied)
+public sealed class GeneratedWeek
 {
+    public Guid Id { get; init; }
+
+    public required string UserId { get; init; }
+
     /// <summary>
-    /// True when every muscle the catalogue can actually train reached TD-008's floor. A week
-    /// with shortfalls is still returned rather than refused — the user gets the best week their
-    /// time allows, and the gap is surfaced as data for the frontend to say out loud (TD-013).
+    /// The Monday the week begins on. The training week starts on Monday, always, and never
+    /// derives that from locale (root standard 6).
     /// </summary>
-    public bool MeetsFloor => Shortfalls.Count == 0;
+    public required DateOnly WeekStartDate { get; init; }
+
+    /// <summary>When this week was generated, in UTC (root standard 5).</summary>
+    public required DateTimeOffset GeneratedAt { get; init; }
+
+    /// <summary>The goal in force when this week was generated (ADR-003).</summary>
+    public required TrainingGoal Goal { get; init; }
+
+    /// <summary>The frequency in force when this week was generated (ADR-003).</summary>
+    public required int DaysPerWeek { get; init; }
+
+    /// <summary>The session duration in force when this week was generated (ADR-003).</summary>
+    public required int SessionDurationSeconds { get; init; }
+
+    public ICollection<GeneratedSession> Sessions { get; init; } = [];
 }
 
-/// <summary>One training day.</summary>
-public sealed record GeneratedSession(
-    int Position,
-    DayOfWeek Day,
-    SessionKind Kind,
-    IReadOnlyList<GeneratedSlot> Slots);
-
-/// <summary>
-/// A position in a session holding one exercise and the prescription attached to it — the unit
-/// TD-005 defines and TD-013 cuts.
-/// </summary>
-public sealed record GeneratedSlot(
-    int Position,
-    Exercise Exercise,
-    int Sets,
-    SlotPrescription Prescription);
-
-/// <summary>
-/// A muscle the catalogue <i>can</i> train that still finished the week below TD-008's floor of
-/// four fractional sets. This is a time-budget failure and the user can act on it: train longer,
-/// or train more days.
-/// <para>
-/// Kept apart from <see cref="GeneratedWeek.UncoveredMuscles"/> on purpose. The two look
-/// identical in the data and are different problems — one is fixed by the user, the other only
-/// by changing what equipment is assumed, and mixing them would make the cut ladder chase a gap
-/// no amount of cutting can close.
-/// </para>
-/// </summary>
-public sealed record MuscleShortfall(MuscleGroup MuscleGroup, decimal FractionalSets);
-
-/// <summary>
-/// How far down TD-013's cut ladder the generator had to go for the week to fit.
-/// <para>
-/// Reported rather than hidden, because it is not an edge case: at three sessions of forty
-/// minutes the ladder runs in full on an entirely ordinary configuration.
-/// </para>
-/// </summary>
-public enum CutLevel
+/// <summary>One day of a stored week.</summary>
+public sealed class GeneratedSession
 {
-    /// <summary>Nothing cut. Prescribed rest, three sets a slot.</summary>
-    None,
+    public Guid Id { get; init; }
 
-    /// <summary>Rest trimmed to TD-011's floor of ninety seconds (TD-013, step 1).</summary>
-    RestToFloor,
+    public Guid GeneratedWeekId { get; init; }
 
-    /// <summary>Rest at the floor and two sets a slot, spread evenly (TD-013, step 3).</summary>
-    RestToFloorAndFewerSets,
+    /// <summary>Ordered position within the week, starting at one.</summary>
+    public required int Position { get; init; }
+
+    public required DayOfWeek Day { get; init; }
+
+    public required SessionKind Kind { get; init; }
+
+    public ICollection<GeneratedPrescription> Prescriptions { get; init; } = [];
+}
+
+/// <summary>
+/// A slot as it was prescribed: one exercise, and what to do with it.
+/// <para>
+/// There is no load column. M1 prescribes sets, repetitions, proximity to failure and rest, and
+/// nothing about weight — so a <c>weight_kg</c> column would be a field nothing writes. When
+/// load arrives it carries its unit in the name (root standard 4).
+/// </para>
+/// </summary>
+public sealed class GeneratedPrescription
+{
+    public Guid Id { get; init; }
+
+    public Guid GeneratedSessionId { get; init; }
+
+    /// <summary>Ordered position within the session, starting at one (TD-007).</summary>
+    public required int Position { get; init; }
+
+    /// <summary>
+    /// Our exercise, by our own key. The catalogue row is referenced rather than copied: an
+    /// exercise's attributes are reference data, not something the week decided.
+    /// </summary>
+    public required Guid ExerciseId { get; init; }
+
+    public Exercise? Exercise { get; init; }
+
+    public required int Sets { get; init; }
+
+    public required int MinReps { get; init; }
+
+    public required int MaxReps { get; init; }
+
+    /// <summary>Repetitions in reserve. Never below two, and never failure (TD-010).</summary>
+    public required int RepsInReserve { get; init; }
+
+    /// <summary>Rest between sets, in seconds — the unit is in the name (root standard 4).</summary>
+    public required int RestSeconds { get; init; }
 }

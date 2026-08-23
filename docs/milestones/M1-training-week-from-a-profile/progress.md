@@ -338,7 +338,38 @@ tests pass and its acceptance criteria hold.
     week can be asserted whole (`ADR-005`).
 
 ### S1.9 — Persisting a generated week
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 9 integration (`GeneratedWeekEndpointsTests`). Full suites green: 55 unit, 34
+  integration, 0 warnings.
+- **Produced:** `GeneratedWeek`/`GeneratedSession`/`GeneratedPrescription` entities, migration
+  `20260823..._GeneratedWeek`, `POST /training/weeks`, `GET /training/weeks/current`.
+- **Observations:**
+  - **A name collision forced a rename, and the rename is an improvement.** `S1.8`'s pure output
+    was called `GeneratedWeek`, which is what the plan's *table* is called. The generator's
+    result is now `WeekPlan`/`PlannedSession`/`PlannedSlot` and the entities took the storage
+    names. Worth keeping distinct anyway: one is what the generator computed, the other is what
+    was written down and can never change.
+  - **`WeekNotFound` was added to the error catalog**, which the plan did not list. `GET
+    /training/weeks/current` has to answer something when no week exists, and `S1.11` needs to
+    tell "no week yet" apart from a failure — the plan itself requires an empty state rather
+    than an error there.
+  - **`cut_applied` was deliberately not stored**, though `ADR-003`'s "explainable" reasoning
+    argues for it. It is derivable from the stored rest values, so a column would be redundant
+    data that can disagree with its own source. If `S1.11` turns out to need it, a forward-only
+    migration is cheap.
+  - **The exercise foreign key is `Restrict`, not `Cascade`.** An exercise a stored week
+    references cannot be deleted out from under it — history is append-only (root standard 7),
+    and cascading would let a catalogue edit silently rewrite what a user trained.
+  - **One test reads the context rather than the API, for a reason the API cannot cover.**
+    "Generating twice leaves two weeks, the first unchanged" is a claim about storage, and no
+    endpoint exposes a week that is no longer current. The alternative was inventing
+    `GET /training/weeks/{id}` that nothing needs. Same documented exception as
+    `ExerciseCatalogueTests`, already written into `backend/CLAUDE.md`.
+  - The other half of that criterion **is** provable through the API and is: generate at 3 days,
+    edit the profile to 6, and `GET current` still answers 3. That is `ADR-003`'s snapshot doing
+    its job.
+  - No `weight_kg` column: `M1` prescribes nothing about load, so it would be a field nothing
+    writes.
 
 ### S1.10 — The Profile section
 - **Status:** pending

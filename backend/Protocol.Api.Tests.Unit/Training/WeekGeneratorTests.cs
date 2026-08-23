@@ -23,7 +23,7 @@ public class WeekGeneratorTests
         SessionDurationSeconds = seconds,
     };
 
-    private static GeneratedWeek Generate(int daysPerWeek, int seconds = 3_600) =>
+    private static WeekPlan Generate(int daysPerWeek, int seconds = 3_600) =>
         WeekGenerator.Generate(Profile(daysPerWeek, seconds), ExerciseCatalogue.All, Reference);
 
     [Theory]
@@ -325,10 +325,10 @@ public class WeekGeneratorTests
             Assert.True(entry.Value >= 2, $"{entry.Key} was trained {entry.Value}x"));
     }
 
-    private static int TotalSets(GeneratedWeek week) =>
+    private static int TotalSets(WeekPlan week) =>
         week.Sessions.SelectMany(session => session.Slots).Sum(slot => slot.Sets);
 
-    private static string Describe(GeneratedSlot slot) =>
+    private static string Describe(PlannedSlot slot) =>
         $"{slot.Position}:{slot.Exercise.ExternalTemplateId}:{slot.Sets}:" +
         $"{slot.Prescription.MinReps}-{slot.Prescription.MaxReps}:" +
         $"{slot.Prescription.RepsInReserve}:{slot.Prescription.RestSeconds}";

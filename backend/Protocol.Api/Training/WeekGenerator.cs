@@ -24,7 +24,7 @@ public static class WeekGenerator
     /// reads the time is not deterministic and cannot be asserted whole (ADR-005).
     /// </para>
     /// </summary>
-    public static GeneratedWeek Generate(
+    public static WeekPlan Generate(
         TrainingProfile profile,
         IReadOnlyList<Exercise> catalogue,
         DateOnly reference)
@@ -62,7 +62,7 @@ public static class WeekGenerator
     private static DateOnly MondayOf(DateOnly date) =>
         date.AddDays(-(((int)date.DayOfWeek + 6) % 7));
 
-    private static GeneratedWeek Build(
+    private static WeekPlan Build(
         TrainingProfile profile,
         IReadOnlyList<Exercise> catalogue,
         DateOnly weekStart,
@@ -97,13 +97,13 @@ public static class WeekGenerator
             }
         }
 
-        var sessions = new List<GeneratedSession>(split.Count);
+        var sessions = new List<PlannedSession>(split.Count);
         for (var index = 0; index < split.Count; index++)
         {
             var day = split[index];
             var slots = FillSession(
                 day, index, schedule, catalogue, profile.SessionDurationSeconds, cut, setsPerSlot, volumes);
-            sessions.Add(new GeneratedSession(index + 1, day.Day, day.Kind, slots));
+            sessions.Add(new PlannedSession(index + 1, day.Day, day.Kind, slots));
         }
 
         var shortfalls = volumes
@@ -113,10 +113,10 @@ public static class WeekGenerator
             .Select(entry => new MuscleShortfall(entry.Key, entry.Value))
             .ToList();
 
-        return new GeneratedWeek(weekStart, sessions, shortfalls, uncovered, cut);
+        return new WeekPlan(weekStart, sessions, shortfalls, uncovered, cut);
     }
 
-    private static List<GeneratedSlot> FillSession(
+    private static List<PlannedSlot> FillSession(
         SplitDay day,
         int sessionIndex,
         Dictionary<MuscleGroup, List<int>> schedule,
@@ -174,7 +174,7 @@ public static class WeekGenerator
                 .ThenBy(exercise => exercise.PreferenceRank)       // TD-005
                 .ThenBy(exercise => exercise.MovementPattern)
                 .ThenBy(exercise => exercise.Equipment)
-                .Select((exercise, position) => new GeneratedSlot(
+                .Select((exercise, position) => new PlannedSlot(
                     position + 1,
                     exercise,
                     setsPerSlot,

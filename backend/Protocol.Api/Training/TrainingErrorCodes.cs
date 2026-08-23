@@ -21,6 +21,12 @@ public static class TrainingErrorCodes
 
     /// <summary>Session duration outside the supported range (TD-012).</summary>
     public const string DurationOutOfRange = "DurationOutOfRange";
+
+    /// <summary>
+    /// Reading the current week before one has been generated. Not an error the user did
+    /// anything to cause — the frontend turns this into the empty state, not a failure.
+    /// </summary>
+    public const string WeekNotFound = "WeekNotFound";
 }
 
 /// <summary>
