@@ -40,7 +40,7 @@ app/
     settings/               theme and language, through a Server Function
   api/[...path]/route.ts    proxies the browser's calls to the API
 components/
-  ui/                       button, field, select, card, pill, stat, page-header, empty-state
+  ui/                       button, field, select, checkbox, card, pill, stat, page-header, empty-state
   app-nav.tsx               client; marks the active section
   user-menu.tsx             client; account popover and sign out
 lib/

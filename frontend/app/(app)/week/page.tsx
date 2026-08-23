@@ -10,9 +10,12 @@ import { secondsToMinutes, splitDuration } from "@/lib/duration";
 import { getDictionary, getLocale } from "@/lib/i18n";
 import { formatSessionDay } from "@/lib/week";
 import { GenerateForm } from "./generate-form";
+import { SlotActions, type Candidate } from "./slot-actions";
 
 type Prescription = {
+  id: string;
   position: number;
+  exerciseId: string;
   exerciseTitle: string;
   externalTemplateId: string;
   sets: number;
@@ -94,6 +97,21 @@ export default async function WeekPage() {
     );
   }
 
+  // One request per slot, in parallel. Fine at a dozen slots and the first thing to fold into
+  // the week response if it ever stops being.
+  const candidates = new Map<string, Candidate[]>(
+    await Promise.all(
+      week.sessions
+        .flatMap((session) => session.prescriptions)
+        .map(async (prescription): Promise<[string, Candidate[]]> => [
+          prescription.id,
+          (await read<Candidate[]>(
+            `/training/weeks/current/prescriptions/${prescription.id}/candidates`,
+          )) ?? [],
+        ]),
+    ),
+  );
+
   const generatedAt = new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
@@ -161,6 +179,16 @@ export default async function WeekPage() {
                       {strings.rest} {formatRest(prescription.restSeconds, strings)}
                     </span>
                   </span>
+                  <SlotActions
+                    prescriptionId={prescription.id}
+                    exerciseId={prescription.exerciseId}
+                    candidates={candidates.get(prescription.id) ?? []}
+                    strings={{
+                      swapTo: strings.swapTo,
+                      refuse: strings.refuse,
+                      noAlternatives: strings.noAlternatives,
+                    }}
+                  />
                 </li>
               ))}
             </ul>

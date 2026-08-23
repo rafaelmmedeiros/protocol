@@ -49,3 +49,66 @@ export async function generateWeek(
   revalidatePath("/week");
   return {};
 }
+
+/**
+ * Swaps one slot for another exercise that trains the same thing. The API writes a new week
+ * rather than editing this one (`ADR-012`), so the previous week stays readable — someone may
+ * have trained it.
+ */
+export async function substitute(formData: FormData): Promise<void> {
+  if (!(await getCurrentUser())) redirect("/login");
+
+  const prescriptionId = formData.get("prescriptionId")?.toString();
+  const exerciseId = formData.get("exerciseId")?.toString();
+  if (!prescriptionId || !exerciseId) return;
+
+  const cookieStore = await cookies();
+  await fetch(`${API_URL}/training/weeks/current/prescriptions/${prescriptionId}/substitute`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: cookieStore.toString() },
+    body: JSON.stringify({ exerciseId }),
+    cache: "no-store",
+  });
+
+  revalidatePath("/week");
+}
+
+/**
+ * "Never prescribe me this again." Read-modify-write, because the API replaces the whole
+ * preference set rather than patching it.
+ */
+export async function excludeExercise(formData: FormData): Promise<void> {
+  if (!(await getCurrentUser())) redirect("/login");
+
+  const exerciseId = formData.get("exerciseId")?.toString();
+  if (!exerciseId) return;
+
+  const cookieStore = await cookies();
+  const headers = { "content-type": "application/json", cookie: cookieStore.toString() };
+
+  const current = await fetch(`${API_URL}/training/preferences`, { headers, cache: "no-store" });
+  if (!current.ok) return;
+
+  const preferences = (await current.json()) as {
+    excluded: { exerciseId: string }[];
+    preferredVariants: { movementPattern: string; exerciseId: string }[];
+  };
+
+  const excluded = new Set(preferences.excluded.map((row) => row.exerciseId));
+  excluded.add(exerciseId);
+
+  await fetch(`${API_URL}/training/preferences`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify({
+      excludedExerciseIds: [...excluded],
+      preferredVariants: preferences.preferredVariants,
+    }),
+    cache: "no-store",
+  });
+
+  // The exclusion changes what a *future* generation contains; the stored week is untouched
+  // (ADR-003). Both screens re-read.
+  revalidatePath("/week");
+  revalidatePath("/equipment");
+}

@@ -185,7 +185,33 @@ plan's dependency order.
     offered as the fix for one they refused.
 
 ### S2.6 — The equipment and preference screens
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 6 E2E (`equipment.spec.ts`), 2 added to `week.spec.ts`. Green: 29 E2E in Docker,
+  21 Vitest, typecheck clean, 84 unit / 61 integration on the backend.
+- **Observations:**
+  - **`S2.4` predicted this and was right.** Slot identifiers were deliberately left out of the
+    week response — "if `S2.6` turns out to need them, that is a response change, not a model
+    change". It did, and it was.
+  - **Ids alone were not enough for a person.** The preferences response returned exclusion ids,
+    which is all the API needed and nothing a screen can render. Now it returns the title too.
+    Found by building the screen, not by predicting it, and it is the second time a response
+    shape was decided one consumer too early.
+  - **A `Join` across DbSets projecting into a record does not translate** — a 500 that the
+    unit tests could never see. Two plain queries instead, which is the right shape for three
+    rows anyway.
+  - **Refusing an exercise lives on the week screen, not on a settings list.** You refuse what
+    you are actually shown, which is where the reaction is. The equipment page lists what was
+    refused so it can be undone — the only place a list of exclusions is worth reading.
+  - **Refusing does not change the week you are looking at**, and the test asserts that: a
+    preference is an input to the *next* generation, while the stored week is immutable
+    (`ADR-003`). That will surprise someone, and it is correct.
+  - The whole preference surface is **plain forms and Server Functions** — no client bundle at
+    all for swapping or refusing. Each candidate is its own submit button rather than a select
+    plus a confirm: one interaction fewer, and every option is visible and keyboard-reachable.
+  - `Checkbox` was extracted to `ui/` and put on `/template`, for the same reason `Select` was
+    in `S1.10`. The tier's invariant is that the style guide renders the real components.
+  - **Candidates cost one request per slot.** Fine at a dozen, and the first thing to fold into
+    the week response if it stops being — noted at the line rather than pre-optimised.
 
 ### S2.7 — The ladder, containerized
 - **Status:** pending

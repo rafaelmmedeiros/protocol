@@ -56,7 +56,7 @@ public class PreferenceEndpointsTests(ApiFactory factory) : IClassFixture<ApiFac
 
         var preferences = await client.GetFromJsonAsync<PreferencesResponse>("/training/preferences");
 
-        Assert.Empty(preferences!.ExcludedExerciseIds);
+        Assert.Empty(preferences!.Excluded);
         Assert.Empty(preferences.PreferredVariants);
     }
 
@@ -69,11 +69,11 @@ public class PreferenceEndpointsTests(ApiFactory factory) : IClassFixture<ApiFac
 
         await client.PutAsJsonAsync("/training/preferences", new { excludedExerciseIds = new[] { barbell } });
         var first = await client.GetFromJsonAsync<PreferencesResponse>("/training/preferences");
-        Assert.Equal([barbell], first!.ExcludedExerciseIds);
+        Assert.Equal([barbell], first!.Excluded.Select(row => row.ExerciseId));
 
         await client.PutAsJsonAsync("/training/preferences", new { excludedExerciseIds = new[] { dumbbell } });
         var second = await client.GetFromJsonAsync<PreferencesResponse>("/training/preferences");
-        Assert.Equal([dumbbell], second!.ExcludedExerciseIds);
+        Assert.Equal([dumbbell], second!.Excluded.Select(row => row.ExerciseId));
     }
 
     [Fact]
@@ -134,7 +134,7 @@ public class PreferenceEndpointsTests(ApiFactory factory) : IClassFixture<ApiFac
         var second = await SignedInClientAsync();
         var read = await second.GetFromJsonAsync<PreferencesResponse>("/training/preferences");
 
-        Assert.Empty(read!.ExcludedExerciseIds);
+        Assert.Empty(read!.Excluded);
     }
 
     [Fact]

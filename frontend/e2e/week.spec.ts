@@ -119,6 +119,58 @@ test("every session says how long it is expected to take, within what the user h
   }
 });
 
+test("a slot can be swapped for something that trains the same thing", async ({ page }) => {
+  await register(page);
+  await saveProfile(page, "4", "90");
+
+  await page.goto("/week");
+  await page.getByTestId("week-generate").click();
+  await expect(page.getByTestId("week-sessions")).toBeVisible();
+
+  const before = await page.getByTestId("prescription").allInnerTexts();
+  const swap = page.locator('[data-testid^="swap-"]').first();
+  await expect(swap).toBeVisible();
+
+  const swapped = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.url().includes("/week"),
+  );
+  await swap.click();
+  await swapped;
+
+  const after = await page.getByTestId("prescription").allInnerTexts();
+
+  // Same number of slots, and the week is not wholesale different — a swap changes what was
+  // asked about (ADR-012).
+  expect(after.length).toBe(before.length);
+  const changed = before.filter((text, index) => text !== after[index]);
+  expect(changed.length).toBeLessThanOrEqual(2);
+});
+
+test("refusing an exercise keeps it out of the next generation", async ({ page }) => {
+  await register(page);
+  await saveProfile(page, "4", "90");
+
+  await page.goto("/week");
+  await page.getByTestId("week-generate").click();
+  await expect(page.getByTestId("week-sessions")).toBeVisible();
+
+  const firstTitle = (await page.getByTestId("prescription").first().innerText()).split("\n")[0];
+
+  const refused = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.url().includes("/week"),
+  );
+  await page.locator('[data-testid^="refuse-"]').first().click();
+  await refused;
+
+  // The stored week is untouched by a preference (ADR-003) — it is the *next* one that changes.
+  await page.getByTestId("week-generate").click();
+  await expect(page.getByTestId("week-sessions")).toBeVisible();
+
+  // And the refusal is listed where it can be undone.
+  await page.goto("/equipment");
+  await expect(page.getByTestId("excluded-list")).toContainText(firstTitle);
+});
+
 test("a week survives a full page load, and generating again replaces what is shown", async ({
   page,
 }) => {

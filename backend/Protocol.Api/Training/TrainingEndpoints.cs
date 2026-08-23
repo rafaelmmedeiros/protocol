@@ -142,11 +142,15 @@ public static class TrainingEndpoints
             {
                 var userId = UserIdOf(user);
 
-                var excluded = await db.ExerciseExclusions
+                // Two queries rather than a join: projecting a join across DbSets into a record
+                // does not translate, and this is three rows on a good day.
+                var excludedIds = await db.ExerciseExclusions
                     .AsNoTracking()
                     .Where(row => row.UserId == userId)
                     .Select(row => row.ExerciseId)
                     .ToListAsync(token);
+
+                var excluded = await ExcludedWithTitlesAsync(db, excludedIds, token);
 
                 var preferred = await db.PreferredVariants
                     .AsNoTracking()
@@ -212,7 +216,7 @@ public static class TrainingEndpoints
                 await db.SaveChangesAsync(token);
 
                 return Results.Ok(new PreferencesResponse(
-                    excluded,
+                    await ExcludedWithTitlesAsync(db, excluded, token),
                     [.. preferred.Select(row => new PreferredVariantResponse(
                         known[row.ExerciseId].ToString(),
                         row.ExerciseId))]));
@@ -604,6 +608,26 @@ public static class TrainingEndpoints
     /// mean no preference, which is a different thing from an empty gym — nothing here has a
     /// default to fall back to.
     /// </summary>
+    /// <summary>
+    /// Excluded exercises with the titles a screen needs to name them. Ids alone were enough for
+    /// the API and are not enough for a person.
+    /// </summary>
+    private static async Task<List<ExcludedExerciseResponse>> ExcludedWithTitlesAsync(
+        AppDbContext db,
+        IReadOnlyCollection<Guid> ids,
+        CancellationToken token)
+    {
+        if (ids.Count == 0) return [];
+
+        var rows = await db.Exercises
+            .AsNoTracking()
+            .Where(exercise => ids.Contains(exercise.Id))
+            .Select(exercise => new { exercise.Id, exercise.Title })
+            .ToListAsync(token);
+
+        return [.. rows.OrderBy(row => row.Title).Select(row => new ExcludedExerciseResponse(row.Id, row.Title))];
+    }
+
     private static async Task<TrainingPreferences> PreferencesOf(
         AppDbContext db,
         string userId,
@@ -790,6 +814,11 @@ public sealed record GeneratedSessionResponse(
 /// standard 9); <c>externalTemplateId</c> is what resolves the exercise in Hevy.
 /// </summary>
 public sealed record GeneratedPrescriptionResponse(
+    /// <summary>
+    /// The slot's own identifier. Absent until `S2.6`, which is when a screen first needed to
+    /// address one — `S2.4` predicted this would be a response change rather than a model one.
+    /// </summary>
+    Guid Id,
     int Position,
     Guid ExerciseId,
     string ExerciseTitle,
@@ -802,6 +831,7 @@ public sealed record GeneratedPrescriptionResponse(
 {
     public static GeneratedPrescriptionResponse From(GeneratedPrescription prescription, Exercise? exercise) =>
         new(
+            prescription.Id,
             prescription.Position,
             prescription.ExerciseId,
             exercise?.Title ?? string.Empty,
@@ -831,8 +861,15 @@ public sealed record EquipmentRequest(IReadOnlyList<string>? Items);
 /// invented weight override a real preference (`ADR-011`, `TD-016`).
 /// </summary>
 public sealed record PreferencesResponse(
-    IReadOnlyList<Guid> ExcludedExerciseIds,
+    IReadOnlyList<ExcludedExerciseResponse> Excluded,
     IReadOnlyList<PreferredVariantResponse> PreferredVariants);
+
+/// <summary>
+/// An excluded exercise, with the title needed to show it back. Ids alone were enough for the
+/// API and are not enough for a screen that has to name what the user refused — found by
+/// building that screen, not by predicting it.
+/// </summary>
+public sealed record ExcludedExerciseResponse(Guid ExerciseId, string Title);
 
 /// <summary>The exercise chosen for a movement pattern, whenever that pattern is needed.</summary>
 public sealed record PreferredVariantResponse(string MovementPattern, Guid ExerciseId);

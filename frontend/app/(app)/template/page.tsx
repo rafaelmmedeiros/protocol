@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
@@ -156,6 +157,10 @@ export default async function TemplatePage() {
                 defaultValue="82.4"
                 hint="Stored in kilograms; the unit shown follows the locale."
               />
+              <div className="flex flex-col gap-2">
+                <Checkbox label={dict.equipment.items.Barbell} defaultChecked />
+                <Checkbox label={dict.equipment.items.CableStation} />
+              </div>
               <Select
                 label={dict.profile.goalLabel}
                 hint={dict.profile.goalHint}
