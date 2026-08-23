@@ -144,7 +144,30 @@ file carries what a future session would otherwise rediscover.
     will do it with a measurement rather than a hunch.
 
 ### S3.6 — Equipment the history reveals
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 8 unit (`DerivedEquipmentTests`), 9 integration (`DerivedEquipmentEndpointsTests`)
+- **Observations:**
+  - **A finding that changes what this feature reaches: every exercise in the catalogue is
+    performable in the assumed gym**, because the catalogue was built for it (`TD-004`). So a
+    suggestion can only ever arise for a user who **narrowed** their equipment set — a user on the
+    default receives none, by construction. The real account's own case,
+    `Iso-Lateral Row (Machine)`, arrives as a **catalogue gap** rather than as a suggestion,
+    because that exercise is not in our catalogue at all. The gap path is doing most of the work
+    today, and the suggestion path is real but narrow. Four tests failed on this before it was
+    understood, and they were the tests being wrong rather than the code.
+  - **Accepting had to seed from the *effective* set, not from the stored rows.** The equipment
+    resolver reads `rows.Count == 0 ? AssumedGym : rows`, so a user who never opened the equipment
+    screen has no rows. Writing a single row for the accepted item would have replaced a whole gym
+    with one machine — a catastrophic **narrowing** from a feature whose entire premise is that
+    inference only ever adds (`ADR-020`). Caught by reading the resolver before writing the
+    endpoint, and `Confirming_widens_the_set_and_never_narrows_it` is what keeps it caught.
+  - **Declining is stored, not just ignored.** A `declined_equipment_suggestions` row per user per
+    item, so an offer the user refused does not return on every sync. `ADR-020` names the reason:
+    a suggestion that keeps coming back is one the user learns to dismiss without reading.
+  - **There is no removal path to test**, because there is none to write. `Absence_from_the_history
+    _never_removes_anything` asserts the shape of the function rather than a behaviour — not
+    training something is far more often evidence it was never programmed than evidence the
+    equipment is gone.
 
 ### S3.7 — The screens
 - **Status:** pending

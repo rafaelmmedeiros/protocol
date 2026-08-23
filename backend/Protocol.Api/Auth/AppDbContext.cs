@@ -39,6 +39,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<UserEquipment> UserEquipment => Set<UserEquipment>();
 
+    public DbSet<DeclinedEquipmentSuggestion> DeclinedEquipmentSuggestions =>
+        Set<DeclinedEquipmentSuggestion>();
+
     public DbSet<ExerciseExclusion> ExerciseExclusions => Set<ExerciseExclusion>();
 
     public DbSet<PreferredVariant> PreferredVariants => Set<PreferredVariant>();
@@ -245,6 +248,18 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             set.Property(s => s.WeightKg);
             set.Property(s => s.Reps);
             set.Property(s => s.RepsInReserve);
+        });
+
+        builder.Entity<DeclinedEquipmentSuggestion>(declined =>
+        {
+            declined.ToTable("declined_equipment_suggestions");
+            declined.HasKey(d => d.Id);
+
+            declined.Property(d => d.UserId).IsRequired().HasMaxLength(450);
+            declined.Property(d => d.Item).HasConversion<string>().IsRequired().HasMaxLength(32);
+
+            // One row per user per item, so declining twice is impossible.
+            declined.HasIndex(d => new { d.UserId, d.Item }).IsUnique();
         });
 
         builder.Entity<TrainingProfile>(profile =>

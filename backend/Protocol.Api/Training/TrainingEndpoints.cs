@@ -138,6 +138,107 @@ public static class TrainingEndpoints
             })
             .WithName("PutEquipment");
 
+        group.MapGet("/equipment/suggestions", async (
+                ClaimsPrincipal user,
+                AppDbContext db,
+                CancellationToken token) =>
+            {
+                var userId = UserIdOf(user);
+
+                var performed = await db.PerformedWorkouts
+                    .AsNoTracking()
+                    .Include(w => w.Exercises)
+                    .Where(w => w.UserId == userId)
+                    .ToListAsync(token);
+
+                var catalogue = await db.Exercises
+                    .AsNoTracking()
+                    .Include(e => e.Requirements)
+                    .ToDictionaryAsync(exercise => exercise.Id, token);
+
+                var declined = await db.DeclinedEquipmentSuggestions
+                    .AsNoTracking()
+                    .Where(row => row.UserId == userId)
+                    .Select(row => row.Item)
+                    .ToListAsync(token);
+
+                return Results.Ok(DerivedEquipment.From(
+                    PerformedVolume.Current(performed),
+                    catalogue,
+                    await OwnedItemsAsync(db, userId, token),
+                    declined.ToHashSet()));
+            })
+            .WithName("GetEquipmentSuggestions");
+
+        group.MapPost("/equipment/suggestions", async (
+                EquipmentSuggestionRequest request,
+                ClaimsPrincipal user,
+                AppDbContext db,
+                CancellationToken token) =>
+            {
+                if (!Enum.TryParse<EquipmentItem>(request.Item, ignoreCase: true, out var item)
+                    || !Enum.IsDefined(item))
+                {
+                    return Results.BadRequest(new ApiError(TrainingErrorCodes.UnknownEquipmentItem));
+                }
+
+                var userId = UserIdOf(user);
+
+                if (!request.Accepted)
+                {
+                    var already = await db.DeclinedEquipmentSuggestions
+                        .AnyAsync(row => row.UserId == userId && row.Item == item, token);
+
+                    if (!already)
+                    {
+                        db.DeclinedEquipmentSuggestions.Add(new DeclinedEquipmentSuggestion
+                        {
+                            Id = Guid.CreateVersion7(),
+                            UserId = userId,
+                            Item = item,
+                        });
+
+                        await db.SaveChangesAsync(token);
+                    }
+
+                    // Declining changes the equipment set not at all. It only stops the offer
+                    // returning on every sync (ADR-020).
+                    return Results.Ok(new EquipmentResponse(
+                        [.. (await OwnedItemsAsync(db, userId, token)).Select(i => i.ToString()).Order()],
+                        [.. Enum.GetValues<EquipmentItem>().Select(i => i.ToString())]));
+                }
+
+                // Seeded from the **effective** set, not from the rows. A user who never opened
+                // the equipment screen has no rows and trains against the assumed gym (TD-004);
+                // writing a single row for the accepted item would silently replace a whole gym
+                // with one machine. Add-only means add to what is in force, not to what is stored.
+                var effective = await OwnedItemsAsync(db, userId, token);
+                var widened = effective.ToHashSet();
+
+                if (!widened.Add(item))
+                {
+                    return Results.Ok(new EquipmentResponse(
+                        [.. widened.Select(i => i.ToString()).Order()],
+                        [.. Enum.GetValues<EquipmentItem>().Select(i => i.ToString())]));
+                }
+
+                var current = await db.UserEquipment.Where(row => row.UserId == userId).ToListAsync(token);
+                db.UserEquipment.RemoveRange(current);
+                db.UserEquipment.AddRange(widened.Select(owned => new UserEquipment
+                {
+                    Id = Guid.CreateVersion7(),
+                    UserId = userId,
+                    Item = owned,
+                }));
+
+                await db.SaveChangesAsync(token);
+
+                return Results.Ok(new EquipmentResponse(
+                    [.. widened.Select(i => i.ToString()).Order()],
+                    [.. Enum.GetValues<EquipmentItem>().Select(i => i.ToString())]));
+            })
+            .WithName("AnswerEquipmentSuggestion");
+
         group.MapGet("/preferences", async (ClaimsPrincipal user, AppDbContext db, CancellationToken token) =>
             {
                 var userId = UserIdOf(user);
@@ -879,6 +980,12 @@ public sealed record GeneratedPrescriptionResponse(
 /// answer so the screen never hardcodes a list that would drift from the enum.
 /// </summary>
 public sealed record EquipmentResponse(IReadOnlyList<string> Items, IReadOnlyList<string> Vocabulary);
+
+/// <summary>
+/// An answer to one suggestion. <c>Accepted</c> adds the item; anything else records a refusal
+/// and changes nothing (ADR-020) — inference never removes.
+/// </summary>
+public sealed record EquipmentSuggestionRequest(string? Item, bool Accepted);
 
 /// <summary>
 /// Items arrive as strings rather than bound to the enum, so an unrecognised one becomes
