@@ -198,6 +198,16 @@ assumed:
   field already exists in Hevy, and the user already uses it. Whether to depend on it is a
   decision: it is optional, so a partially-filled history is the realistic case, and depending on
   it also trades against `TD-001`'s "observe, do not ask" posture.
+- **RPE is theirs and RIR is ours, and the conversion is a training judgement rather than a unit
+  change.** Standard 17 already settles where it lives — translated inward on import and outward
+  on export, one place per direction, with nothing of Hevy's shape reaching the domain, which
+  already stores `RepsInReserve`. What it does not settle is the conversion itself, and two
+  things have to be established before it is written. **Which RPE scale Hevy means**: on the
+  RIR-based scale the map is `RIR = 10 - RPE`, and on a classic perceived-exertion scale there is
+  no defensible conversion at all — getting this wrong shifts every progression decision by
+  several repetitions, silently. And **its granularity**: the RIR-based scale uses half points at
+  the top precisely because 9.5 and 9 mean different things, and integers-only would lose
+  resolution exactly where the progression trigger sits.
 - **Logged exercises will fall outside the catalogue and outside the assumed gym.** The same
   account logs `Iso-Lateral Row (Machine)`, which `TD-004` excludes by assumption. That is the
   loud failure `TD-004` chose over a silent one, and it is the signal that deriving equipment
