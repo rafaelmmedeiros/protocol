@@ -1,7 +1,7 @@
 ---
 id: TD-010
 title: Sets are prescribed at 2-3 repetitions in reserve, never to failure
-status: active
+status: superseded-by TD-018
 knowledge: [references/proximity-to-failure-and-hypertrophy.md, references/cold-start-first-block.md, references/repetition-range-and-load-for-hypertrophy.md]
 decided: 2026-08-23
 ---

@@ -208,13 +208,22 @@ fires for the first, because the last set will not reach the top at constant pro
 a rule about training; both are rules about an execution style, and the record that picks one has
 to say which style it assumes and what happens to the other.
 
-**What separates them without inferring anything: the reported effort.** 12/12/12 at RPE 7 is a
-lifter saying there was room; 12/10/8 at RPE 8 is a lifter saying there was not. That is the
-inbound conversion `TD-017` exists for, and it is why a partially-filled `rpe` history — which
-`TD-017` already names as the realistic case — is the genuinely hard input rather than a detail.
-**Inferring the execution style from the shape of the drop-off is the thing not to do:** the
-corpus grades that heuristic as untested and fit for a low-confidence flag, never as an input to
+**What would separate them without inferring anything is the reported effort** — 12/12/12 at RPE 7
+is a lifter saying there was room, 12/10/8 at RPE 8 a lifter saying there was not. **In practice it
+is not there.** Four consecutive workouts read out of the live account carry `rpe: null` on every
+set, including two logged from routines the user had just built. `TD-017` named a partially-filled
+history as the realistic case; the observed case is an **empty** one, and the only `rpe` value this
+project has ever seen came from a workout logged during a deliberate experiment. So the
+disambiguator exists in the schema and not in the data, and any rule depending on it has to say
+what it does when the field is absent — which is always.
+
+**Inferring the execution style from the shape of the drop-off is the thing not to do:** the corpus
+grades that heuristic as untested and fit for a low-confidence flag, never as an input to
 arithmetic, and a progression step is arithmetic.
+`references/progression-trigger-under-constant-effort-execution.md` strengthens the prior without
+validating it — even 3-RIR sets at four minutes' rest fell by a quarter to a third, so a flat
+sequence is hard to produce at genuine constant near-failure effort — and explicitly leaves the
+grade at `thin`.
 
 ## The horizon
 
@@ -259,6 +268,13 @@ assumed:
 - **The fallback still has to exist, for workouts that came from no routine.** Training without
   starting from the routine is ordinary, and that history still matters — but only at the
   exercise level, which is where progression reads anyway.
+
+- **Observed so far, the unbound case is not the exception — it is all of it.** Every workout read
+  back from the live account carries `routine_id: null`, including two the user reports having
+  built as routines and trained. That does not contradict the experiment, which was controlled and
+  did populate the field; it does say the binding rate is an open empirical question rather than a
+  formality, and `ADR-019` already names that rate as the evidence that would justify revisiting
+  it.
 - **Sets carry a `type`, and `warmup` is one of its values.** Counting warm-up sets as
   fractional volume would inflate every number the system produces (`TD-006`). The import
   filters on this or it is wrong from the first row.
