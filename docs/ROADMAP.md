@@ -198,16 +198,19 @@ assumed:
   field already exists in Hevy, and the user already uses it. Whether to depend on it is a
   decision: it is optional, so a partially-filled history is the realistic case, and depending on
   it also trades against `TD-001`'s "observe, do not ask" posture.
-- **RPE is theirs and RIR is ours, and the conversion is a training judgement rather than a unit
-  change.** Standard 17 already settles where it lives — translated inward on import and outward
-  on export, one place per direction, with nothing of Hevy's shape reaching the domain, which
-  already stores `RepsInReserve`. What it does not settle is the conversion itself, and two
-  things have to be established before it is written. **Which RPE scale Hevy means**: on the
-  RIR-based scale the map is `RIR = 10 - RPE`, and on a classic perceived-exertion scale there is
-  no defensible conversion at all — getting this wrong shifts every progression decision by
-  several repetitions, silently. And **its granularity**: the RIR-based scale uses half points at
-  the top precisely because 9.5 and 9 mean different things, and integers-only would lose
-  resolution exactly where the progression trigger sits.
+- **RPE is theirs and RIR is ours, and `TD-017` maps between them in both directions.** Standard
+  17 settles where the map lives; `TD-017` settles what it says. Inbound, every half point
+  collapses toward the lower repetition count — discard Hevy's "maybe", which always sits on the
+  upper value — so a reported 8.5 stores as 1 rather than as 1.5 or as a range. Outbound the map
+  is exact, and `TD-010`'s 3 / 2 / 2 writes as RPE 7 / 8 / 8. **The domain represents no
+  uncertainty about effort**, which is the part most likely to be argued with later: a repetition
+  in reserve is a count, and reintroducing Hevy's half points as a fraction or an interval would
+  be their shape reaching the model under a different name.
+- **A logged `rpe` of 6 is the weakest row in that table and its error has no ceiling.** Hevy
+  words it "4+ more reps", so it is a floor rather than a measurement, and it lands in exactly
+  the region where `references/inferring-proximity-to-failure-from-logged-sets.md` puts
+  self-report error above two repetitions. Whatever rule progresses from observed effort has to
+  decide what a 6 weighs; `TD-017` deliberately does not.
 - **Logged exercises will fall outside the catalogue and outside the assumed gym.** The same
   account logs `Iso-Lateral Row (Machine)`, which `TD-004` excludes by assumption. That is the
   loud failure `TD-004` chose over a silent one, and it is the signal that deriving equipment

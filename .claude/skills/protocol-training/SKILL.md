@@ -54,6 +54,7 @@ the table, then only the notes its question actually touches.
 | [`progression-and-periodization-for-hypertrophy`](references/progression-and-periodization-for-hypertrophy.md) | contested | **Do not build periodization** — null across 4 reviews, and every positive result is a strength result. But progression itself got stronger: a within-subject trial roughly doubled growth. Stalls and deloads are convention, not findings |
 | [`volume-progression-across-a-block`](references/volume-progression-across-a-block.md) | contested | Adding sets failed in two trials that both started above 20 weekly sets. At `TD-014`'s 6.0 we are far below that, on the steepest part of the curve — defensible here, indefensible at 22 |
 | [`inferring-proximity-to-failure-from-logged-sets`](references/inferring-proximity-to-failure-from-logged-sets.md) | thin | RIR **cannot** be recovered from weight and reps; device-free inference is off by 3-6 reps. Self-report is accurate to ~1 rep, and experience does not affect it. Asking beats inferring |
+| [`rir-based-rpe-scale-anchors`](references/rir-based-rpe-scale-anchors.md) | contested | Hevy's RPE **is** the RIR-based scale, so it reads directly as reps in reserve — but `RIR = 10 - RPE` is exact only at 7/8/9/10. Half points are intervals, never half a rep, and Hevy's own labels disagree with the published table at 9.5 and 6 |
 
 ### Decisions
 
@@ -75,6 +76,7 @@ the table, then only the notes its question actually touches.
 | [`TD-014`](decisions/TD-014-weekly-volume-target-revised.md) | **6.0** fractional sets per muscle per week, superseding `TD-008`'s 8.0 — a target every supported configuration can actually reach | active | `weekly-set-volume-for-hypertrophy` (settled), `session-time-cost-of-a-set` (thin), `cold-start-first-block` (thin) |
 | [`TD-015`](decisions/TD-015-catalogue-stays-flat.md) | Catalogue stays flat — a variant is a row, not a child. `preference_rank` claims performability, never growth. `load_increment_kg` deferred with its reason | active | `exercise-variant-and-implementation` (contested), `ranking-exercise-variants` (thin), `load-increment-granularity-and-progression` (thin) |
 | [`TD-016`](decisions/TD-016-what-a-preference-may-override.md) | A preference filters and reorders the draw pool and never touches the volume arithmetic. An exclusion is honoured unconditionally and the shortfall is surfaced per muscle. No threshold on how much may be excluded | active | `self-selected-exercise-and-autonomy` (thin), `indirect-only-volume-and-the-coverage-floor` (contested), `ranking-exercise-variants` (thin) |
+| [`TD-017`](decisions/TD-017-rpe-to-rir-mapping.md) | RPE is Hevy's, RIR is ours. Inbound `RIR = 10 - ceil(RPE)` — discard the "maybe", resolving toward less reserve; outbound `RPE = 10 - RIR`, exact. The domain represents no uncertainty about effort: no fractional RIR, no interval | active | `rir-based-rpe-scale-anchors` (contested), `inferring-proximity-to-failure-from-logged-sets` (thin), `proximity-to-failure-and-hypertrophy` (contested) |
 
 ## Consulting
 
