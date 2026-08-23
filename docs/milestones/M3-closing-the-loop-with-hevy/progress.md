@@ -119,7 +119,29 @@ file carries what a future session would otherwise rediscover.
     the same way or the comparison compares two different quantities.
 
 ### S3.5 — Prescribed against performed
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 18 unit (`WorkoutBindingTests`, one added to `ImportedVolumeTests`), 8 integration (`ComparisonEndpointsTests`)
+- **Observations:**
+  - **The comparison lives in `Training/`, not in `Hevy/`.** Both sides of it are ours — our
+    prescription against our performed training — and that the second arrives through Hevy today is
+    an import detail the builder does not know. The join reads a column of ours that happens to
+    hold their identifier (standard 8), and the endpoint is `/training/weeks/{id}/comparison` for
+    the same reason: on the day the logging surface is ours, this file does not change.
+  - **The outcome code says where the repetitions landed and nothing else.** `InRange`,
+    `AboveRange`, `BelowRange`, `Mixed`, `NotPerformed` — deliberately not a judgement about
+    progress. What a sequence *means* is the `M4` decision the research left open, and a read model
+    that pre-empted it would smuggle a training judgement in without a record.
+  - **Performed exercises are consumed as slots claim them.** Two slots prescribing the same
+    exercise each take their own performed entry rather than both reading the first; whatever is
+    left over becomes an `Extra`. Hiding extras would make the screen a claim about the plan rather
+    than a record of the day.
+  - **`The_performed_sequence_keeps_its_order` hands the sets over shuffled on purpose.** EF does
+    not preserve insertion order, so the guarantee has to come from `Position` — asserting it
+    against already-ordered input would have proved nothing.
+  - **The binding rate is reported as data.** `ADR-019` chose the narrow join and named this number
+    as what would justify revisiting it. Every workout observed from the real account so far
+    carries `routine_id: null`, so this may well be the number that reopens the record — and it
+    will do it with a measurement rather than a hunch.
 
 ### S3.6 — Equipment the history reveals
 - **Status:** pending

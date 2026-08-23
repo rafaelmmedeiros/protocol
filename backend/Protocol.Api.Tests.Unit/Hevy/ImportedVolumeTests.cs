@@ -144,6 +144,23 @@ public class ImportedVolumeTests
     }
 
     [Fact]
+    public void Unbound_history_still_counts_toward_volume()
+    {
+        // ADR-019 takes the narrow join and lets a workout that matched no session stay unbound.
+        // That degrades honestly only if the training still counts where progression actually
+        // reads it -- at the exercise, not at the session.
+        var exercise = AnExercise();
+
+        var freestyle = AWorkout(exercise, externalId: "walk-in", kinds: [SetKind.Working, SetKind.Working]);
+        Assert.Null(freestyle.ExternalRoutineId);
+
+        var volumes = PerformedVolume.ByMuscle(PerformedVolume.Current([freestyle]), Catalogue());
+        var primary = exercise.Muscles.First(m => m.Role == MuscleRole.Primary).MuscleGroup;
+
+        Assert.Equal(2.0m, volumes[primary]);
+    }
+
+    [Fact]
     public void Different_workouts_are_counted_separately()
     {
         var exercise = AnExercise();

@@ -304,6 +304,36 @@ public static class TrainingEndpoints
             })
             .WithName("GetCurrentTrainingWeek");
 
+        group.MapGet("/weeks/{weekId:guid}/comparison", async (
+                Guid weekId,
+                ClaimsPrincipal user,
+                AppDbContext db,
+                CancellationToken token) =>
+            {
+                var userId = UserIdOf(user);
+
+                var week = await db.GeneratedWeeks
+                    .AsNoTracking()
+                    .Include(w => w.Sessions).ThenInclude(s => s.Prescriptions).ThenInclude(p => p.Exercise)
+                    .SingleOrDefaultAsync(w => w.Id == weekId && w.UserId == userId, token);
+
+                if (week is null)
+                {
+                    return Results.NotFound(new ApiError(TrainingErrorCodes.WeekNotFound));
+                }
+
+                // Every version, because the builder decides which reading counts -- a workout the
+                // user deleted upstream must read as not performed rather than as history.
+                var performed = await db.PerformedWorkouts
+                    .AsNoTracking()
+                    .Include(w => w.Exercises).ThenInclude(e => e.Sets)
+                    .Where(w => w.UserId == userId)
+                    .ToListAsync(token);
+
+                return Results.Ok(WeekComparisonBuilder.Build(week, performed));
+            })
+            .WithName("GetWeekComparison");
+
         group.MapGet("/weeks/current/prescriptions/{id:guid}/candidates", async (
                 Guid id,
                 ClaimsPrincipal user,
