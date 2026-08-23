@@ -89,7 +89,7 @@ public sealed class GeneratedPrescription
 
     public required int MaxReps { get; init; }
 
-    /// <summary>Repetitions in reserve. Never below two, and never failure (TD-010).</summary>
+    /// <summary>Repetitions in reserve. Two for every exercise, and never failure (TD-018).</summary>
     public required int RepsInReserve { get; init; }
 
     /// <summary>Rest between sets, in seconds — the unit is in the name (root standard 4).</summary>

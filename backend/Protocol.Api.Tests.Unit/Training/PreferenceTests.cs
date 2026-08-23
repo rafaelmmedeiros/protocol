@@ -62,7 +62,9 @@ public class PreferenceTests
     {
         // The milestone's acceptance criterion, and the engineer's own case. The swap crosses an
         // order_class boundary, so the prescription changes with the exercise rather than being
-        // carried over — 8-12 at 2 RIR instead of 6-10 at 3 (TD-009, TD-010, ADR-011).
+        // carried over — 8-12 instead of 6-10, and 150s of rest instead of 180 (TD-009, TD-011,
+        // ADR-011). Proximity to failure is two on both sides now (TD-018), so it is no longer
+        // one of the things this swap changes.
         var week = Generate(Excluding(BarbellPress), days: 4, seconds: 5_400);
 
         var slot = week.Sessions

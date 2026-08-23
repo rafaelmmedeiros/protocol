@@ -224,15 +224,16 @@ public class WeekGeneratorTests
     }
 
     [Fact]
-    public void No_slot_is_ever_prescribed_to_failure()
+    public void Every_slot_is_prescribed_at_two_reps_in_reserve()
     {
-        // TD-010: never to failure, never 0 RIR. Reaching failure adds nothing detectable and
-        // costs a day of fatigue.
+        // TD-018: two everywhere, never to failure, never 0 RIR. Asserting equality rather than
+        // a floor is the point — a floor of two would still pass if TD-010's withdrawn gradient
+        // crept back in on the primary compound.
         foreach (var days in (int[])[2, 3, 4, 5, 6])
         {
             Assert.All(
                 Generate(days).Sessions.SelectMany(session => session.Slots),
-                slot => Assert.True(slot.Prescription.RepsInReserve >= 2));
+                slot => Assert.Equal(2, slot.Prescription.RepsInReserve));
         }
     }
 

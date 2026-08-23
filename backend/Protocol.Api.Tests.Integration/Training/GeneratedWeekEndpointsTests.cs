@@ -102,7 +102,7 @@ public class GeneratedWeekEndpointsTests(ApiFactory factory) : IClassFixture<Api
         {
             Assert.True(prescription.Sets > 0);
             Assert.True(prescription.MinReps > 0 && prescription.MaxReps >= prescription.MinReps);
-            Assert.True(prescription.RepsInReserve >= 2);                 // TD-010, never failure
+            Assert.Equal(2, prescription.RepsInReserve);                  // TD-018, two everywhere
             Assert.True(prescription.RestSeconds >= 90);                  // TD-011, the floor
             Assert.False(string.IsNullOrWhiteSpace(prescription.ExerciseTitle));
             Assert.False(string.IsNullOrWhiteSpace(prescription.ExternalTemplateId));

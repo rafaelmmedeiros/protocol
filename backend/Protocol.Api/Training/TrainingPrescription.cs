@@ -62,20 +62,27 @@ public static class TrainingPrescription
     /// best-controlled comparison found the one-minute penalty in the isolation exercise as
     /// much as the compound (TD-011).
     /// </para>
+    /// <para>
+    /// Proximity to failure does <b>not</b> vary by order_class, and used to. TD-010 graded
+    /// three by exercise type; TD-018 withdrew that gradient because its accuracy argument runs
+    /// backwards — RIR judgement is most accurate under heavy load and fewest repetitions, not
+    /// least — and because ACSM 2026 prescribes one uniform target. Anything that reintroduces a
+    /// per-order_class RIR should read TD-018 before doing so.
+    /// </para>
     /// </summary>
     public static SlotPrescription For(OrderClass orderClass) => orderClass switch
     {
         OrderClass.CompoundPrimary => new SlotPrescription(
             MinReps: 6, MaxReps: 10,            // TD-009
-            RepsInReserve: 3,                   // TD-010
+            RepsInReserve: 2,                   // TD-018
             RestSeconds: 180),                  // TD-011
         OrderClass.CompoundSecondary => new SlotPrescription(
             MinReps: 8, MaxReps: 12,            // TD-009
-            RepsInReserve: 2,                   // TD-010
+            RepsInReserve: 2,                   // TD-018
             RestSeconds: 150),                  // TD-011
         OrderClass.Isolation => new SlotPrescription(
             MinReps: 10, MaxReps: 15,           // TD-009
-            RepsInReserve: 2,                   // TD-010
+            RepsInReserve: 2,                   // TD-018
             RestSeconds: 90),                   // TD-011
         _ => throw new ArgumentOutOfRangeException(nameof(orderClass)),
     };

@@ -422,8 +422,9 @@ public static class TrainingEndpoints
     /// <summary>
     /// Copies a week, replacing one prescription. The replacement's numbers come from **its own**
     /// <see cref="OrderClass"/> rather than from the slot it replaces, so swapping a barbell
-    /// press for a dumbbell one changes the repetition range, the proximity to failure and the
-    /// rest along with it (`TD-009`, `TD-010`, `TD-011`, `ADR-012`).
+    /// press for a dumbbell one changes the repetition range and the rest along with it
+    /// (`TD-009`, `TD-011`, `ADR-012`). Proximity to failure no longer moves on a swap — it is
+    /// two everywhere (`TD-018`).
     /// </summary>
     private static GeneratedWeek Substitute(
         GeneratedWeek week,
