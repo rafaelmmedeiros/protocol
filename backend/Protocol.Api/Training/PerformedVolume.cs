@@ -93,7 +93,7 @@ public static class PerformedVolume
     /// single-arm entry records the implement, because "total" and "per hand" are the same number
     /// there, so a single dumbbell preacher curl reads as heavier than a two-handed barbell one.
     /// <see cref="Exercise.Laterality"/> makes it expressible, and the right correction depends on
-    /// what M5 does with load — deciding it here would be modelling a preference before its
+    /// what M6 does with load — deciding it here would be modelling a preference before its
     /// consumer exists.
     /// </para>
     /// <para>

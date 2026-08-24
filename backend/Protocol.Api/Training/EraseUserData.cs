@@ -13,9 +13,11 @@ namespace Protocol.Api.Training;
 /// Hevy on the next sync (ADR-018), and equipment is a few minutes of typing.
 /// </para>
 /// <para>
-/// <b>None of that survives M5</b>, the milestone that starts storing judgements this system made —
+/// <b>None of that survives M6</b>, the milestone that starts storing judgements this system made —
 /// a chosen load, a progression step — which Hevy cannot return and no regeneration reproduces.
 /// ADR-025 carries the expiry; this comment carries it to the place someone would actually read it.
+/// That record is append-only and still calls the milestone M5, its number before a milestone was
+/// inserted ahead of it — same milestone, former number (docs/ROADMAP.md).
 /// </para>
 /// <para>
 /// The alternative it replaces is the reason it exists: "reset by hand" means opening the

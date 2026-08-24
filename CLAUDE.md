@@ -132,8 +132,9 @@ cost a data migration, or a recount of every analysis already produced, if adopt
     `docker-compose.app.yml` and the test stack; a published deployment never maps the route.
     Reach for it instead of `psql` — that is the whole reason it was built. It does not weaken
     this standard: the database, the shared catalogue and everyone else's data are untouched,
-    and the affordance stops being adequate the moment `M5` starts storing judgements Hevy
-    cannot return.
+    and the affordance stops being adequate the moment `M6` starts storing judgements Hevy
+    cannot return. It was `M5` until a milestone was inserted ahead of it; `ADR-025` is
+    append-only and still says `M5`, which is the same milestone under its former number.
 19. **Git is the log of how the work went, not a snapshot of where it ended.** Work is
     committed as each coherent unit finishes — a step of a milestone, a harness fix, a document
     corrected — not batched at the end. Local commits happen without asking; **pushing is a

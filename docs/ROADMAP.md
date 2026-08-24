@@ -144,7 +144,7 @@ performed — including the repetitions in reserve they reported, converted inbo
 
 **Not in this milestone:**
 
-- Progressing a week into the next one, and prescribing a working load. Both are `M5`, both read
+- Progressing a week into the next one, and prescribing a working load. Both are `M6`, both read
   the same observed data, and neither is possible before this milestone has produced any.
 - Prescribing effort into Hevy as data. A routine set has **no `rpe` field**, and that is Hevy
   modelling it correctly rather than a gap: RPE is feedback, reported after a set, and a plan does
@@ -185,7 +185,7 @@ fallen; and every muscle attribution added traces to `TD-005` rather than to a g
 
 **Not in this milestone:**
 
-- Progressing anything, or prescribing a load. That is `M5`, and it reads this milestone's output.
+- Progressing anything, or prescribing a load. That is `M6`, and it reads this milestone's output.
 - Deriving a catalogue row automatically from a logged exercise. Muscle attribution is a training
   judgement (`TD-005`), and `TD-015` already records curation as recurring work rather than a
   one-off price — the import says *which* movements to add, never *what they train*.
@@ -201,17 +201,93 @@ contradicts standard 7, which says training history is append-only and a correct
 new record. What makes it acceptable *today* is that almost nothing here is irrecoverable: a week
 is deterministic and regenerable, imported history comes back from Hevy, and equipment and
 preferences are cheap to retype. **That stops being true the moment the system stores a judgement
-Hevy cannot return, which is exactly what `M5` does.** So it is a development affordance with an
+Hevy cannot return, which is exactly what `M6` does.** So it is a development affordance with an
 expiry, and the record that admits it must say when it expires.
 
-### M5 — Programming from what actually happened
+### M5 — A week the user can read and actually run
 
-**Depends on:** `M4`.
+**Depends on:** `M4`. It is the first feedback session against the shipped product that makes this
+the next milestone rather than progression.
 
-**This milestone was `M4` until the catalogue one was inserted ahead of it**, and records written
-before that still call it `M4` — `ADR-016`, `ADR-019` and `M3`'s plan and progress among them.
-Those are append-only and are left saying what they said; this note is what makes them readable.
-Nothing about the milestone changed except its position.
+Every number the generator produces is defensible and none of them is legible. The Week screen
+shows a title, `sets x reps`, a reserve and a rest interval; the split, the ordering, the muscle a
+slot exists to train, the volume it credits and the shortfall the generator already computed reach
+nothing. Asked where a week came from, the product cannot answer, and the engineer had to read the
+source to find out. **`M6`'s third capability is to say why a week differs from the one before it,
+which is unbuildable while a single week cannot be read at all.**
+
+The second finding is worse than a legibility gap, because it is silent and it compounds. **The
+generator receives no record of what was performed** — it takes a profile, a catalogue, equipment
+and preferences, and nothing else. So a fixed weekday split whose fourth session is the one life
+keeps taking produces a permanent per-muscle deficit that no screen names and no later week
+repairs: the same target is declared every Monday as though the missed session had happened. The
+system already imports the workout that did not happen and already compares prescribed against
+performed; it simply never feeds either back into what it prescribes next.
+
+**Fixed weekdays are ours, not the literature's.** `TD-003` excludes rotating splits on one
+argument, and it is an analysis argument: a week that does not align to the calendar week makes
+"which week did this session belong to" unanswerable. That conflates the **measurement window**
+with the **shape of the prescription**, and they separate cleanly — what was performed can still
+be bucketed into Monday-anchored weeks (root standard 6) while the plan advances as a queue.
+`per-muscle-training-frequency` is graded `settled` and closes the training half: with weekly
+volume fixed, how it is distributed across days does not change growth. So the queue costs no
+growth, and the honest price is elsewhere — `TD-014`'s target is **weekly**, and a plan that
+stops being a calendar week makes "the dose of this week" a question that has to be re-answered.
+
+**Capabilities:**
+
+- Show what a prescribed exercise trains, so a session can be read instead of trusted
+- Report direct and indirect set volume per muscle group against the week's target, naming where
+  it falls short
+- Say why an exercise fills a slot, and what substituting it would change
+- Choose the split for a training frequency, rather than receiving the only one mapped to it
+- Carry a session that did not happen into the next week, rather than regenerating past it
+- Report what a muscle has accumulated across weeks when the same session is repeatedly missed
+
+**Deliverables:** a signed-in user opens a generated session and can see, for every slot, what it
+trains and why it is there; the week states the direct and indirect volume each muscle group
+receives against its target, including the muscles that fall short; the user picks a split their
+frequency supports instead of receiving the only one mapped to it; and a session missed one week is
+the one waiting at the top of the next, with the deficit it accumulated reported rather than
+silently carried. No screen presents a split, an ordering or a substitution as better for growth,
+because `TD-003`, `TD-007` and `TD-016` each record that it is not.
+
+**Not in this milestone:**
+
+- Prescribing a working load, or progressing a week into the next one. That is `M6`, and it reads
+  this milestone's output the way this one reads `M4`'s.
+- Reducing a week's volume on request. It is small, it answers a real need, and it is deliberately
+  held: this milestone changes what "a week" is, and deciding how much of one to remove before
+  that settles would be deciding it twice.
+- **Inferring fatigue, a stall or a needed deload from logged repetitions.** Not deferred —
+  ruled out, and the corpus is why. No trial defines, detects or intervenes on a stall; every rule
+  in circulation is convention. The one direct deload trial found complete cessation *worse* for
+  strength than training through. Between-session variation in repetitions at a fixed load runs
+  **16-21%**, session position alone moves repetitions by about **25%**, and
+  `separating-execution-modes-from-a-bare-log` answers the whole question with a one-word
+  **"No."** The lifter who terminates a set on effort is a real sensor; that belongs in the
+  prescription, which `TD-018` already makes, and never in a detector.
+
+**Two records this milestone has to touch.** `TD-003` names "the user asks to choose" as the first
+of its own revisit triggers, and this is that moment — it stops being a total mapping and becomes a
+default. And `TD-016` currently asserts that slot count is `TD-012`'s minutes arithmetic, which is
+**false**: the fill stops on `TD-014`'s volume target and consults the clock only to reject a slot
+that will not fit, so session duration is inert from roughly 50 to 120 minutes. That correction is
+being made **ahead of this milestone and outside it**, as one training record and one step, because
+it is already wrong in production and a milestone directory for a single step is ceremony.
+
+### M6 — Programming from what actually happened
+
+**Depends on:** `M5`.
+
+**This milestone has moved twice, and records written before each move still name it by the number
+it had then.** It was `M4` until the catalogue milestone was inserted ahead of it — `ADR-016`,
+`ADR-019` and `M3`'s plan and progress call it that — and `M5` until the readable-week milestone was
+inserted ahead of it, which is what `ADR-024`, `ADR-025`, `ADR-026`, `M4`'s progress, root
+standard 14 and `EraseUserData`'s doc comment call it. The decision records are append-only and are
+left saying what they said; the always-loaded text and the code comments are corrected, because
+nothing about them is a record of a decision taken at a time. This note is what makes the rest
+readable. Nothing about the milestone changed except its position.
 
 The milestone that makes the product worth its name: the system stops programming from what the
 user *said* and starts programming from what they *did*.

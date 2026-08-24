@@ -214,7 +214,7 @@ public class ImportedVolumeTests
     {
         // The same exclusion ByMuscle applies, for the same reason: a warm-up is retained on
         // import (ADR-018) and is not training this system asked for. Counting it would inflate
-        // every kilogram figure M5 ever compares against.
+        // every kilogram figure M6 ever compares against.
         var exercise = ByTemplate("A5AC6449");   // Bicep Curl (Barbell)
 
         var workout = ALoggedLift(
