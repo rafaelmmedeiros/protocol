@@ -376,17 +376,39 @@ public class WeekGeneratorTests
     [Fact]
     public void The_muscles_the_assumed_gym_cannot_train_are_named_and_do_not_drive_the_ladder()
     {
-        // TD-004 assumes no selectorised machines, so three groups have no direct exercise.
-        // They are a catalogue failure, reported separately from a time-budget one, because no
-        // amount of cutting closes them.
+        // TD-004 assumes no selectorised machines, so some groups have no direct exercise. They
+        // are a catalogue failure, reported separately from a time-budget one, because no amount
+        // of cutting closes them.
+        //
+        // Forearms used to be the third name here and left in M4: TD-020 seeded a wrist curl,
+        // which needs only a barbell and a bench and so is reachable in the assumed gym. The
+        // remaining two are what TD-019 knowingly left open for a user who has neither synced
+        // their history nor described their gym.
         var week = Generate(4, 3_600);
 
         Assert.Equal(
-            [MuscleGroup.Forearms, MuscleGroup.SpinalErectors, MuscleGroup.Adductors],
+            [MuscleGroup.SpinalErectors, MuscleGroup.Adductors],
             week.UncoveredMuscles.Order());
         Assert.DoesNotContain(
             week.Shortfalls.Select(shortfall => shortfall.MuscleGroup),
             muscle => week.UncoveredMuscles.Contains(muscle));
+    }
+
+    [Fact]
+    public void The_assumed_gym_week_actually_prescribes_a_direct_forearm_exercise()
+    {
+        // The behavioural half of TD-020. Forearms leaving UncoveredMuscles only proves the
+        // catalogue can train it; this proves the generator spends a slot on it, which is the
+        // change the engineer agreed to and the cost the record predicts.
+        var week = Generate(4, 3_600);
+
+        var direct = week.Sessions
+            .SelectMany(session => session.Slots)
+            .Where(slot => slot.Exercise.Muscles.Any(muscle =>
+                muscle.Role == MuscleRole.Primary && muscle.MuscleGroup == MuscleGroup.Forearms))
+            .ToList();
+
+        Assert.NotEmpty(direct);
     }
 
     [Fact]

@@ -32,6 +32,8 @@ public static partial class ExerciseCatalogue
         new("1DF4A847", [EquipmentItem.SeatedRowMachine]),
         new("BC3492DA", [EquipmentItem.HighRowMachine]),
         new("1E9A6B8E", [EquipmentItem.PreacherCurlMachine]),
+        new("95F2E076", [EquipmentItem.Barbell, EquipmentItem.WeightPlates, EquipmentItem.Bench]),
+        new("D8460FA6", [EquipmentItem.Dumbbells, EquipmentItem.Bench]),
         new("8BAB2735", [EquipmentItem.Dumbbells, EquipmentItem.AdjustableBench]),
         new("D2387AB1", [EquipmentItem.CableStation]),
     ];
@@ -110,17 +112,28 @@ public static partial class ExerciseCatalogue
             Equipment.Dumbbell, OrderClass.Isolation, Laterality.Bilateral, 6,
             MuscleGroup.Biceps),
 
-        // A hammer curl and a reverse curl were curated here and then removed, which is worth a
-        // comment rather than a silent absence: in everything this model represents they are the
-        // dumbbell and barbell curls already above. Same pattern, same implement, same
-        // requirements, and M1 already tags Forearms secondary on every curl. Grip is the only
-        // thing separating them and TD-005 omitted grip on purpose.
+        // A hammer curl, a reverse curl and a cross body hammer curl are absent, and the absence
+        // is deliberate enough to spend a comment on. In everything this model represents they
+        // are the dumbbell and barbell curls already above: same pattern, same implement, same
+        // requirements, and M1 tags Forearms secondary on every curl. Grip is the only thing left
+        // separating them, and TD-005 omitted grip.
         //
-        // The rule was applied rather than bent. Bending it would have meant narrowing the
-        // existing rows' muscle attribution to make room for the new ones — fitting the model to
-        // a conclusion. They stay in the coverage report as unmodelled movements (S4.5), which is
-        // the honest place for them, and the real question they raise is whether one domain
-        // exercise may carry more than one Hevy template id (ADR-002). That is a boundary
-        // decision, not a row.
+        // Narrowing the supinated curls' attribution to make room for them was proposed and
+        // rejected on the evidence, not on taste (TD-020). They stay in the coverage report as
+        // movements this model does not represent, which is the honest place for them.
+        //
+        // The wrist curls below are the answer to the underlying want. They train the forearm
+        // through a joint action no curl reaches at any grip, so they earn rows without anything
+        // being re-decided.
+        Make("95F2E076", "Seated Wrist Curl (Barbell)", MovementPattern.WristFlexion, Mechanic.Isolation,
+            Equipment.Barbell, OrderClass.Isolation, Laterality.Bilateral, 1,
+            MuscleGroup.Forearms),
+
+        // The extensor side. A separate row rather than a variant of the one above, because the
+        // muscles on the back of the forearm are not the ones on the front — the same reason a
+        // leg extension is not a leg curl.
+        Make("D8460FA6", "Reverse Wrist Curl (Dumbbell)", MovementPattern.WristExtension, Mechanic.Isolation,
+            Equipment.Dumbbell, OrderClass.Isolation, Laterality.Bilateral, 1,
+            MuscleGroup.Forearms),
     ];
 }

@@ -33,6 +33,17 @@ public enum MovementPattern
     VerticalPull,
     HorizontalAbduction,
     ElbowFlexion,
+
+    /// <summary>
+    /// Bending the wrist toward the palm. A different joint from <see cref="ElbowFlexion"/>, which
+    /// is the whole reason it is here: no curl trains the forearm through this action, however the
+    /// hand is turned (see grip-and-forearm-involvement-in-elbow-flexion).
+    /// </summary>
+    WristFlexion,
+
+    /// <summary>Bending the wrist back. The extensor side, and not the same muscles.</summary>
+    WristExtension,
+
     Shrug,
 
     // Trunk

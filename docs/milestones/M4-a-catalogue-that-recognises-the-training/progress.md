@@ -35,7 +35,7 @@ file carries what a future session would otherwise rediscover.
 
 ### S4.2 — The vocabulary and the catalogue widen together
 - **Status:** completed
-- **Tests:** 197 backend unit, 118 backend integration, 21 frontend unit, `check-docs` clean
+- **Tests:** 198 backend unit, 118 backend integration, 21 frontend unit, `check-docs` clean
 - **Observations:**
   - **The plan's step boundary was wrong and was corrected rather than worked around.** `M2` left
     `The_vocabulary_holds_nothing_the_catalogue_does_not_ask_for`, which asserts exact equality
@@ -65,6 +65,31 @@ file carries what a future session would otherwise rediscover.
     requirement while it builds — the same trap the single file avoided by textual ordering, now
     with no textual order to rely on. Each partial exposes `XRequirements()` and `X()` as methods
     and the core file composes them, which has no order to get wrong.
+  - **The engineer chose to correct the attribution, and the research vetoed it — which is the
+    gate working rather than failing.** The proposal was to drop `Forearms` from supinated curls so
+    the hammer and reverse curls would separate. Standard 15 sent it to the literature first, and
+    the literature contradicts the premise: Caufriez 2018 varies nothing but forearm rotation and
+    finds brachioradialis activity *slightly higher in supination*; Uysal 2026 finds it exceeding
+    the biceps in the eccentric phase **particularly** under a supinated grip. `TD-020` records the
+    rejection, `references/grip-and-forearm-involvement-in-elbow-flexion.md` the evidence. Worth
+    keeping: the stronger objection was not the vote count but that all three studies measure acute
+    activation, and `exercise-variant-and-implementation` already refuses EMG as a proxy for growth.
+    Accepting it here would have been selective.
+  - **The want behind the request was real and got answered a different way.** Wrist curls train the
+    forearm through a joint action no curl reaches at any grip, so they earn rows with nothing
+    re-decided — two new `MovementPattern` values, `WristFlexion` and `WristExtension`, kept
+    separate because the extensor side of the forearm is not the flexor side.
+  - **That changes every generated week, and the change was confirmed behaviourally rather than
+    inferred.** `Forearms` has been in `SplitTemplate`'s `Upper`, `Pull` and `FullBody` scopes and in
+    `TD-014`'s uniform 6.0 target since `M1`; it simply had nothing direct to draw. A seated wrist
+    curl needs only a barbell, plates and a bench, so it is reachable in `TD-004`'s assumed gym and
+    the muscle now competes for slots. `The_assumed_gym_week_actually_prescribes_a_direct_forearm_exercise`
+    exists because `Forearms` leaving `UncoveredMuscles` only proves the catalogue *can* train it.
+  - **`WeekGenerator.Generate` filters by the profile's equipment internally.** The unit tests pass
+    `ExerciseCatalogue.All` and still behave as the assumed gym, which is why the uncovered list
+    stayed at two rather than dropping to one when the back extension landed — it needs a bench the
+    assumed gym does not have. Worth knowing before reading any of these assertions as claims about
+    the whole catalogue.
   - **`WeekPlan.UncoveredMuscles` is computed per user, not per catalogue.** Its doc comment
     claimed one fixed list of three muscles. It is derived from the exercises *that user* can
     perform, so widening the catalogue changes it only for a user whose equipment reaches the new
