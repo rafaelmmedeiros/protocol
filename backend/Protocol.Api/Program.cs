@@ -83,6 +83,10 @@ builder.Services.AddHostedService<DatabaseMigrator>();
 // Registration order is start order, and there is no table to seed until the migrator has run.
 builder.Services.AddHostedService<ExerciseCatalogueSeeder>();
 
+// After the seeder, and the order is load-bearing: hosted services start in registration order,
+// and there is nothing new to map until the new catalogue rows exist (ADR-026).
+builder.Services.AddHostedService<PerformedExerciseRemapper>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

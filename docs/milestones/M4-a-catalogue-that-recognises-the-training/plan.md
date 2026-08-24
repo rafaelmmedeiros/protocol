@@ -321,10 +321,20 @@ stays contiguous.
 
 ## Deliverables
 
-- [ ] S4.1 — what a default gym contains, recorded, superseding `TD-004`
-- [ ] S4.2 — the vocabulary and the catalogue widened together, every row curated under `TD-005`
-- [ ] S4.4 — an imported load means one thing, everywhere it is counted
-- [ ] S4.5 — the remaining gap reported as a proportion
-- [ ] S4.6 — erasing everything of one user's, in development only
-- [ ] S4.7 — the verification ladder from `/protocol-feature`, green
-- [ ] every capability bullet above covered by at least one step
+- [x] S4.1 — what a default gym contains, recorded, superseding `TD-004`
+- [x] S4.2 — the vocabulary and the catalogue widened together, every row curated under `TD-005`
+- [x] S4.4 — an imported load means one thing, everywhere it is counted
+- [x] S4.5 — the remaining gap reported as a proportion
+- [x] S4.6 — erasing everything of one user's, in development only
+- [x] S4.7 — the verification ladder from `/protocol-feature`, green
+- [x] every capability bullet above covered by at least one step
+
+Coverage, bullet by bullet:
+
+| Capability | Covered by |
+|------------|------------|
+| Widen the exercise catalogue from what has actually been logged, ordered by how often each movement is trained | `S4.2` — 27 rows curated from a real account's log, threshold ≥20 |
+| Name equipment at the granularity an individual machine needs, so a session can prescribe one | `S4.2` — 18 `EquipmentItem` values, one per machine (`ADR-022`) |
+| Record the convention imported load is expressed in, and count volume the same way on both sides of the loop | `S4.4` — `ADR-024` cited at `PerformedVolume.VolumeLoadByMuscle`, sharing `ByMuscle`'s rules |
+| Report what the catalogue still cannot explain, as the measure of how far it is from the training | `S4.5` — `ExplainedExercises` / `UnexplainedExercises` beside the named gaps |
+| Erase everything belonging to one user on request, leaving the shared catalogue untouched | `S4.6` — `POST /training/erase`, gated by `Development:AllowErase` (`ADR-025`) |

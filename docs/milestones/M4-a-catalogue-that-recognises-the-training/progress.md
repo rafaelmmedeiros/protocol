@@ -1,6 +1,6 @@
 # M4 — progress
 
-**Status:** in progress
+**Status:** completed
 
 One entry per step of `plan.md`, in the plan's linearised order. Git carries what changed; this
 file carries what a future session would otherwise rediscover.
@@ -181,4 +181,47 @@ file carries what a future session would otherwise rediscover.
     no longer adequate.
 
 ### S4.7 — The ladder, containerized
-- **Status:** pending
+- **Status:** completed
+- **Tests:** all eleven rungs green — `check-docs` 107 documents; 205 backend unit; 127 backend
+  integration; frontend typecheck and 21 unit; the app stack healthy; both smokes; 38 E2E and both
+  backend suites in Docker; a clean tree
+- **Observations:**
+  - **The widened catalogue seeded into the live development database without disturbing anything
+    it already held.** 36 rows became 63 — the seeder logged "27 exercises; 0 had requirements
+    added" — while 9 generated weeks, 171 prescriptions, 758 imported workouts and 19,156 sets came
+    through unchanged. **0 prescriptions were left orphaned**, which is the invariant that actually
+    matters: not that identifiers look stable, but that nothing a stored week references was
+    rewritten. No `exercise_template_id` is duplicated.
+  - **63 rather than 65, and the arithmetic is worth writing down.** 27 rows were curated, 2 were
+    deleted by the earns-a-row test (`Hammer Curl`, `Reverse Curl`), and 2 wrist curls arrived with
+    `TD-020`. A future reader counting the M4 commits will otherwise find two numbers that do not
+    add up.
+  - **Rung 7 is the rung this milestone could only pass once.** The seed runs against a database
+    that has been accumulating since `M1`, and a re-seed that duplicated or rewrote would not have
+    failed loudly — it would have produced a second `Squat` and a stored week pointing at neither.
+    The integration suite asserts the same thing against a fresh container every run; this is the
+    one execution against data that cannot be recreated.
+  - **The ladder found the defect the whole milestone was built to fix, at the last rung.** Rung 7
+    is also where the coverage was measured on real data, and it had not moved: 3,798 unexplained
+    across 126 distinct movements — the exact figures from `docs/ROADMAP.md` that motivated `M4`.
+    The catalogue had grown 36 → 63 and the measurement was identical.
+  - **The cause was one line, and no test could have caught it.** `PerformedExercise.ExerciseId` is
+    resolved once at import and frozen; `ADR-018` reads incrementally from a cursor, so a workout
+    already imported never gets another chance. Every test in the suite imports against the current
+    catalogue, so the gap only exists where history predates a widening — which is every real
+    database and no test database. **This is the argument for rung 7 existing at all**: the
+    containerized suites are green against data that is always fresh.
+  - **`ADR-026` records the fix and, more importantly, the boundary it rests on.** A row in
+    `performed_exercises` holds two kinds of thing: theirs and immutable — the template id, the
+    title, every weight and repetition — and ours and derived, which is `ExerciseId` alone. The
+    test for any future write to an imported row is whether it could be recomputed from data
+    already stored without asking Hevy. That one can; a weight cannot.
+  - **The remapper is a hosted service, not a migration, and the seeder's own requirements backfill
+    is the precedent.** This is not a one-off: every future catalogue widening opens exactly this
+    gap, and a migration would close today's while leaving the next to be found the same way.
+    Registration order is load-bearing — it runs after `ExerciseCatalogueSeeder`, because there is
+    nothing new to map until the new rows exist.
+  - **Measured after, on the real database:** 2,006 rows remapped. Explained went from 1,394 to
+    3,400 of 5,192 — **26.8% to 65.5%** — and distinct unmodelled movements from 126 to 101. The
+    758 workouts and 19,156 sets are byte-for-byte what they were, which is the half of `ADR-026`
+    that mattered.
