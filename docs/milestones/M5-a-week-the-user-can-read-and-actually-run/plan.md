@@ -23,19 +23,37 @@ Verbatim from `docs/ROADMAP.md`:
 
 ## Open questions
 
-- **What a queue pushes to Hevy, and what its folder is called.** `ADR-015` pushes a folder of one
-  routine per session named `Protocol · {week start}`, and `ADR-027` has just removed the week
-  start from the plan. `ADR-017` refuses to rewrite routines once a week has been trained from,
-  which a queue that advances one session at a time reaches far more often. `S5.8` depends on the
-  answer and must not invent one.
-- **Whether `3x45` producing less volume than `3x40` is in scope.** Measured during `TD-022`:
-  forty minutes cannot reach the floor at prescribed rest, so `TD-013`'s ladder cuts rest, and
-  cheaper slots buy more of them — 19 slots and 7.5 fractional sets against 17 and 6.0. It follows
-  every record as written and reads as a defect to a user. Fixing it is a training judgement about
-  whether the ladder should prefer the arrangement that yields more volume, and no record decides
-  that today.
+_None. Execution may start._
 
-_(Execution does not start while this section is non-empty.)_
+Both questions this plan opened with are resolved:
+
+- **What a queue pushes to Hevy** is `ADR-031`: one folder per generated plan, named for when the
+  plan was generated. `ADR-015` and `ADR-017` survive unchanged in substance — a cycle is pushed
+  whole, so a queue reaches the trained-from refusal no more often than a week does.
+- **The volume non-monotonicity was downgraded, not decided**, and the reason is where it came
+  from. See the note below.
+
+## A finding this milestone deliberately does not act on
+
+At the boundary where `TD-013`'s ladder stops firing, a longer session can produce *less* volume
+than a shorter one: `3x40` yields 19 slots and 7.5 fractional sets because forty minutes cannot
+reach the floor at prescribed rest and the ladder is forced to cut rest, while `3x45` reaches the
+floor uncut and yields 17 and 6.0. The same inversion appears at `4x25` against `4x30`. It is real
+arithmetic over valid inputs, and the corpus suggests the shorter session's arrangement is the
+better one — `inter-set-rest-and-hypertrophy` puts the whole rest effect in the step from one to
+two minutes, and `weekly-set-volume-for-hypertrophy` is a square root with no plateau.
+
+**It is recorded here rather than fixed here because no user has met it.** It was found by
+sweeping a synthetic grid while verifying `TD-022`'s ceiling, not by observing the product; the
+one real profile in this repo is `5x60`, which is nowhere near the boundary. Under the harness
+backlog's own evidence gate that makes it an idea, not a pain.
+
+Acting on it would also mean reopening `TD-022` within hours of writing it — that record forbids
+exactly this fix, on the ground that compressing a researched rest interval to buy volume above
+the researched target trades a measured quantity for a convention. Whether that clause is right is
+its own decision, measured on its own terms, and it blocks no step below.
+
+_(Execution does not start while `## Open questions` is non-empty.)_
 
 ## Steps
 
@@ -276,8 +294,9 @@ and the generator fills against the window `S5.2` decided.
    the same window
 3. Migrate forward: existing weeks keep what they hold and are not rewritten (standard 10;
    `ADR-003`)
-4. Resolve what a queue pushes to Hevy and under what folder name — blocked on this plan's open
-   question, and not to be improvised (per `ADR-015`, `ADR-017`)
+4. Push a plan as one folder per generation, named for when the plan was generated, leaving the
+   folder-of-routines shape and the trained-from refusal as they are (per `ADR-031`, `ADR-015`,
+   `ADR-017`)
 
 **Tests:**
 
@@ -287,7 +306,7 @@ and the generator fills against the window `S5.2` decided.
 | Performed volume still buckets into Monday weeks | Unit | `Protocol.Api.Tests.Unit/Training/WeekGeneratorTests.cs` |
 | An existing stored week still reads | Integration | `Protocol.Api.Tests.Integration/Training/GeneratedWeekEndpointsTests.cs` |
 
-**Depends on:** S5.2, and this plan's first open question
+**Depends on:** S5.2
 
 **Acceptance criteria:**
 
