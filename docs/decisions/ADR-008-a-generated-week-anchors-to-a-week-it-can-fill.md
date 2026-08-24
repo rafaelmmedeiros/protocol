@@ -1,7 +1,7 @@
 ---
 id: ADR-008
 title: A generated week anchors to the next week it can actually fill
-status: active
+status: superseded-by ADR-027
 binds: [backend]
 decided: 2026-08-23
 ---
