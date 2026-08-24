@@ -25,28 +25,33 @@ Verbatim from `docs/ROADMAP.md`:
 
 ## Open questions
 
-- **Which of the 51 movements get a catalogue row?** The frequency threshold settled the *list*, not
-  its composition, and reading it revealed two different kinds of entry. Roughly half fill genuine
-  holes — leg press, leg curl, leg extension, hip abduction, machine chest press, hack squat, the
-  calf and abdominal machines — including the `knee_flexion` hole `TD-004` has named since `M1`. The
-  other half are **variants of a pattern and equipment the catalogue already models**: five more
-  dumbbell curls beside the one that exists, three more cable triceps extensions, two more barbell
-  bench variants, and `Shoulder Press (Dumbbell)` which is our `Overhead Press (Dumbbell)` under a
-  different Hevy template. `TD-015` says the catalogue stays flat and a variant is a row — so adding
-  them is consistent — but it also says `preference_rank` claims performability and never growth,
-  and six near-identical elbow flexion rows make that rank the decider between things the evidence
-  says are equivalent. **Holes only, or every logged variant?**
-- **Do `Walking` (139 times) and `Plank` (44) belong in the catalogue at all?** Neither is
-  resistance training as the rest of the model means it. Walking has no muscle attribution that
-  could be credited without inflating volume; a plank has no repetitions. They can be modelled with
-  a kind that is excluded from the arithmetic, or left as permanent catalogue gaps and named as
-  such. Leaving them silently in the gap report makes that report read worse than it is.
-- **Does the assumed gym gain machines, or only a described one?** `TD-004`'s default is a
-  machine-free commercial gym, and it is what a user who never opens the equipment screen is
-  programmed against. Widening the default fills the `knee_flexion` hole for everyone and asserts
-  that every gym has a leg curl; leaving it narrow keeps the hole but assumes nothing new. Either
-  way `TD-004` is superseded, because the catalogue it scoped no longer matches — what is open is
-  what replaces it.
+**None.** Three stood when this plan was written, and all three are closed.
+
+**What earns a catalogue row.** The answer began as "holes only" and the engineer sharpened it into
+something checkable, by catching a real case: `Shoulder Press (Dumbbell)` is the seated version of
+our standing `Overhead Press (Dumbbell)`, and seated is what they actually train. The rule that
+replaces the phrase:
+
+> A movement earns a row when it differs from every existing row in something **the model
+> represents** — its movement pattern, its implement, or the equipment items it requires. It does
+> not when it differs only in its title, or in an attribute `TD-005` deliberately omitted.
+
+That rule decides the list without a judgement call per entry. Seated dumbbell shoulder press earns
+a row because it requires a bench with a back and the standing row requires only dumbbells
+(`ADR-013`) — **not** because it is more stable, since `TD-005` omitted `stability_demand` on the
+grounds that the value would be invented and then branched on, and reversing that omission is a new
+record rather than an oversight being corrected. By the same rule a close grip, a rope attachment,
+an alternating curl and a wide grip earn nothing: grip and attachment are not in the model.
+
+**`Walking` and `Plank` are out.** Neither is resistance training as the rest of the model means it
+— walking has no muscle attribution that could be credited without inflating volume, and a plank
+has no repetitions. They stay out of the catalogue and are named as permanent gaps rather than left
+mute in the report, so the coverage number is not read as a failure to curate.
+
+**The assumed gym gains machines.** `TD-004`'s machine-free default no longer matches a catalogue
+that contains machines, and the `knee_flexion` hole it has carried since `M1` closes for a user who
+never opens the equipment screen. `S4.1` records what the new default contains and what it costs
+when it is wrong — assuming a gym has a leg curl is still an assumption, and the record says so.
 
 _(Execution does not start while this section is non-empty.)_
 
@@ -119,18 +124,25 @@ equipment screen groups rather than lengthens.
 
 **Technical actions:**
 
-1. Add one `Make(...)` per movement with its real `exercise_template_id` from the import, so the
-   mapping is a lookup and never a title match (`ADR-002`, standards 8 and 9).
-2. Attribute primary and secondary muscles under `TD-005`'s existing rule — "meaningfully loaded
+1. Apply the earns-a-row rule to all 51 movements before writing any of them: a movement earns a
+   row only when it differs from every existing row in movement pattern, implement, or required
+   equipment items (`ADR-013`, `TD-005`). Grip, attachment, tempo and stability are not in the
+   model, and `TD-005` omitted the last of them on purpose.
+2. Add one `Make(...)` per qualifying movement with its real `exercise_template_id` from the import,
+   so the mapping is a lookup and never a title match (`ADR-002`, standards 8 and 9).
+3. Attribute primary and secondary muscles under `TD-005`'s existing rule — "meaningfully loaded
    through a substantial range", not "anything that contracts". This is the soft spot `TD-005`
    names, and it is applied rather than re-decided.
-3. Declare each row's equipment requirements in the requirements table; a row without them throws at
+4. Declare each row's equipment requirements in the requirements table; a row without them throws at
    startup rather than seeding an unperformable movement (`ADR-013`).
-4. Split the catalogue file by movement pattern (per `ADR-023`).
-5. Order the rows' `preference_rank` within each pattern, remembering it claims performability and
+5. Split the catalogue file by movement pattern (per `ADR-023`).
+6. Order the rows' `preference_rank` within each pattern, remembering it claims performability and
    never growth (`TD-015`).
-6. Seeding stays idempotent by external template id, so a re-seed never duplicates a row nor
+7. Seeding stays idempotent by external template id, so a re-seed never duplicates a row nor
    rewrites an identifier a stored week already references.
+8. Leave `Walking` and `Plank` out, and name them as permanent gaps rather than letting them sit
+   mute in the coverage report — neither is resistance training as this model means it, and a
+   coverage number that counts them reads as a failure to curate.
 
 **Tests:**
 
@@ -140,12 +152,15 @@ equipment screen groups rather than lengthens.
 | No two rows share an `exercise_template_id` | Integration | `backend/Protocol.Api.Tests.Integration/Training/ExerciseCatalogueTests.cs` |
 | Generation stays deterministic with the larger catalogue | Integration | `backend/Protocol.Api.Tests.Integration/Training/GeneratedWeekEndpointsTests.cs` |
 | A gym with machines can reach every muscle group | Unit | `backend/Protocol.Api.Tests.Unit/Training/WeekGeneratorTests.cs` |
+| No two rows share a movement pattern, implement **and** requirement set | Integration | `backend/Protocol.Api.Tests.Integration/Training/ExerciseCatalogueTests.cs` |
 
 **Depends on:** S4.1, S4.2
 
 **Acceptance criteria:**
 
 - Every movement in scope resolves to a catalogue row when imported, and stops appearing as a gap.
+- No row duplicates another in everything the model represents — a second row exists only where the
+  pattern, the implement or the required equipment differs.
 - A week generated for a gym with machines contains at least one direct `knee_flexion` movement.
 - Generating repeatedly still writes one week — the guard `M3` had to repair.
 
