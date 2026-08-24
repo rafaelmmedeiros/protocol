@@ -6,7 +6,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { API_URL } from "@/lib/api";
 import { getDictionary } from "@/lib/i18n";
 import { allowExerciseAgain } from "./actions";
-import { EquipmentForm, type Item } from "./equipment-form";
+import { EquipmentForm, type Group, type Item } from "./equipment-form";
+import { EQUIPMENT_GROUPS, groupOf } from "./equipment-groups";
 import { Suggestions, type Gap, type Suggestion } from "./suggestions";
 
 type Equipment = { items: string[]; vocabulary: string[] };
@@ -44,7 +45,16 @@ export default async function EquipmentPage() {
     value,
     label: strings.items[value as keyof typeof strings.items] ?? value,
     owned: owned.has(value),
+    group: groupOf(value),
   }));
+
+  // Empty sections are dropped rather than rendered blank: a heading with nothing under it reads
+  // as something failing to load.
+  const groups: Group[] = EQUIPMENT_GROUPS.map((key) => ({
+    key,
+    label: strings.groups[key],
+    items: items.filter((item) => item.group === key),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <>
@@ -52,10 +62,11 @@ export default async function EquipmentPage() {
 
       <div className="flex flex-col gap-8">
         <EquipmentForm
-          items={items}
+          groups={groups}
           strings={{
             itemsLabel: strings.itemsLabel,
             itemsHint: strings.itemsHint,
+            groups: strings.groups,
             save: strings.save,
             saving: strings.saving,
             saved: strings.saved,

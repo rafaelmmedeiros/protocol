@@ -7,11 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { saveEquipment, type EquipmentState } from "./actions";
 
-export type Item = { value: string; label: string; owned: boolean };
+export type Item = { value: string; label: string; owned: boolean; group: string };
+
+export type Group = { key: string; label: string; items: Item[] };
 
 export type EquipmentStrings = {
   itemsLabel: string;
   itemsHint: string;
+  groups: Record<string, string>;
   save: string;
   saving: string;
   saved: string;
@@ -22,27 +25,36 @@ export type EquipmentStrings = {
  * per item and nothing else: what a movement needs is the catalogue's business, not the
  * reader's.
  */
-export function EquipmentForm({ items, strings }: { items: Item[]; strings: EquipmentStrings }) {
+export function EquipmentForm({ groups, strings }: { groups: Group[]; strings: EquipmentStrings }) {
   const [state, action] = useActionState<EquipmentState, FormData>(saveEquipment, { saved: false });
 
   return (
     <form action={action} className="flex flex-col gap-6">
-      <fieldset className="flex flex-col gap-3">
+      <fieldset className="flex flex-col gap-5">
         <legend className="text-sm font-medium text-ink">{strings.itemsLabel}</legend>
         <p className="text-xs text-ink-muted">{strings.itemsHint}</p>
 
-        <div className="mt-1 grid gap-2 sm:grid-cols-2">
-          {items.map((item) => (
-            <Checkbox
-              key={item.value}
-              name="item"
-              value={item.value}
-              label={item.label}
-              defaultChecked={item.owned}
-              data-testid={`equipment-${item.value}`}
-            />
-          ))}
-        </div>
+        {/* Sections rather than one list. Thirty checkboxes in a column is the wall the M2
+            complaint was about, and the fix is grouping, not a coarser vocabulary (ADR-022). */}
+        {groups.map((group) => (
+          <div key={group.key} className="flex flex-col gap-2" data-testid={`equipment-group-${group.key}`}>
+            <h3 className="text-xs font-semibold tracking-wide text-ink-muted uppercase">
+              {group.label}
+            </h3>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {group.items.map((item) => (
+                <Checkbox
+                  key={item.value}
+                  name="item"
+                  value={item.value}
+                  label={item.label}
+                  defaultChecked={item.owned}
+                  data-testid={`equipment-${item.value}`}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
       </fieldset>
 
       <Outcome saved={state.saved} savedLabel={strings.saved} error={state.error}>

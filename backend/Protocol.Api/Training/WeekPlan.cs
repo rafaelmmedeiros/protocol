@@ -10,10 +10,11 @@ namespace Protocol.Api.Training;
 /// </param>
 /// <param name="UncoveredMuscles">
 /// Muscles no exercise in the catalogue trains <i>directly</i>, so they reach volume only
-/// through 0.5-weighted secondary roles. Under TD-004's assumed gym these are
-/// <c>Forearms</c>, <c>SpinalErectors</c> and <c>Adductors</c>. A catalogue coverage failure,
-/// surfaced rather than patched: padding the catalogue to hide it would be the wrong fix, and
-/// TD-004 is where the assumption gets superseded. These never drive the cut ladder, because no
+/// through 0.5-weighted secondary roles. It is computed over the exercises <i>that user</i> can
+/// perform, so it is not one fixed list: on TD-004's assumed gym it is still <c>Forearms</c>,
+/// <c>SpinalErectors</c> and <c>Adductors</c>, and a user whose equipment reaches M4's machine
+/// rows (TD-019) loses <c>SpinalErectors</c> to the back extension. A catalogue coverage failure, surfaced rather than patched: padding the
+/// catalogue to hide it would be the wrong fix. These never drive the cut ladder, because no
 /// amount of cutting closes a gap in what the gym contains.
 /// </param>
 public sealed record WeekPlan(

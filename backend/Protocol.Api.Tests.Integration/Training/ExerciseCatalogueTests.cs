@@ -22,7 +22,11 @@ public class ExerciseCatalogueTests(ApiFactory factory) : IClassFixture<ApiFacto
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        return await db.Exercises.Include(exercise => exercise.Muscles).AsNoTracking().ToListAsync();
+        return await db.Exercises
+            .Include(exercise => exercise.Muscles)
+            .Include(exercise => exercise.Requirements)
+            .AsNoTracking()
+            .ToListAsync();
     }
 
     [Fact]
@@ -69,18 +73,52 @@ public class ExerciseCatalogueTests(ApiFactory factory) : IClassFixture<ApiFacto
     }
 
     [Fact]
-    public async Task Every_exercise_is_performable_in_the_assumed_gym()
+    public async Task The_assumed_gym_still_contains_no_selectorised_machine()
     {
-        // TD-004 assumes a barbell-and-cable gym with no selectorised machines. A seeded row
-        // the user cannot perform is the invisible failure that decision exists to avoid.
-        var catalogue = await LoadCatalogueAsync();
-
-        var unavailable = catalogue
-            .Where(exercise => exercise.Equipment is Equipment.Machine or Equipment.SmithMachine)
-            .Select(exercise => exercise.ExternalTemplateId)
+        // This test used to assert the opposite thing about the catalogue: that no seeded row
+        // needed a machine, because TD-004 scoped the catalogue to the gym it assumed. TD-019
+        // withdrew that scoping and kept the assumption, so the guarantee moves rather than
+        // disappears — to the equipment filter, which is where ADR-013 always intended it.
+        //
+        // What is left worth guarding is the half TD-019 did not change. Adding a machine to the
+        // default is the invisible failure: the user cannot perform the prescription, improvises,
+        // and the append-only history diverges from what was generated with nothing surfacing it.
+        var machines = ExerciseCatalogue.AssumedGym
+            .Where(item => item.ToString().EndsWith("Machine", StringComparison.Ordinal)
+                || item is EquipmentItem.BackExtensionBench)
             .ToList();
 
-        Assert.Empty(unavailable);
+        Assert.Empty(machines);
+
+        // And the catalogue has genuinely outgrown it, which is the change itself.
+        var catalogue = await LoadCatalogueAsync();
+        Assert.Contains(catalogue, exercise => exercise.Equipment is Equipment.Machine);
+    }
+
+    [Fact]
+    public async Task No_row_duplicates_another_in_everything_the_model_represents()
+    {
+        // The rule M4 curated against, written down where it can fail. A movement earns a row
+        // when it differs from every existing one in its movement pattern, its implement, the
+        // equipment it requires, or what it loads — never in its title (standard 9), and never
+        // in an attribute TD-005 deliberately omitted.
+        //
+        // The fourth term is the one that is easy to leave out and wrong to: a squat and a sumo
+        // squat share pattern, implement and requirements, and are separated only by the muscles
+        // they load. A three-term version of this test would demand deleting one of them.
+        var catalogue = await LoadCatalogueAsync();
+
+        var duplicates = catalogue
+            .GroupBy(exercise => (
+                exercise.MovementPattern,
+                exercise.Equipment,
+                Requirements: string.Join(",", exercise.Requirements.Select(r => r.Item.ToString()).Order()),
+                Muscles: string.Join(",", exercise.Muscles.Select(m => $"{m.Role}:{m.MuscleGroup}").Order())))
+            .Where(group => group.Count() > 1)
+            .Select(group => string.Join(" / ", group.Select(exercise => exercise.Title)))
+            .ToList();
+
+        Assert.Empty(duplicates);
     }
 
     [Fact]

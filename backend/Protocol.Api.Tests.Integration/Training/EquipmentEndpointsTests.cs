@@ -140,4 +140,38 @@ public class EquipmentEndpointsTests(ApiFactory factory) : IClassFixture<ApiFact
         // D04AC939 is Squat (Barbell): everything it needs is owned.
         Assert.Contains(prescribed, p => p.ExternalTemplateId == "D04AC939");
     }
+
+    [Fact]
+    public async Task A_machine_round_trips_through_the_equipment_endpoint()
+    {
+        // The vocabulary grew by eighteen machines (ADR-022). This proves a new value survives the
+        // whole path -- parsed from the request, stored as text, read back -- rather than only
+        // existing in an enum.
+        var client = await SignedInClientAsync();
+
+        var saved = await client.PutAsJsonAsync("/training/equipment", new
+        {
+            items = new[] { "Barbell", "WeightPlates", "SeatedLegCurlMachine" },
+        });
+
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+
+        var equipment = await client.GetFromJsonAsync<EquipmentResponse>("/training/equipment");
+
+        Assert.Contains("SeatedLegCurlMachine", equipment!.Items);
+    }
+
+    [Fact]
+    public async Task The_vocabulary_offers_every_machine_the_catalogue_can_require()
+    {
+        // The screen builds its checkboxes from this list, so a value missing here is a gym a user
+        // cannot describe -- and one nobody would notice, because the absence renders as nothing.
+        var client = await SignedInClientAsync();
+
+        var equipment = await client.GetFromJsonAsync<EquipmentResponse>("/training/equipment");
+
+        Assert.Equal(
+            Enum.GetValues<EquipmentItem>().Select(item => item.ToString()).Order(),
+            equipment!.Vocabulary.Order());
+    }
 }

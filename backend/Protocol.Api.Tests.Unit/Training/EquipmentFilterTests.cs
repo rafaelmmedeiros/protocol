@@ -25,6 +25,68 @@ public class EquipmentFilterTests
     private static IEnumerable<Exercise> ExercisesIn(WeekPlan week) =>
         week.Sessions.SelectMany(session => session.Slots).Select(slot => slot.Exercise);
 
+    /// <summary>An exercise that exists only for this test, requiring items the catalogue does not yet use.</summary>
+    private static Exercise Requiring(params EquipmentItem[] items) => new()
+    {
+        Id = Guid.CreateVersion7(),
+        ExternalTemplateId = "TEST0001",
+        Title = "A machine movement",
+        MovementPattern = MovementPattern.KneeFlexion,
+        Mechanic = Mechanic.Isolation,
+        Equipment = Equipment.Machine,
+        OrderClass = OrderClass.Isolation,
+        Laterality = Laterality.Bilateral,
+        PreferenceRank = 1,
+        Requirements = [.. items.Select(item => new ExerciseRequirement { Item = item })],
+        Muscles = [new ExerciseMuscle { MuscleGroup = MuscleGroup.Hamstrings, Role = MuscleRole.Primary }],
+    };
+
+    [Fact]
+    public void A_machine_item_filters_exactly_like_any_other()
+    {
+        // The vocabulary grew by eighteen machines (ADR-022) before any catalogue row requires one,
+        // so this proves the new values are usable rather than merely declared. It builds its own
+        // exercise: waiting for S4.3 to add rows would leave the vocabulary untested in the step
+        // that introduced it.
+        var movement = Requiring(EquipmentItem.SeatedLegCurlMachine);
+
+        Assert.False(ExerciseCatalogue.AssumedGym.Contains(EquipmentItem.SeatedLegCurlMachine));
+
+        var withoutIt = ExerciseCatalogue.AssumedGym;
+        var withIt = new HashSet<EquipmentItem>(ExerciseCatalogue.AssumedGym)
+        {
+            EquipmentItem.SeatedLegCurlMachine,
+        };
+
+        Assert.False(movement.Requirements.All(r => withoutIt.Contains(r.Item)));
+        Assert.True(movement.Requirements.All(r => withIt.Contains(r.Item)));
+    }
+
+    [Fact]
+    public void Owning_one_machine_does_not_imply_owning_another()
+    {
+        // The whole reason ADR-022 named machines individually instead of grouping them. A gym with
+        // a leg press and no leg curl is ordinary, and a coarser vocabulary would have asserted the
+        // second -- the invisible failure TD-019 is built around.
+        var legPress = Requiring(EquipmentItem.LegPressMachine);
+        var legCurl = Requiring(EquipmentItem.SeatedLegCurlMachine);
+
+        var gym = new HashSet<EquipmentItem>(ExerciseCatalogue.AssumedGym) { EquipmentItem.LegPressMachine };
+
+        Assert.True(legPress.Requirements.All(r => gym.Contains(r.Item)));
+        Assert.False(legCurl.Requirements.All(r => gym.Contains(r.Item)));
+    }
+
+    [Fact]
+    public void The_assumed_gym_gained_no_machine()
+    {
+        // TD-019 keeps the default lean and says so at the line: machines reach a user by
+        // derivation or description, never by assumption. This is that sentence, enforced.
+        Assert.DoesNotContain(
+            ExerciseCatalogue.AssumedGym,
+            item => item.ToString().EndsWith("Machine", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Every_catalogue_row_declares_what_it_needs()
     {

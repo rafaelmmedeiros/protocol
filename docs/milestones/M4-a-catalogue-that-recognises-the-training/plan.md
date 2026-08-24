@@ -87,10 +87,18 @@ decide what a user who never describes their gym is programmed against.
 - The new record says what a default gym contains and what that assumption costs when it is wrong.
 - Every later step citing an assumed gym cites the new record.
 
-### S4.2 — Equipment specific enough to name a machine
+### S4.2 — The vocabulary and the catalogue widen together
 
-**Description:** the vocabulary grows the machine items the new catalogue rows require, and the
-equipment screen groups rather than lengthens.
+**Description:** the vocabulary grows the machine items the new catalogue rows require, the rows
+themselves get written, and the equipment screen groups rather than lengthens.
+
+**This step was planned as two — `S4.2` the vocabulary, `S4.3` the rows — and they are not
+separable.** `M2` left an invariant asserting exact equality between `EquipmentItem` and what the
+catalogue asks for: no orphan value, no undeclared requirement. Adding the items without the rows
+breaks it in one direction and adding the rows without the items breaks it in the other, so there
+is no order in which both steps are green. The invariant is right and was not weakened; the plan
+boundary was wrong, and the two steps are merged here. The old `S4.3` numbering is retired rather
+than reused, so `S4.4` onward keep the identifiers the rest of this document already cites.
 
 **Technical actions:**
 
@@ -101,6 +109,28 @@ equipment screen groups rather than lengthens.
 3. Group the equipment screen by where a movement is trained, so thirty checkboxes read as sections
    (standard 13, and the `M2` complaint that the screen is limited).
 4. Every new item is a translated string in both dictionaries (standard 2).
+5. Apply the earns-a-row rule to all 51 movements before writing any of them: a movement earns a
+   row only when it differs from every existing row in movement pattern, implement, required
+   equipment, **or what it loads** (`ADR-013`, `TD-005`). Grip, attachment, tempo and stability are
+   not in the model, and `TD-005` omitted the last of them on purpose.
+6. Add one `Make(...)` per qualifying movement with its real `exercise_template_id` from the import,
+   so the mapping is a lookup and never a title match (`ADR-002`, standards 8 and 9).
+7. Attribute primary and secondary muscles under `TD-005`'s existing rule — "meaningfully loaded
+   through a substantial range", not "anything that contracts". This is the soft spot `TD-005`
+   names, and it is applied rather than re-decided.
+8. Declare each row's equipment requirements in the requirements table; a row without them throws at
+   startup rather than seeding an unperformable movement (`ADR-013`).
+9. Split the catalogue file by movement pattern (per `ADR-023`).
+10. Order the rows' `preference_rank` within each pattern, remembering it claims performability and
+    never growth (`TD-015`).
+11. Seeding stays idempotent by external template id, so a re-seed never duplicates a row nor
+    rewrites an identifier a stored week already references.
+12. Leave `Walking` and `Plank` out, and name them as permanent gaps rather than letting them sit
+    mute in the coverage report — neither is resistance training as this model means it, and a
+    coverage number that counts them reads as a failure to curate.
+13. Correct every document and comment the widening falsifies, in this commit (standard 18) — the
+    catalogue is no longer scoped to `TD-004`'s assumed gym, and the test that asserted it was is
+    rewritten rather than deleted (`TD-019`).
 
 **Tests:**
 
@@ -109,58 +139,25 @@ equipment screen groups rather than lengthens.
 | Every vocabulary value is offered by the API and translated in both locales | Unit | `frontend/lib/i18n/__tests__/locales.test.ts` |
 | A new item round-trips through the equipment endpoint | Integration | `backend/Protocol.Api.Tests.Integration/Training/EquipmentEndpointsTests.cs` |
 | Ticking a machine widens what the generator may draw | Unit | `backend/Protocol.Api.Tests.Unit/Training/EquipmentFilterTests.cs` |
+| The vocabulary holds nothing the catalogue does not ask for | Unit | `backend/Protocol.Api.Tests.Unit/Training/EquipmentFilterTests.cs` |
+| Every row has requirements, a primary muscle and a distinct external id | Integration | `backend/Protocol.Api.Tests.Integration/Training/ExerciseCatalogueTests.cs` |
+| No two rows share an `exercise_template_id` | Integration | `backend/Protocol.Api.Tests.Integration/Training/ExerciseCatalogueTests.cs` |
+| No row duplicates another in movement pattern, implement, requirements **and** muscles | Integration | `backend/Protocol.Api.Tests.Integration/Training/ExerciseCatalogueTests.cs` |
+| The assumed gym still contains no selectorised machine | Integration | `backend/Protocol.Api.Tests.Integration/Training/ExerciseCatalogueTests.cs` |
+| Generation stays deterministic with the larger catalogue | Integration | `backend/Protocol.Api.Tests.Integration/Training/GeneratedWeekEndpointsTests.cs` |
+| A gym with machines can reach every muscle group | Unit | `backend/Protocol.Api.Tests.Unit/Training/WeekGeneratorTests.cs` |
 
 **Depends on:** S4.1
 
 **Acceptance criteria:**
 
 - A gym with a leg press and no leg curl is expressible, and the generator prescribes only the first.
-- No vocabulary value exists that no catalogue row requires.
+- No vocabulary value exists that no catalogue row requires, and no row requires a value the
+  vocabulary lacks.
 - The equipment screen reads as grouped sections rather than one list.
-
-### S4.3 — The catalogue widens
-
-**Description:** the movements settled in the open questions get a row each, curated by hand, in C#.
-
-**Technical actions:**
-
-1. Apply the earns-a-row rule to all 51 movements before writing any of them: a movement earns a
-   row only when it differs from every existing row in movement pattern, implement, or required
-   equipment items (`ADR-013`, `TD-005`). Grip, attachment, tempo and stability are not in the
-   model, and `TD-005` omitted the last of them on purpose.
-2. Add one `Make(...)` per qualifying movement with its real `exercise_template_id` from the import,
-   so the mapping is a lookup and never a title match (`ADR-002`, standards 8 and 9).
-3. Attribute primary and secondary muscles under `TD-005`'s existing rule — "meaningfully loaded
-   through a substantial range", not "anything that contracts". This is the soft spot `TD-005`
-   names, and it is applied rather than re-decided.
-4. Declare each row's equipment requirements in the requirements table; a row without them throws at
-   startup rather than seeding an unperformable movement (`ADR-013`).
-5. Split the catalogue file by movement pattern (per `ADR-023`).
-6. Order the rows' `preference_rank` within each pattern, remembering it claims performability and
-   never growth (`TD-015`).
-7. Seeding stays idempotent by external template id, so a re-seed never duplicates a row nor
-   rewrites an identifier a stored week already references.
-8. Leave `Walking` and `Plank` out, and name them as permanent gaps rather than letting them sit
-   mute in the coverage report — neither is resistance training as this model means it, and a
-   coverage number that counts them reads as a failure to curate.
-
-**Tests:**
-
-| Artifact | Layer | Test file |
-|----------|-------|-----------|
-| Every row has requirements, a primary muscle and a distinct external id | Integration | `backend/Protocol.Api.Tests.Integration/Training/ExerciseCatalogueTests.cs` |
-| No two rows share an `exercise_template_id` | Integration | `backend/Protocol.Api.Tests.Integration/Training/ExerciseCatalogueTests.cs` |
-| Generation stays deterministic with the larger catalogue | Integration | `backend/Protocol.Api.Tests.Integration/Training/GeneratedWeekEndpointsTests.cs` |
-| A gym with machines can reach every muscle group | Unit | `backend/Protocol.Api.Tests.Unit/Training/WeekGeneratorTests.cs` |
-| No two rows share a movement pattern, implement **and** requirement set | Integration | `backend/Protocol.Api.Tests.Integration/Training/ExerciseCatalogueTests.cs` |
-
-**Depends on:** S4.1, S4.2
-
-**Acceptance criteria:**
-
-- Every movement in scope resolves to a catalogue row when imported, and stops appearing as a gap.
-- No row duplicates another in everything the model represents — a second row exists only where the
-  pattern, the implement or the required equipment differs.
+- Every movement in scope resolves to a catalogue row when imported, or is named as a movement this
+  model does not represent — never silently absent.
+- No row duplicates another in everything the model represents.
 - A week generated for a gym with machines contains at least one direct `knee_flexion` movement.
 - Generating repeatedly still writes one week — the guard `M3` had to repair.
 
@@ -211,12 +208,12 @@ counted.
 | The proportion is computed from current readings only, ignoring tombstoned workouts | Unit | `backend/Protocol.Api.Tests.Unit/Hevy/DerivedEquipmentTests.cs` |
 | The screen shows the proportion and the bounded list | E2E | `frontend/e2e/equipment.spec.ts` |
 
-**Depends on:** S4.3
+**Depends on:** S4.2
 
 **Acceptance criteria:**
 
 - The proportion is visible and falls when the catalogue widens.
-- A movement that got a row in `S4.3` no longer appears as a gap.
+- A movement that got a row in `S4.2` no longer appears as a gap.
 
 ### S4.6 — Erasing everything of mine
 
@@ -267,7 +264,7 @@ shared catalogue untouched.
 |----------|-------|-----------|
 | The whole suite | All | existing |
 
-**Depends on:** S4.3, S4.5, S4.6
+**Depends on:** S4.2, S4.5, S4.6
 
 **Acceptance criteria:**
 
@@ -310,12 +307,14 @@ open questions):
 
 ```
 S4.1 ──> S4.2 ──┐
-                ├──> S4.3 ──> S4.5 ──┐
-S4.4 ───────────┘                    ├──> S4.7
-S4.6 ────────────────────────────────┘
+                ├──> S4.5 ──┐
+S4.4 ───────────┘           ├──> S4.7
+S4.6 ───────────────────────┘
 ```
 
-Linearised: **S4.1 → S4.2 → S4.3 → S4.4 → S4.5 → S4.6 → S4.7**
+Linearised: **S4.1 → S4.2 → S4.4 → S4.5 → S4.6 → S4.7**
+
+`S4.3` was merged into `S4.2` during execution and its number retired; the section above says why.
 
 `S4.4` and `S4.6` depend on nothing and could run at any point; they sit here so the catalogue work
 stays contiguous.
@@ -323,8 +322,7 @@ stays contiguous.
 ## Deliverables
 
 - [ ] S4.1 — what a default gym contains, recorded, superseding `TD-004`
-- [ ] S4.2 — equipment specific enough to name a machine
-- [ ] S4.3 — the catalogue widened, every row curated under `TD-005`
+- [ ] S4.2 — the vocabulary and the catalogue widened together, every row curated under `TD-005`
 - [ ] S4.4 — an imported load means one thing, everywhere it is counted
 - [ ] S4.5 — the remaining gap reported as a proportion
 - [ ] S4.6 — erasing everything of one user's, in development only
