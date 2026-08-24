@@ -192,6 +192,15 @@ Four rules the plan is checked against before it is finished:
 - **No orphan action.** Every technical action cites an `ADR-###`, a `TD-###`, or a numbered
   standard from a `CLAUDE.md`. An action with no citation is an undeclared decision, which is
   the failure mode this whole skill exists to prevent.
+
+  **The one exception is a record this plan's own research step will produce**, and it exists
+  because the alternative fails the ladder. `scripts/check-docs.mjs` requires every `TD-###`
+  cited under `docs/` to resolve to a record on disk, and `plan.md` lives there — so a step
+  cannot cite the id of a record that does not exist yet. Cite **the producing step** instead
+  ("the record `S5.2` produces"), and write the real id into `progress.md` when that step
+  lands. The citation is then closed by execution rather than by planning. Do not reserve ids
+  by writing stub records: an empty record in an append-only corpus is worse than a forward
+  reference, and a record is committed only once its arithmetic has been measured.
 - **The tests table is written before the code exists.** Deciding which test files exist is a
   planning act; discovering them afterwards is how a step ships untested.
 - **Every capability bullet is covered by at least one step**, and the coverage is checked
