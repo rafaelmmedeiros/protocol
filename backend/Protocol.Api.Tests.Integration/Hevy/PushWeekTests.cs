@@ -196,24 +196,43 @@ public class PushWeekTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task A_routine_the_user_deleted_in_Hevy_is_a_push_failure_and_not_corruption()
+    public async Task A_routine_the_user_deleted_in_Hevy_is_recreated()
     {
+        // The user tidied their own app. Recreating is safe *here specifically*, because the
+        // trained-from check has already passed -- no logged workout points at the identifier
+        // being replaced, so there is no join to break. Refusing would tell someone to throw a
+        // week away because they deleted a routine (ADR-017 revision).
         Hevy.Forget();
         var (client, _, week) = await ReadyAsync();
         var pushed = await PushAsync(client, week.Id);
 
-        // The user tidied up in Hevy. We cannot delete, and we cannot assume it is still there.
         foreach (var session in pushed!.Sessions)
         {
             Hevy.Missing.Add(session.RoutineId);
         }
 
         var again = await client.PostAsJsonAsync($"/hevy/weeks/{week.Id}/push", new { locale = "en-US" });
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
 
-        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        var second = await again.Content.ReadFromJsonAsync<HevyPushResponse>();
+
+        // New routines, and the folder is reused rather than duplicated.
+        Assert.Equal(pushed.FolderId, second!.FolderId);
+        Assert.All(
+            second.Sessions.Select(s => s.RoutineId),
+            id => Assert.DoesNotContain(id, pushed.Sessions.Select(p => p.RoutineId)));
+
+        // Stored, so the next comparison binds against what now exists.
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var stored = await db.GeneratedWeeks
+            .AsNoTracking()
+            .Include(w => w.Sessions)
+            .SingleAsync(w => w.Id == week.Id);
+
         Assert.Equal(
-            HevyErrorCodes.PushedRoutineMissing,
-            (await again.Content.ReadFromJsonAsync<ApiError>())?.Code);
+            second.Sessions.Select(s => s.RoutineId).Order(),
+            stored.Sessions.Select(s => s.HevyRoutineId!).Order());
     }
 
     [Fact]

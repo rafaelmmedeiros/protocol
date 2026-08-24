@@ -257,6 +257,8 @@ export const enUS = {
       "Training that started from no routine of ours. It still counts toward volume; it just cannot be compared to a prescription.",
     coverage: (bound: number, total: number) => `${bound} of ${total} imported workouts matched a session.`,
 
+    exerciseCount: (n: number) => (n === 1 ? "1 exercise" : `${n} exercises`),
+    moreGaps: (n: number) => `and ${n} more not shown.`,
     suggestionsTitle: "Equipment your training implies",
     suggestionsLead: "Confirmed items widen what the generator may draw from. Nothing here ever removes anything.",
     impliedBy: (title: string) => `Because you logged ${title}.`,

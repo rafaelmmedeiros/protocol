@@ -230,6 +230,12 @@ public static class WeekGenerator
                 .ThenBy(exercise => exercise.PreferenceRank)       // TD-005
                 .ThenBy(exercise => exercise.MovementPattern)
                 .ThenBy(exercise => exercise.Equipment)
+                // Total, so the order the catalogue arrived in cannot decide anything. Without
+                // this the generator was not deterministic (ADR-005) -- an unordered query
+                // returned rows differently between calls, two candidates tied on every curated
+                // key, and the same profile produced two plans in alternation. A tie reaching
+                // this line is a curation gap (TD-015), not a preference.
+                .ThenBy(exercise => exercise.Id)
                 .Select((exercise, position) => new PlannedSlot(
                     position + 1,
                     exercise,
@@ -277,6 +283,9 @@ public static class WeekGenerator
                 .ThenBy(candidate => candidate.PreferenceRank)
                 .ThenBy(candidate => candidate.MovementPattern)
                 .ThenBy(candidate => candidate.Equipment)
+                // Total, for the same reason as above: a draw that depends on input order is a
+                // generator that answers differently to the same question.
+                .ThenBy(candidate => candidate.Id)
                 .FirstOrDefault();
 
             if (exercise is not null)

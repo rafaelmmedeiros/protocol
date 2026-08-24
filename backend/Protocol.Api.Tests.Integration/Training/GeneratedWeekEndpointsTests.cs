@@ -213,4 +213,53 @@ public class GeneratedWeekEndpointsTests(ApiFactory factory) : IClassFixture<Api
         Assert.Equal(3_600, original.SessionDurationSeconds);
         Assert.Equal(3, original.Sessions.Count);
     }
+
+    [Fact]
+    public async Task Generating_repeatedly_writes_one_week()
+    {
+        // ADR-009 refuses to write a week identical to the current one, and that guard only holds
+        // if generation is deterministic (ADR-005). It was not: in production the same profile
+        // alternated between two plans, so every regeneration differed from the one immediately
+        // before it and every click wrote a row -- five weeks in fifteen seconds.
+        //
+        // This runs at the level the failure lived at: the catalogue comes from a real query, so
+        // an unordered read would show up here where an in-memory list cannot.
+        var client = await SignedInClientAsync();
+
+        await client.PutAsJsonAsync("/training/equipment", new
+        {
+            items = new[]
+            {
+                "AdjustableBench", "Barbell", "Bench", "Bodyweight", "CableStation",
+                "Dumbbells", "LatPulldownStation", "PullUpBar", "SquatRack", "WeightPlates",
+            },
+        });
+
+        await client.PutAsJsonAsync("/training/profile", new
+        {
+            goal = "Hypertrophy",
+            daysPerWeek = 5,
+            sessionDurationSeconds = 3_600,
+        });
+
+        var bodies = new List<string>();
+
+        for (var attempt = 0; attempt < 8; attempt++)
+        {
+            var response = await client.PostAsync("/training/weeks", null);
+            bodies.Add(await response.Content.ReadAsStringAsync());
+        }
+
+        // Same answer every time...
+        Assert.Single(bodies.Distinct());
+
+        var userId = (await client.GetFromJsonAsync<CurrentUser>("/auth/me"))!.Id;
+
+        using var scope = factory.Services.CreateScope();
+        // Counting rows because the number written is the whole point, and no endpoint reports it.
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        // ...and one row for it.
+        Assert.Equal(1, await db.GeneratedWeeks.CountAsync(week => week.UserId == userId));
+    }
 }

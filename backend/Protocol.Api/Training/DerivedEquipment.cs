@@ -12,6 +12,17 @@ namespace Protocol.Api.Training;
 public static class DerivedEquipment
 {
     /// <summary>
+    /// How many catalogue gaps to name.
+    /// <para>
+    /// A real account produced **3,798 logged exercises outside the catalogue** on its first
+    /// import. An unbounded list is not a report, it is a wall — so the most-trained few are named
+    /// and the rest is a count. Ordered by how often the movement appears rather than by recency,
+    /// because what to add to the catalogue is decided by what someone actually trains.
+    /// </para>
+    /// </summary>
+    private const int GapsNamed = 20;
+
+    /// <summary>
     /// What the history implies that the user has not already got, minus anything they declined.
     /// </summary>
     /// <param name="performed">Imported training — current readings only.</param>
@@ -26,6 +37,7 @@ public static class DerivedEquipment
     {
         var suggestions = new Dictionary<EquipmentItem, SuggestedEquipment>();
         var gaps = new Dictionary<string, CatalogueGap>();
+        var gapCounts = new Dictionary<string, int>();
 
         foreach (var (workout, exercise) in performed
             .SelectMany(workout => workout.Exercises.Select(exercise => (workout, exercise))))
@@ -36,11 +48,14 @@ public static class DerivedEquipment
                 // requirement set to read. That is a gap in the catalogue rather than in the gym,
                 // and it is surfaced separately rather than silently ignored (TD-004).
                 var gap = gaps.GetValueOrDefault(exercise.ExternalTemplateId);
+                var seen = gapCounts.GetValueOrDefault(exercise.ExternalTemplateId) + 1;
+                gapCounts[exercise.ExternalTemplateId] = seen;
 
                 gaps[exercise.ExternalTemplateId] = new CatalogueGap(
                     exercise.ExternalTemplateId,
                     exercise.ExternalTitle ?? gap?.Title,
-                    Later(gap?.LastTrainedAt, workout.StartedAt));
+                    Later(gap?.LastTrainedAt, workout.StartedAt),
+                    seen);
 
                 continue;
             }
@@ -66,17 +81,26 @@ public static class DerivedEquipment
 
         return new EquipmentSuggestions(
             [.. suggestions.Values.OrderByDescending(item => item.LastTrainedAt)],
-            [.. gaps.Values.OrderByDescending(gap => gap.LastTrainedAt)]);
+            [.. gaps.Values.OrderByDescending(gap => gap.TimesTrained).Take(GapsNamed)],
+            gaps.Count);
     }
 
     private static DateTimeOffset Later(DateTimeOffset? current, DateTimeOffset candidate) =>
         current is { } value && value > candidate ? value : candidate;
 }
 
-/// <summary>What the history suggests, and what it could not explain.</summary>
+/// <summary>
+/// What the history suggests, and what it could not explain.
+/// <para>
+/// <see cref="CatalogueGaps"/> is the most-trained few; <see cref="TotalCatalogueGaps"/> is how
+/// many there are. A list that named all of them would be a wall rather than a report, and the
+/// number is what says how big the gap is.
+/// </para>
+/// </summary>
 public sealed record EquipmentSuggestions(
     IReadOnlyList<SuggestedEquipment> Suggestions,
-    IReadOnlyList<CatalogueGap> CatalogueGaps);
+    IReadOnlyList<CatalogueGap> CatalogueGaps,
+    int TotalCatalogueGaps);
 
 /// <summary>
 /// One item the history implies, with the evidence for it. <see cref="Item"/> is a vocabulary
@@ -95,7 +119,11 @@ public sealed record SuggestedEquipment(
 /// guess. It implies no equipment, because we do not know what the exercise requires.
 /// </para>
 /// </summary>
-public sealed record CatalogueGap(string ExternalTemplateId, string? Title, DateTimeOffset LastTrainedAt);
+public sealed record CatalogueGap(
+    string ExternalTemplateId,
+    string? Title,
+    DateTimeOffset LastTrainedAt,
+    int TimesTrained);
 
 /// <summary>
 /// An item the user was offered and refused.

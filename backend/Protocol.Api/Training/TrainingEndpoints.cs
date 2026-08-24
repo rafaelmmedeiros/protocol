@@ -340,6 +340,10 @@ public static class TrainingEndpoints
                     .Include(exercise => exercise.Muscles)
                     .Include(exercise => exercise.Requirements)
                     .AsNoTracking()
+                    // Ordered because an unordered read is a whim of the database, and the
+                    // generator's answer must not be one (ADR-005). The generator's own comparator
+                    // is total as well; this is the cheaper half of the same guarantee.
+                    .OrderBy(exercise => exercise.Id)
                     .ToListAsync(token);
 
                 var owned = await OwnedItemsAsync(db, userId, token);

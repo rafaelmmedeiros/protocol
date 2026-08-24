@@ -247,6 +247,8 @@ export const ptBR: Dictionary = {
       "Treino que não partiu de nenhuma rotina nossa. Ele ainda conta para o volume; só não dá para comparar com uma prescrição.",
     coverage: (bound: number, total: number) => `${bound} de ${total} treinos importados casaram com uma sessão.`,
 
+    exerciseCount: (n: number) => (n === 1 ? "1 exercício" : `${n} exercícios`),
+    moreGaps: (n: number) => `e mais ${n} não exibidos.`,
     suggestionsTitle: "Equipamento que seu treino sugere",
     suggestionsLead: "Itens confirmados ampliam de onde o gerador pode escolher. Nada aqui remove coisa alguma.",
     impliedBy: (title: string) => `Porque você registrou ${title}.`,

@@ -50,8 +50,16 @@ public static class WeekComparisonBuilder
             sessions.Add(Compare(session, match));
         }
 
+        // Scoped to the week being compared. Listing every unbound workout ever imported turned
+        // this into a dump of years of history under a single week -- 757 rows against one week's
+        // three sessions. A comparison of one week answers for that week.
+        var from = week.WeekStartDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var until = from.AddDays(7);
+
         var unbound = current
             .Where(workout => !boundWorkoutIds.Contains(workout.Id))
+            .Where(workout => workout.StartedAt.UtcDateTime >= from
+                && workout.StartedAt.UtcDateTime < until)
             .OrderByDescending(workout => workout.StartedAt)
             .Select(workout => new UnboundWorkout(
                 workout.ExternalWorkoutId,
@@ -66,7 +74,8 @@ public static class WeekComparisonBuilder
             unbound,
             // The evidence ADR-019 named as what would justify revisiting it. Reported rather than
             // assumed: if the binding rate is low in practice, that is a measurement to argue
-            // with, not a hunch.
+            // with, not a hunch. Counted over the whole history on purpose -- the rate is about
+            // the join, not about one week.
             new BindingCoverage(current.Count, boundWorkoutIds.Count));
     }
 
@@ -230,7 +239,10 @@ public sealed record ExtraExercise(
     Guid? ExerciseId,
     IReadOnlyList<PerformedSetView> Sets);
 
-/// <summary>A workout that belongs to no session of this week — ordinary, and first-class (ADR-019).</summary>
+/// <summary>
+/// A workout trained during this week that belongs to none of its sessions — ordinary, and
+/// first-class (ADR-019). <see cref="ExerciseCount"/> counts exercises, not sets.
+/// </summary>
 public sealed record UnboundWorkout(string ExternalWorkoutId, DateTimeOffset StartedAt, int ExerciseCount);
 
 /// <summary>

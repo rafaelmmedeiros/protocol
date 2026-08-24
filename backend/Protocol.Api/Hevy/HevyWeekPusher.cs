@@ -89,6 +89,15 @@ public sealed class HevyWeekPusher(AppDbContext db, IHevyClient hevy, HevyKeyPro
                 ? await hevy.UpdateRoutineAsync(apiKey, existing, routine, token)
                 : await hevy.CreateRoutineAsync(apiKey, routine, token);
 
+            if (written.Outcome == HevyWriteOutcome.NotFound)
+            {
+                // The user deleted it in Hevy. Recreating is safe *here specifically*: the
+                // trained-from check above already passed, so no logged workout points at the
+                // identifier being replaced and there is no join to break. Refusing instead
+                // would tell the user to throw a week away because they tidied their own app.
+                written = await hevy.CreateRoutineAsync(apiKey, routine, token);
+            }
+
             if (!written.Ok)
             {
                 return Failed(written.Outcome);

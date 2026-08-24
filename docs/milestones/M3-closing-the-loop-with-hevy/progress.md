@@ -246,3 +246,38 @@ file carries what a future session would otherwise rediscover.
   - **Diagnosis cost artifacts in a real account.** Two probe routines and one folder were created
     while narrowing this down, plus the folders the failed pushes made. Hevy has no delete
     endpoint (`ADR-017`), so they have to be removed by hand in the app.
+
+### After the ladder — the first real sync
+- **Status:** fixed
+- **Tests:** 194 unit, 114 integration, 36 E2E — all green
+- **Observations:**
+  - **The first real backfill imported 757 workouts, 5,186 exercises and 19,138 sets, and nothing
+    failed to map.** Years of history containing clusters, drop sets, occlusion and rest-pause were
+    covered by the four set types we model — 15,970 working, 2,489 drop, 499 to failure, 180 warm-up,
+    the last three correctly excluded from volume. The decision to refuse an unmodelled type rather
+    than default it was never exercised, which is the good outcome.
+  - **`routine_id` is null in 757 of 757.** The 0% binding rate was previously inferred from four
+    workouts; it is now measured. Expected — none of that history came from our routines — but it
+    is the baseline every future coverage figure is read against.
+  - **73% of logged exercises are outside our catalogue** — 3,798 of 5,186. Our 36 rows cover just
+    over a quarter of what this user actually trains. The gap report is now bounded to the twenty
+    most-trained with a count of the rest, because an unbounded list of 3,798 is a wall rather than
+    a report.
+  - **A claim of mine was wrong and is corrected: `rpe` is not always absent.** 427 of 19,138 sets
+    carry it — 2.2%. I had been saying "null on every set" from a four-workout sample. `TD-017`'s
+    "partially filled" was right and my restatement of it was not; 2% and 0% lead to different `M4`
+    decisions.
+  - **The unbound list was dumping all of history under one week.** Scoped to the week being
+    compared. The binding *rate* stays whole-history on purpose — it is about the join, not about
+    one week.
+  - **The unbound count was exercises labelled "sets", with no plural.** Both fixed.
+  - **Generation was not deterministic, and `ADR-009`'s guard could not fire.** The same profile
+    alternated between two plans — one slot differed, dumbbell against barbell overhead press — so
+    every regeneration differed from the one immediately before it and every click wrote a row:
+    five weeks in fifteen seconds. Fixed by ordering the catalogue read and making the generator's
+    comparator total.
+  - **And a caveat on that fix, because it matters.** The unit test written for it **passes without
+    it**, so it does not reproduce the failure and cannot prove causation. What is verified is
+    behavioural: eight generations under the engineer's exact profile and equipment now write one
+    row. The guard that matches the failure is an integration test that generates repeatedly
+    through the API, where the catalogue comes from a real query — the level the bug lived at.

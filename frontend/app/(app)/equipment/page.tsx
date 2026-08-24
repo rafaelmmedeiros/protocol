@@ -10,7 +10,11 @@ import { EquipmentForm, type Item } from "./equipment-form";
 import { Suggestions, type Gap, type Suggestion } from "./suggestions";
 
 type Equipment = { items: string[]; vocabulary: string[] };
-type SuggestionPayload = { suggestions: Suggestion[]; catalogueGaps: Gap[] };
+type SuggestionPayload = {
+  suggestions: Suggestion[];
+  catalogueGaps: Gap[];
+  totalCatalogueGaps: number;
+};
 type Preferences = { excluded: { exerciseId: string; title: string }[] };
 
 async function read<T>(path: string): Promise<T | null> {
@@ -102,6 +106,12 @@ export default async function EquipmentPage() {
               empty: dict.hevy.noSuggestions,
               gapsTitle: dict.hevy.gapsTitle,
               gapsLead: dict.hevy.gapsLead,
+              moreGaps:
+                suggested.totalCatalogueGaps > suggested.catalogueGaps.length
+                  ? dict.hevy.moreGaps(
+                      suggested.totalCatalogueGaps - suggested.catalogueGaps.length,
+                    )
+                  : null,
               impliedBy: dict.hevy.impliedBy,
               // The vocabulary is translated by the same dictionary the checkbox list uses, so
               // an item never reads one way here and another way there.

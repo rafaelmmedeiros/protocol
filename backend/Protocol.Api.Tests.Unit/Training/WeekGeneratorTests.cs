@@ -223,6 +223,44 @@ public class WeekGeneratorTests
         }
     }
 
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    public void The_same_profile_produces_the_same_week_whatever_order_the_catalogue_arrives_in(int days)
+    {
+        // ADR-005 says generation is deterministic for a given profile. This asserts it against
+        // the input order, which is cheap and worth having.
+        //
+        // **It does not reproduce the failure that prompted it**, and that is worth knowing: in
+        // production the same profile alternated between two plans, so ADR-009's guard -- which
+        // only refuses a week identical to the current one -- never fired, and five weeks were
+        // written in fifteen seconds. Reversing an in-memory catalogue does not provoke it,
+        // because the comparator already separates the two exercises involved. The guard that
+        // matches the failure is the integration test that generates repeatedly through the API,
+        // where the catalogue comes from a real query.
+        var forwards = Generate(days);
+        var backwards = WeekGenerator.Generate(
+            Profile(days),
+            [.. ExerciseCatalogue.All.Reverse()],
+            Reference,
+            ExerciseCatalogue.AssumedGym);
+
+        Assert.Equal(
+            Shape(forwards),
+            Shape(backwards));
+    }
+
+    /// <summary>Everything about a week that a regeneration is expected to reproduce exactly.</summary>
+    private static string Shape(WeekPlan plan) =>
+        string.Join(
+            "|",
+            plan.Sessions.SelectMany(session => session.Slots.Select(slot =>
+                $"{session.Position}:{session.Day}:{slot.Exercise.ExternalTemplateId}"
+                    + $":{slot.Sets}:{slot.Prescription.MinReps}-{slot.Prescription.MaxReps}")));
+
     [Fact]
     public void Every_slot_is_prescribed_at_two_reps_in_reserve()
     {

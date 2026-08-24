@@ -60,7 +60,8 @@ export type ComparisonStrings = {
   unboundTitle: string;
   unboundLead: string;
   coverage: string;
-  sets: string;
+  /** Already interpolated per row: the count is exercises, not sets. */
+  exerciseCount: (n: number) => string;
 };
 
 /** Colour is never the only signal — the pill carries a dot and a word as well. */
@@ -198,7 +199,7 @@ export function ComparisonView({
                   className="tabular font-mono text-xs text-ink-muted"
                 >
                   {new Date(workout.startedAt).toISOString().slice(0, 10)} ·{" "}
-                    {workout.exerciseCount} {strings.sets}
+                  {strings.exerciseCount(workout.exerciseCount)}
                 </li>
               ))}
             </ul>

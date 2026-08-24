@@ -13,6 +13,7 @@ export type Gap = {
   externalTemplateId: string;
   title: string | null;
   lastTrainedAt: string;
+  timesTrained: number;
 };
 
 export type SuggestionStrings = {
@@ -23,6 +24,8 @@ export type SuggestionStrings = {
   empty: string;
   gapsTitle: string;
   gapsLead: string;
+  /** Already interpolated: how many gaps exist beyond the ones named. */
+  moreGaps: string | null;
   /** Already interpolated per item — the dictionary owns the sentence, this owns the layout. */
   impliedBy: (title: string) => string;
   itemLabel: (item: string) => string;
@@ -40,6 +43,7 @@ export function Suggestions({
   strings,
 }: {
   suggestions: Suggestion[];
+  /** The most-trained few, not all of them -- a real account had 3,798. */
   gaps: Gap[];
   strings: SuggestionStrings;
 }) {
@@ -104,14 +108,22 @@ export function Suggestions({
             <p className="mb-3 text-xs text-ink-muted">{strings.gapsLead}</p>
             <ul className="flex flex-col divide-y divide-line">
               {gaps.map((gap) => (
-                <li key={gap.externalTemplateId} className="py-2 first:pt-0 last:pb-0">
+                <li
+                  key={gap.externalTemplateId}
+                  className="flex items-baseline justify-between gap-3 py-2 first:pt-0 last:pb-0"
+                >
                   <span className="text-sm text-ink">{gap.title ?? gap.externalTemplateId}</span>
-                  <span className="tabular ml-2 font-mono text-xs text-ink-muted">
-                    {gap.externalTemplateId}
+                  <span className="tabular font-mono text-xs text-ink-muted">
+                    &times;{gap.timesTrained}
                   </span>
                 </li>
               ))}
             </ul>
+            {strings.moreGaps && (
+              <p className="mt-3 text-xs text-ink-muted" data-testid="catalogue-gaps-more">
+                {strings.moreGaps}
+              </p>
+            )}
           </div>
         </Card>
       )}

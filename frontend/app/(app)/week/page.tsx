@@ -247,7 +247,7 @@ export default async function WeekPage() {
               comparison.coverage.boundWorkouts,
               comparison.coverage.importedWorkouts,
             ),
-            sets: dict.common.sets,
+            exerciseCount: dict.hevy.exerciseCount,
           }}
         />
       )}

@@ -92,3 +92,29 @@ accumulation is meaningful.
   freely. Option A is unchanged in substance: overwrite where nothing can be corrupted, accumulate
   only where the accumulation is meaningful. What changed is that the second half is reached by
   regenerating rather than by a branch inside the push.
+
+- 2026-08-24 — **A routine the user deleted in Hevy is recreated, not refused.** The engineer hit
+  this immediately: they tidied their own app, and the next push answered "generate a new week and
+  send that".
+
+  Refusing was over-cautious, and the reason is specific. This branch is only reached *after* the
+  trained-from check above has already passed — so no logged workout points at the identifier
+  being replaced, and there is no join to break. Telling someone to throw a week away because they
+  deleted a routine costs them the week to protect a link that does not exist.
+
+  `PushedRoutineMissing` survives as a guard rather than as a path: a `NotFound` on the update now
+  falls through to a create, so the code is only reachable if creation itself reports one, which
+  Hevy does not do.
+
+- 2026-08-24 — **The litter this record rejected option B for still exists, by a different door.**
+  Option A reuses the folder when the *same* week is re-pushed, and `ADR-009` makes every
+  regeneration a **new week** — which has no folder, so it creates one. Ten regenerations then
+  leave ten folders, which is exactly what option B was refused for.
+
+  Observed rather than reasoned: five weeks were generated in fifteen seconds during one debugging
+  session, each of which would have created its own folder had the push been working.
+
+  Not decided here. The candidates are carrying the previous week's folder forward when a week is
+  regenerated, or one folder per user with routines replaced in place. Both change what a folder
+  *means* in Hevy, which is this record's subject, so whichever wins is a new record superseding
+  this one rather than a revision of it.
