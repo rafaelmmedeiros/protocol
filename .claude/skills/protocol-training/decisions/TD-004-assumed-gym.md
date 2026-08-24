@@ -1,7 +1,7 @@
 ---
 id: TD-004
 title: M1 programmes for a barbell-and-cable commercial gym, and assumes no selectorised machines
-status: active
+status: superseded-by TD-019
 knowledge: [references/exercise-selection-within-a-movement-pattern.md]
 decided: 2026-08-23
 ---
