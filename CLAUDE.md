@@ -90,6 +90,15 @@ cost a data migration, or a recount of every analysis already produced, if adopt
    imported record is never mutated or deleted; a correction arrives as a new record. Hevy
    exposes `updated_at`, so workouts do change upstream — re-import must reconcile without
    destroying what earlier analysis was computed against.
+
+   **An imported row holds two kinds of thing and this protects one of them** (`ADR-026`). What
+   Hevy observed — their template id, their title, every weight, repetition, set kind and reported
+   effort — is immutable, full stop. What *we derived from it* is not: `ExerciseId` is this
+   system's answer to "which of our exercises is that?", computed against a catalogue that changes,
+   and recomputing an answer is not mutating an observation. The test before writing to any
+   imported row: **could this be recomputed from data already stored, without asking Hevy
+   anything?** `ExerciseId` can. A weight cannot. Anything failing that test is a re-import, not an
+   update.
 8. **External identifiers stay external.** Hevy's `id` and `exercise_template_id` are their
    namespace: store them as explicit external keys beside our own identifier, never as a
    primary key.

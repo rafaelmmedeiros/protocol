@@ -52,6 +52,15 @@ docker compose -f docker-compose.test.yml run --rm --build backend-tests   # fro
 - **The session is a cookie, not a token.** `Auth:Cookie:SameSite` defaults to `Lax`, correct
   while the API and the frontend share a site; splitting them across domains requires `None`,
   which browsers honour only over HTTPS.
+- **Startup work runs from hosted services, in registration order, and the order is load-bearing.**
+  `DatabaseMigrator` → `ExerciseCatalogueSeeder` → `PerformedExerciseRemapper`. There is no table
+  to seed before the migrations run, and nothing new to remap before the new catalogue rows exist.
+  Reordering these registrations breaks things that fail silently rather than loudly — a remap that
+  finds nothing logs that it found nothing and the coverage number simply stays wrong.
+- **A derived column is refreshed by a hosted service, never by a migration.** Both the seeder's
+  requirements backfill and `PerformedExerciseRemapper` (`ADR-026`) exist because the need recurs:
+  every catalogue widening reopens the same gap. A migration would close today's instance and leave
+  the next to be discovered the way this one was — by measuring real data and being surprised.
 - **Migrations run from a hosted service**, never between `builder.Build()` and `app.Run()`.
   Code in that gap also executes under `dotnet ef`, which would make every design-time command
   require a live database. `DatabaseMigrator` exists for exactly this reason.
