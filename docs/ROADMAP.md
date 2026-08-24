@@ -144,16 +144,74 @@ performed — including the repetitions in reserve they reported, converted inbo
 
 **Not in this milestone:**
 
-- Progressing a week into the next one, and prescribing a working load. Both are `M4`, both read
+- Progressing a week into the next one, and prescribing a working load. Both are `M5`, both read
   the same observed data, and neither is possible before this milestone has produced any.
 - Prescribing effort into Hevy as data. A routine set has **no `rpe` field**, and that is Hevy
   modelling it correctly rather than a gap: RPE is feedback, reported after a set, and a plan does
   not carry an observation (`ADR-016`). The conversion runs inbound only, and the prescribed
   reserve reaches the user as displayed text.
 
-### M4 — Programming from what actually happened
+### M4 — A catalogue that recognises the training
 
-**Depends on:** `M3`.
+**Depends on:** `M3`. It is `M3`'s own measurement that makes this the next milestone rather than
+progression.
+
+The first import against a real account read 757 workouts and **5,186 logged exercises, of which
+3,798 — 73% — are movements this catalogue does not model**: 126 distinct ones, dominated by the
+selectorised machines `TD-004` excluded by assumption. Seated leg curl 162 times, hip abduction
+132, leg press 131, leg extension 112.
+
+A generator drawing from 36 rows against a lifter who trains 126 is not programming their week; it
+is programming the quarter of it that it can see. And every one of those movements is volume it
+does not count, so the arithmetic every other record rests on is reading a fraction of the truth.
+
+**Progression waits for this and not the other way round.** Prescribing a load for exercises that
+make up a quarter of someone's training would progress a quarter of their week, and the missing
+three quarters would keep arriving as unexplained history.
+
+**Capabilities:**
+
+- Widen the exercise catalogue from what has actually been logged, ordered by how often each
+  movement is trained
+- Name equipment at the granularity an individual machine needs, so a session can prescribe one
+- Record the convention imported load is expressed in, and count volume the same way on both sides
+  of the loop
+- Report what the catalogue still cannot explain, as the measure of how far it is from the training
+- Erase everything belonging to one user on request, leaving the shared catalogue untouched
+
+**Deliverables:** a generated week draws on the movements the user actually trains, including
+machines; the proportion of logged exercises the catalogue cannot explain is reported and has
+fallen; and every muscle attribution added traces to `TD-005` rather than to a guess.
+
+**Not in this milestone:**
+
+- Progressing anything, or prescribing a load. That is `M5`, and it reads this milestone's output.
+- Deriving a catalogue row automatically from a logged exercise. Muscle attribution is a training
+  judgement (`TD-005`), and `TD-015` already records curation as recurring work rather than a
+  one-off price — the import says *which* movements to add, never *what they train*.
+
+**Two records this milestone has to touch.** `TD-004` assumes a gym with no selectorised machines
+and will not survive contact with a user who trains on them constantly; it is superseded here
+rather than reinterpreted. And `ADR-013` decided an equipment item may name an individual machine —
+a decision that has never been exercised, because until now the catalogue contained no machine to
+name.
+
+**On the erase capability, and why it is written down rather than treated as a utility.** It
+contradicts standard 7, which says training history is append-only and a correction arrives as a
+new record. What makes it acceptable *today* is that almost nothing here is irrecoverable: a week
+is deterministic and regenerable, imported history comes back from Hevy, and equipment and
+preferences are cheap to retype. **That stops being true the moment the system stores a judgement
+Hevy cannot return, which is exactly what `M5` does.** So it is a development affordance with an
+expiry, and the record that admits it must say when it expires.
+
+### M5 — Programming from what actually happened
+
+**Depends on:** `M4`.
+
+**This milestone was `M4` until the catalogue one was inserted ahead of it**, and records written
+before that still call it `M4` — `ADR-016`, `ADR-019` and `M3`'s plan and progress among them.
+Those are append-only and are left saying what they said; this note is what makes them readable.
+Nothing about the milestone changed except its position.
 
 The milestone that makes the product worth its name: the system stops programming from what the
 user *said* and starts programming from what they *did*.
@@ -172,7 +230,7 @@ time — from the same observed data, and neither can be answered about a lifter
 never watched. Prescribing a load before the first sync would be the week-one calibration
 `TD-001` refused, with nothing behind it.
 
-**Why progression waits for `M3` and did not belong in `M2`.** The scheme is already researched —
+**Why progression waits, and did not belong in `M2`.** The scheme is already researched —
 double progression on ACSM's 2-10% rule, with repetition progression where the load increment is
 too coarse, and no load carried across variants (`/protocol-training`,
 `load-increment-granularity-and-progression`). What is missing is not the rule but the input.
