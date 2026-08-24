@@ -14,11 +14,12 @@ public class DerivedEquipmentTests
     /// A gym narrower than the assumed one — a barbell, plates, a rack and a bench, which is the
     /// engineer's own "someone with little doing a lot" example.
     /// <para>
-    /// The suggestions path needs this, and the reason is worth knowing: **every exercise in the
-    /// catalogue is performable in the assumed gym**, because the catalogue was built for it
-    /// (TD-004). So a user on the default set can never receive a suggestion — only a user who
-    /// narrowed their gym can, and the real account's `Iso-Lateral Row (Machine)` arrives as a
-    /// catalogue gap rather than as a suggestion.
+    /// The suggestions path needs this, and the reason has changed since it was written. Under
+    /// TD-004 every catalogue exercise was performable in the assumed gym, so only a user who
+    /// *narrowed* their gym could ever receive a suggestion. TD-019 withdrew that scoping in M4 and
+    /// the catalogue now holds machines the assumed gym does not, so the default user can receive
+    /// suggestions too. A gym narrower than the default is still the sharpest way to test the path,
+    /// which is why it stays.
     /// </para>
     /// </summary>
     private static IReadOnlySet<EquipmentItem> ASmallGym() =>
@@ -65,8 +66,8 @@ public class DerivedEquipmentTests
     [Fact]
     public void An_exercise_the_gym_cannot_perform_produces_a_suggestion()
     {
-        // The acceptance criterion. Note what it takes to reach it: the user must have a gym
-        // narrower than the assumed one, because every catalogue exercise fits the assumed gym.
+        // The acceptance criterion, tested from a gym narrower than the default so the
+        // suggestion is unambiguous rather than incidental to M4's machine rows (TD-019).
         var exercise = SomethingTheSmallGymCannotDo();
 
         var result = DerivedEquipment.From(
@@ -198,5 +199,93 @@ public class DerivedEquipmentTests
         Assert.Equal(
             result.Suggestions.OrderByDescending(s => s.LastTrainedAt).Select(s => s.Item),
             result.Suggestions.Select(s => s.Item));
+    }
+
+    // ---- Coverage as a proportion (S4.5) -----------------------------------------------------
+
+    private static PerformedWorkout ATombstone(string externalId) => new()
+    {
+        Id = Guid.CreateVersion7(),
+        UserId = "user-1",
+        ExternalWorkoutId = externalId,
+        StartedAt = new DateTimeOffset(2026, 8, 20, 15, 0, 0, TimeSpan.Zero),
+        EndedAt = new DateTimeOffset(2026, 8, 20, 16, 0, 0, TimeSpan.Zero),
+        ExternallyUpdatedAt = new DateTimeOffset(2026, 8, 21, 16, 0, 0, TimeSpan.Zero),
+        Version = 2,
+        IsDeleted = true,
+        Exercises = [],
+    };
+
+    [Fact]
+    public void The_report_says_how_much_of_the_training_the_catalogue_explains()
+    {
+        // A list of twenty names reads the same whether it covers 3% of someone's training or 73%.
+        // The counts are what tell those apart, and they count logged entries rather than distinct
+        // movements — one movement trained 162 times weighs 162 here and once in
+        // TotalCatalogueGaps.
+        var known = ExerciseCatalogue.All.First();
+
+        var result = DerivedEquipment.From(
+            [
+                AWorkout(known),
+                AWorkout(known),
+                AWorkout(null, externalTemplateId: "GHOST-1", title: "Something we do not model"),
+            ],
+            Catalogue(),
+            ASmallGym(),
+            new HashSet<EquipmentItem>());
+
+        Assert.Equal(2, result.ExplainedExercises);
+        Assert.Equal(1, result.UnexplainedExercises);
+        Assert.Equal(1, result.TotalCatalogueGaps);
+    }
+
+    [Fact]
+    public void The_proportion_is_computed_from_current_readings_only()
+    {
+        // Root standard 7: nothing is deleted to make this true. A workout the user removed
+        // upstream keeps every row it ever had and simply stops being the reading that counts.
+        // PerformedVolume.Current is what applies that, and the caller applies it — so this test
+        // runs the pair together, because the failure it guards against is a caller that forgot.
+        var known = ExerciseCatalogue.All.First();
+
+        var live = AWorkout(known);
+        var removed = AWorkout(null, externalTemplateId: "GHOST-2", title: "Trained, then deleted");
+
+        var readings = PerformedVolume.Current([live, removed, ATombstone(removed.ExternalWorkoutId)]);
+
+        var result = DerivedEquipment.From(
+            readings,
+            Catalogue(),
+            ASmallGym(),
+            new HashSet<EquipmentItem>());
+
+        Assert.Equal(1, result.ExplainedExercises);
+        Assert.Equal(0, result.UnexplainedExercises);
+        Assert.Empty(result.CatalogueGaps);
+    }
+
+    [Fact]
+    public void A_movement_that_earned_a_row_in_M4_is_no_longer_a_gap()
+    {
+        // The milestone's own criterion, asserted against a real logged movement rather than a
+        // fixture: the seated leg curl was the most-trained gap on the first import (162 times)
+        // and TD-019 is what let it into the catalogue.
+        var legCurl = ExerciseCatalogue.All.Single(exercise => exercise.ExternalTemplateId == "11A123F3");
+
+        var result = DerivedEquipment.From(
+            [AWorkout(legCurl)],
+            Catalogue(),
+            ASmallGym(),
+            new HashSet<EquipmentItem>());
+
+        Assert.Empty(result.CatalogueGaps);
+        Assert.Equal(1, result.ExplainedExercises);
+
+        // And it arrives as a suggestion instead, which is the circle TD-019 broke: before M4 a
+        // logged machine implied nothing, because no machine existed to carry a requirement.
+        Assert.Contains(
+            result.Suggestions,
+            suggestion => suggestion.Item == EquipmentItem.SeatedLegCurlMachine.ToString());
     }
 }

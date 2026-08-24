@@ -280,6 +280,8 @@ export const ptBR: Dictionary = {
     accept: "Tenho isso",
     decline: "Não tenho",
     noSuggestions: "Nada a acrescentar. Sua academia já cobre tudo o que você registrou.",
+    catalogueCoverage: (explained: number, total: number) =>
+      `Reconhecemos ${explained} dos seus ${total} exercícios registrados.`,
     gapsTitle: "Exercícios que não conhecemos",
     gapsLead:
       "Registrados no Hevy e ausentes do nosso catálogo, então não sugerem equipamento e não contam para nenhum músculo.",

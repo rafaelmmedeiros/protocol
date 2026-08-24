@@ -15,6 +15,9 @@ type SuggestionPayload = {
   suggestions: Suggestion[];
   catalogueGaps: Gap[];
   totalCatalogueGaps: number;
+  /** Logged entries, not distinct movements -- the two answer different questions. */
+  explainedExercises: number;
+  unexplainedExercises: number;
 };
 type Preferences = { excluded: { exerciseId: string; title: string }[] };
 
@@ -117,6 +120,13 @@ export default async function EquipmentPage() {
               empty: dict.hevy.noSuggestions,
               gapsTitle: dict.hevy.gapsTitle,
               gapsLead: dict.hevy.gapsLead,
+              coverage:
+                suggested.explainedExercises + suggested.unexplainedExercises > 0
+                  ? dict.hevy.catalogueCoverage(
+                      suggested.explainedExercises,
+                      suggested.explainedExercises + suggested.unexplainedExercises,
+                    )
+                  : null,
               moreGaps:
                 suggested.totalCatalogueGaps > suggested.catalogueGaps.length
                   ? dict.hevy.moreGaps(

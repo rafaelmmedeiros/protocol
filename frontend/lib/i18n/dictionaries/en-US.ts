@@ -293,6 +293,8 @@ export const enUS = {
     gapsTitle: "Exercises we do not know",
     gapsLead:
       "Logged in Hevy and missing from our catalogue, so they imply no equipment and count toward no muscle.",
+    catalogueCoverage: (explained: number, total: number) =>
+      `We recognise ${explained} of your ${total} logged exercises.`,
   },
   common: {
     noDataYet: "No data yet",

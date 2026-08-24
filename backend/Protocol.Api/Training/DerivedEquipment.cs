@@ -25,7 +25,13 @@ public static class DerivedEquipment
     /// <summary>
     /// What the history implies that the user has not already got, minus anything they declined.
     /// </summary>
-    /// <param name="performed">Imported training — current readings only.</param>
+    /// <param name="performed">
+    /// Imported training — **current readings only**. The caller passes
+    /// <see cref="PerformedVolume.Current"/>, so a workout the user deleted upstream, and every
+    /// superseded version of one that changed, is already gone. Nothing here re-checks that, and a
+    /// caller that forgets would inflate both counts and every gap tally with training that was
+    /// counted twice or undone (root standard 7).
+    /// </param>
     /// <param name="catalogue">Our exercises, by identifier.</param>
     /// <param name="owned">The user's effective equipment set today.</param>
     /// <param name="declined">Items already offered and refused. Not offered again (ADR-020).</param>
@@ -38,6 +44,8 @@ public static class DerivedEquipment
         var suggestions = new Dictionary<EquipmentItem, SuggestedEquipment>();
         var gaps = new Dictionary<string, CatalogueGap>();
         var gapCounts = new Dictionary<string, int>();
+        var explained = 0;
+        var unexplained = 0;
 
         foreach (var (workout, exercise) in performed
             .SelectMany(workout => workout.Exercises.Select(exercise => (workout, exercise))))
@@ -47,6 +55,8 @@ public static class DerivedEquipment
                 // A movement we do not model implies no equipment, because there is no
                 // requirement set to read. That is a gap in the catalogue rather than in the gym,
                 // and it is surfaced separately rather than silently ignored (TD-004).
+                unexplained++;
+
                 var gap = gaps.GetValueOrDefault(exercise.ExternalTemplateId);
                 var seen = gapCounts.GetValueOrDefault(exercise.ExternalTemplateId) + 1;
                 gapCounts[exercise.ExternalTemplateId] = seen;
@@ -59,6 +69,8 @@ public static class DerivedEquipment
 
                 continue;
             }
+
+            explained++;
 
             foreach (var requirement in ours.Requirements)
             {
@@ -82,7 +94,9 @@ public static class DerivedEquipment
         return new EquipmentSuggestions(
             [.. suggestions.Values.OrderByDescending(item => item.LastTrainedAt)],
             [.. gaps.Values.OrderByDescending(gap => gap.TimesTrained).Take(GapsNamed)],
-            gaps.Count);
+            gaps.Count,
+            explained,
+            unexplained);
     }
 
     private static DateTimeOffset Later(DateTimeOffset? current, DateTimeOffset candidate) =>
@@ -96,11 +110,24 @@ public static class DerivedEquipment
 /// many there are. A list that named all of them would be a wall rather than a report, and the
 /// number is what says how big the gap is.
 /// </para>
+/// <para>
+/// <see cref="ExplainedExercises"/> and <see cref="UnexplainedExercises"/> answer a question the
+/// list cannot: a list of twenty names reads the same whether it covers 3% of someone's training
+/// or 73%. **They count logged entries, not distinct movements** — one movement trained 162 times
+/// weighs 162 here and once in <see cref="TotalCatalogueGaps"/>, which is the point of having both.
+/// </para>
+/// <para>
+/// Two counts rather than a percentage, because root standard 3 puts every sentence in the
+/// frontend and a proportion is a sentence in numeric clothing: "73%" and "3,798 of 5,186" are the
+/// same fact and only one of them survives being read by someone deciding what to curate next.
+/// </para>
 /// </summary>
 public sealed record EquipmentSuggestions(
     IReadOnlyList<SuggestedEquipment> Suggestions,
     IReadOnlyList<CatalogueGap> CatalogueGaps,
-    int TotalCatalogueGaps);
+    int TotalCatalogueGaps,
+    int ExplainedExercises,
+    int UnexplainedExercises);
 
 /// <summary>
 /// One item the history implies, with the evidence for it. <see cref="Item"/> is a vocabulary

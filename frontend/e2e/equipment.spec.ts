@@ -149,4 +149,16 @@ test("equipment the history implies is suggested, and declining changes nothing"
   // The section is always present, even when it has nothing to offer -- an empty state says what
   // will land here rather than only that nothing has.
   await expect(page.getByTestId("equipment-suggestions")).toBeVisible();
+
+  // S4.5: how much of the training the catalogue explains, not only which movements it missed.
+  // The fake replays the routine this system pushed, so every logged exercise is one of ours --
+  // which makes this the full-coverage case, and the one that proves the card renders on the
+  // coverage line alone rather than only when there is a gap to list.
+  await expect(page.getByTestId("catalogue-coverage")).toBeVisible();
+  await expect(page.getByTestId("catalogue-coverage")).toHaveText(/\d+/);
+
+  // No gap is listed, which is the whole point of asserting here: the card rendered on the
+  // coverage line alone. Before S4.5 it rendered only when there was a gap, so full coverage
+  // looked identical to no imported training at all.
+  await expect(page.getByTestId("catalogue-gap-list")).toHaveCount(0);
 });

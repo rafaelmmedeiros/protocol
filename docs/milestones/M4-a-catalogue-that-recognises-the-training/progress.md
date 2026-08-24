@@ -120,7 +120,33 @@ file carries what a future session would otherwise rediscover.
     pushing loads. M4 fixed what a load *means*; `M5` decides what to ask for.
 
 ### S4.5 — How far the catalogue still is
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 205 backend unit (3 new in `DerivedEquipmentTests`), 118 integration, 36 E2E in Docker,
+  `check-docs` clean
+- **Observations:**
+  - **Two counts rather than a percentage, on purpose.** Root standard 3 puts every sentence in the
+    frontend, and a proportion is a sentence in numeric clothing: "73%" and "3,798 of 5,186" are the
+    same fact, and only the second survives being read by someone deciding what to curate next. The
+    backend returns `ExplainedExercises` and `UnexplainedExercises`; the dictionary owns the
+    sentence in both locales.
+  - **They count logged entries, not distinct movements, and that is why both numbers exist.** One
+    movement trained 162 times weighs 162 in the counts and 1 in `TotalCatalogueGaps`. A list of
+    twenty names reads identically whether it covers 3% of someone's training or 73% — the counts
+    are what separate those, and the list is what says which movements to curate.
+  - **The card's render condition was the real change, and the E2E is what proves it.** It used to
+    render only when a gap existed, so *full coverage* and *nothing imported yet* looked identical
+    on screen — the milestone's success state was invisible. It now renders on the coverage line
+    alone, and `catalogue-gap-list` having zero rows beside a visible coverage line is asserted
+    together for exactly that reason.
+  - **A first E2E assertion was wrong and the feature was right.** `not.toContainText(" 0 ")`
+    failed against "We recognise 120 of your 120 logged exercises" — a brittle substring standing in
+    for a claim it did not make. Replaced with the render-condition assertion above, which is what
+    the step actually changed.
+  - **Two claims in `DerivedEquipmentTests` were falsified by `S4.2` and corrected here
+    (standard 18).** Both said every catalogue exercise is performable in the assumed gym, and
+    concluded that only a user who narrowed their gym can ever receive a suggestion. `TD-019`
+    withdrew that scoping; the narrow gym stays in the tests because it is still the sharpest way to
+    reach the path, which is a different reason from the one written down.
 
 ### S4.6 — Erasing everything of mine
 - **Status:** pending
