@@ -531,6 +531,53 @@ public class WeekGeneratorTests
         return volumes;
     }
 
+    [Fact]
+    public void A_slot_credits_its_primary_whole_and_its_secondaries_half()
+    {
+        // Exact numbers from one slot rather than a recomputation of the same sum, which would
+        // assert nothing. Three sets: 3.0 to the primary, 1.5 to every secondary (TD-006).
+        var exercise = ExerciseCatalogue.All.First(e => e.Muscles.Any(m => m.Role == MuscleRole.Secondary));
+        var primary = exercise.Muscles.Single(m => m.Role == MuscleRole.Primary).MuscleGroup;
+
+        var volumes = PrescribedVolume.ByMuscle([(exercise, 3)]);
+
+        Assert.Equal(3.0m, volumes[primary].Direct);
+        Assert.Equal(0m, volumes[primary].Indirect);
+
+        foreach (var secondary in exercise.Muscles.Where(m => m.Role == MuscleRole.Secondary))
+        {
+            Assert.Equal(0m, volumes[secondary.MuscleGroup].Direct);
+            Assert.Equal(1.5m, volumes[secondary.MuscleGroup].Indirect);
+        }
+    }
+
+    [Fact]
+    public void The_two_halves_accumulate_separately_across_slots()
+    {
+        var exercise = ExerciseCatalogue.All.First(e => e.Muscles.Any(m => m.Role == MuscleRole.Secondary));
+        var primary = exercise.Muscles.Single(m => m.Role == MuscleRole.Primary).MuscleGroup;
+        var secondary = exercise.Muscles.First(m => m.Role == MuscleRole.Secondary).MuscleGroup;
+
+        var volumes = PrescribedVolume.ByMuscle([(exercise, 3), (exercise, 2)]);
+
+        Assert.Equal(5.0m, volumes[primary].Direct);
+        Assert.Equal(2.5m, volumes[secondary].Indirect);
+        Assert.Equal(5.0m, volumes[primary].Total);
+    }
+
+    [Fact]
+    public void A_generated_week_loads_at_least_one_muscle_both_ways()
+    {
+        // The split would be pointless if no muscle ever received both halves -- and a bug that
+        // folded them together would still pass the exact-number tests above.
+        var week = Generate(4);
+
+        var volumes = PrescribedVolume.ByMuscle(
+            week.Sessions.SelectMany(s => s.Slots).Select(slot => (slot.Exercise, slot.Sets)));
+
+        Assert.Contains(volumes.Values, v => v.Direct > 0 && v.Indirect > 0);
+    }
+
     private static int TotalSets(WeekPlan week) =>
         week.Sessions.SelectMany(session => session.Slots).Sum(slot => slot.Sets);
 

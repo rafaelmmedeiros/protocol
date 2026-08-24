@@ -46,6 +46,28 @@ public sealed class GeneratedWeek
     /// never pushed, which is the ordinary state of a week that is still being regenerated.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// The volume band this week was generated under, snapshotted for the same reason
+    /// <see cref="Goal"/> and <see cref="DaysPerWeek"/> are (ADR-003).
+    /// <para>
+    /// <b>Stored rather than derived, and it is the only thing about a week's explanation that
+    /// is.</b> What a slot trains is catalogue data and is recomputed on read (ADR-029); the
+    /// target is not recoverable from the plan at all — a week holding six fractional sets of
+    /// quadriceps is indistinguishable from one that aimed at eight and ran out of minutes.
+    /// Judging an old week against today's constant is exactly what ADR-003 exists to prevent.
+    /// </para>
+    /// <para>
+    /// The window is a cycle, not a calendar week (TD-024). Rows that predate this column carry
+    /// 6.0 and 6.0 — they were generated under TD-014's target and before TD-022 created a
+    /// ceiling, so a ceiling equal to the target is the faithful statement that they were built
+    /// to stop there.
+    /// </para>
+    /// </summary>
+    public required decimal WeeklyTargetFractionalSets { get; init; }
+
+    /// <summary>The upper edge of the same band (TD-022).</summary>
+    public required decimal WeeklyCeilingFractionalSets { get; init; }
+
     public long? HevyRoutineFolderId { get; set; }
 
     public ICollection<GeneratedSession> Sessions { get; init; } = [];

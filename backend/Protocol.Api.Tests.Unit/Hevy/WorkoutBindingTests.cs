@@ -24,6 +24,8 @@ public class WorkoutBindingTests
             Goal = TrainingGoal.Hypertrophy,
             DaysPerWeek = 3,
             SessionDurationSeconds = 5_400,
+            WeeklyTargetFractionalSets = TrainingPrescription.WeeklyTargetFractionalSets,   // TD-014
+            WeeklyCeilingFractionalSets = TrainingPrescription.WeeklyCeilingFractionalSets, // TD-022
             Sessions =
             [
                 new GeneratedSession

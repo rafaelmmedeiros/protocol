@@ -592,6 +592,11 @@ public static class TrainingEndpoints
             Goal = week.Goal,
             DaysPerWeek = week.DaysPerWeek,
             SessionDurationSeconds = week.SessionDurationSeconds,
+            // The band comes from the week being copied, never from the constant: a substitution
+            // produces a new row describing the same plan, and re-reading today's value would
+            // silently re-judge it under rules it was not generated under (ADR-003, ADR-029).
+            WeeklyTargetFractionalSets = week.WeeklyTargetFractionalSets,
+            WeeklyCeilingFractionalSets = week.WeeklyCeilingFractionalSets,
             Sessions =
             [
                 .. week.Sessions.OrderBy(session => session.Position).Select(session => new GeneratedSession
@@ -720,6 +725,8 @@ public static class TrainingEndpoints
             Goal = profile.Goal,
             DaysPerWeek = profile.DaysPerWeek,
             SessionDurationSeconds = profile.SessionDurationSeconds,
+            WeeklyTargetFractionalSets = TrainingPrescription.WeeklyTargetFractionalSets,   // TD-014
+            WeeklyCeilingFractionalSets = TrainingPrescription.WeeklyCeilingFractionalSets, // TD-022
             Sessions =
             [
                 .. plan.Sessions.Select(session => new GeneratedSession
@@ -913,7 +920,22 @@ public sealed record GeneratedWeekResponse(
     int DaysPerWeek,
     int SessionDurationSeconds,
     int EstimatedSeconds,
+
+    /// <summary>
+    /// What every muscle group the catalogue trains directly receives this cycle, direct and
+    /// indirect kept apart (TD-006), against the target this week was generated under (ADR-029).
+    /// </summary>
+    IReadOnlyList<MuscleVolumeResponse> Volume,
+
     IReadOnlyList<MuscleCoverageResponse> Shortfalls,
+
+    /// <summary>
+    /// Muscle groups no catalogue exercise trains directly. A different failure from a shortfall
+    /// and reported apart from one: training more does not close it, so it is not the user's to
+    /// fix (TD-013).
+    /// </summary>
+    IReadOnlyList<string> Uncovered,
+
     IReadOnlyList<GeneratedSessionResponse> Sessions)
 {
     /// <summary>
@@ -924,43 +946,56 @@ public sealed record GeneratedWeekResponse(
     /// on the week that starved it, not on the one before (`ADR-012`, `TD-008`).
     /// </para>
     /// </summary>
-    internal static IReadOnlyList<MuscleCoverageResponse> ShortfallsOf(
+    internal static IReadOnlyList<MuscleVolumeResponse> VolumeOf(
         GeneratedWeek week,
         IReadOnlyDictionary<Guid, Exercise> catalogue)
     {
-        var volumes = new Dictionary<MuscleGroup, decimal>();
+        var volumes = PrescribedVolume.ByMuscle(
+            week.Sessions
+                .SelectMany(session => session.Prescriptions)
+                .Select(prescription => (
+                    Exercise: catalogue.GetValueOrDefault(prescription.ExerciseId),
+                    prescription.Sets))
+                .Where(slot => slot.Exercise is not null)
+                .Select(slot => (slot.Exercise!, slot.Sets)));
 
-        foreach (var prescription in week.Sessions.SelectMany(session => session.Prescriptions))
-        {
-            if (!catalogue.TryGetValue(prescription.ExerciseId, out var exercise)) continue;
-
-            foreach (var muscle in exercise.Muscles)
-            {
-                var credit = muscle.Role == MuscleRole.Primary
-                    ? TrainingPrescription.PrimarySetCredit    // TD-006
-                    : TrainingPrescription.SecondarySetCredit; // TD-006
-
-                volumes[muscle.MuscleGroup] =
-                    volumes.GetValueOrDefault(muscle.MuscleGroup) + (prescription.Sets * credit);
-            }
-        }
-
-        // Every muscle the catalogue can train, so a muscle at zero is reported as zero rather
-        // than by being absent from the list.
+        // Every muscle the catalogue trains directly, so a muscle at zero is reported as zero
+        // rather than by being absent from the list.
         return
         [
             .. catalogue.Values
                 .Select(exercise => exercise.Muscles.Single(m => m.Role == MuscleRole.Primary).MuscleGroup)
                 .Distinct()
-                .Select(muscle => (Muscle: muscle, Sets: volumes.GetValueOrDefault(muscle)))
-                .Where(entry => entry.Sets < TrainingPrescription.WeeklyFloorFractionalSets) // TD-008
-                .OrderBy(entry => entry.Muscle)
-                .Select(entry => new MuscleCoverageResponse(
-                    entry.Muscle.ToString(),
-                    entry.Sets,
-                    TrainingPrescription.WeeklyTargetFractionalSets)),
+                .Order()
+                .Select(muscle => new MuscleVolumeResponse(
+                    muscle.ToString(),
+                    volumes.GetValueOrDefault(muscle).Direct,
+                    volumes.GetValueOrDefault(muscle).Indirect,
+                    // The week's own target, never today's constant: a week generated under a
+                    // superseded number must not be re-judged under the current one (ADR-003,
+                    // ADR-029). The window is a cycle (TD-024).
+                    week.WeeklyTargetFractionalSets)),
         ];
     }
+
+    /// <summary>
+    /// Per-muscle fractional volume, recomputed from the prescriptions actually stored.
+    /// <para>
+    /// Not a column: it is derivable, and a derived column can disagree with its own source. It
+    /// is recomputed rather than inherited so that a substitution which starves a muscle says so
+    /// on the week that starved it, not on the one before (`ADR-012`, `TD-008`).
+    /// </para>
+    /// </summary>
+    internal static IReadOnlyList<MuscleCoverageResponse> ShortfallsOf(
+        IReadOnlyList<MuscleVolumeResponse> volume) =>
+        [
+            .. volume
+                .Where(entry => entry.Direct + entry.Indirect < TrainingPrescription.WeeklyFloorFractionalSets) // TD-008
+                .Select(entry => new MuscleCoverageResponse(
+                    entry.MuscleGroup,
+                    entry.Direct + entry.Indirect,
+                    entry.Target)),
+        ];
 
     /// <summary>
     /// A session's expected duration: its warm-up, plus what each slot costs in sets, rest and
@@ -982,6 +1017,7 @@ public sealed record GeneratedWeekResponse(
         // Read back from what the week contains rather than stored, exactly as a substitution
         // reads it -- and it is what separates a ceiling slot from a cut one below (TD-022).
         var cut = TrainingEndpoints.InferCut(week, titles);
+        var volume = VolumeOf(week, titles);
 
         return new GeneratedWeekResponse(
             week.Id,
@@ -991,7 +1027,9 @@ public sealed record GeneratedWeekResponse(
             week.DaysPerWeek,
             week.SessionDurationSeconds,
             week.Sessions.Sum(EstimatedSecondsFor),
-            ShortfallsOf(week, titles),
+            volume,
+            ShortfallsOf(volume),
+            [.. PrescribedVolume.UncoveredBy(catalogue).Select(muscle => muscle.ToString())],
             [
                 .. week.Sessions
                     .OrderBy(session => session.Position)
@@ -1155,6 +1193,17 @@ public sealed record PreferredVariantRequest(string MovementPattern, Guid Exerci
 /// nothing behind it (TD-015, TD-016).
 /// </summary>
 public sealed record MuscleCoverageResponse(string MuscleGroup, decimal FractionalSets, decimal Target);
+
+/// <summary>
+/// One muscle group's share of a cycle. Direct and indirect are separate because they are
+/// different prescriptions producing the same total (TD-006), and <c>target</c> is the week's own
+/// rather than today's constant (ADR-029).
+/// </summary>
+public sealed record MuscleVolumeResponse(
+    string MuscleGroup,
+    decimal Direct,
+    decimal Indirect,
+    decimal Target);
 
 /// <summary>An exercise a slot could be swapped for.</summary>
 public sealed record CandidateResponse(

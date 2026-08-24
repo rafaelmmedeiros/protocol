@@ -106,7 +106,35 @@ point: git carries what changed, this carries what a future session would otherw
     the eye.
 
 ### S5.5 — Per-muscle volume against the week's own target
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 41 unit in `WeekGeneratorTests` (3 new), 17 integration in `GeneratedWeekEndpointsTests` (3 new)
+- **Observations:**
+  - **EF generated the migration with `defaultValue: 0m` and that would have been the backfill.**
+    Eight existing weeks would have reported every muscle as infinitely over a target of zero.
+    The scaffolded default is not a neutral placeholder — on an `AddColumn` against a non-empty
+    table it *is* the historical value, forever, because standard 10 makes migrations
+    forward-only. Edited to `6.0m` before it was applied anywhere, with the reasoning in the
+    migration rather than in a script beside it.
+  - **`required` on the two new columns caught a construction site the compiler would otherwise
+    have defaulted silently.** `WorkoutBindingTests` builds a `GeneratedWeek` by hand; with an
+    initialiser it would have inherited today's constant without anyone deciding. Matching how
+    `Goal` and `DaysPerWeek` are declared was worth more than the convenience.
+  - **The substitution path had to copy the band, not re-read it.** `Substitute` builds a new row
+    describing the same plan, so taking today's constant there would silently re-judge a week
+    under rules it was never generated under — the same failure `ADR-003` exists to prevent, one
+    level up and easy to miss because the code reads naturally either way.
+  - **`Uncovered` is exactly one muscle group today: `Adductors`**, the only one of sixteen that
+    no row of the 63-exercise catalogue trains directly. Measured rather than assumed, and the
+    integration test carries an `Assert.NotEmpty` guard because every other assertion in it is an
+    `Assert.All` that would pass vacuously against an empty list. If that guard ever fails the
+    catalogue grew an adductor exercise, and the assertion should be re-decided rather than
+    deleted.
+  - **The response's `uncovered` is computed over the whole catalogue, while `WeekPlan`'s is
+    computed over what the user can actually perform.** They are different questions — "nothing
+    models this" against "nothing you own trains this" — and the plan's acceptance criterion asks
+    for the first. The second needs the user's equipment at read time and would also raise which
+    equipment applies: today's, or what they owned when the week was generated. Left as written
+    and recorded here because the two lists will not always agree.
 
 ### S5.6 — The week screen explains itself
 - **Status:** pending

@@ -177,6 +177,85 @@ public class GeneratedWeekEndpointsTests(ApiFactory factory) : IClassFixture<Api
     }
 
     [Fact]
+    public async Task Volume_is_reported_per_muscle_against_the_weeks_own_target()
+    {
+        var client = await SignedInClientAsync();
+        await SetProfileAsync(client, 4);
+
+        var week = await GenerateAsync(client);
+
+        Assert.NotEmpty(week.Volume);
+        Assert.All(week.Volume, entry =>
+        {
+            Assert.True(Enum.TryParse<MuscleGroup>(entry.MuscleGroup, out _), entry.MuscleGroup);
+            Assert.Equal(TrainingPrescription.WeeklyTargetFractionalSets, entry.Target);
+            Assert.True(entry.Direct >= 0 && entry.Indirect >= 0);
+        });
+
+        // A shortfall is a view onto the same measurement, never a second one.
+        Assert.All(week.Shortfalls, shortfall =>
+        {
+            var entry = week.Volume.Single(v => v.MuscleGroup == shortfall.MuscleGroup);
+            Assert.Equal(entry.Direct + entry.Indirect, shortfall.FractionalSets);
+            Assert.True(shortfall.FractionalSets < TrainingPrescription.WeeklyFloorFractionalSets);
+        });
+    }
+
+    [Fact]
+    public async Task A_stored_week_keeps_its_own_target_when_the_constant_moves()
+    {
+        var client = await SignedInClientAsync();
+        await SetProfileAsync(client, 4);
+        var generated = await GenerateAsync(client);
+
+        // The constant cannot move inside a test, so the stored value is moved instead -- which
+        // is the same thing from the response's point of view and is the only way to prove the
+        // comparison reads the week rather than TrainingPrescription. Written directly to the
+        // context because no endpoint exposes this column, the standing exception backend
+        // CLAUDE.md describes for a claim that is about storage.
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var stored = await db.GeneratedWeeks.SingleAsync(week => week.Id == generated.Id);
+            db.Entry(stored).Property(week => week.WeeklyTargetFractionalSets).CurrentValue = 8.0m;
+            await db.SaveChangesAsync();
+        }
+
+        var response = await client.GetAsync("/training/weeks/current");
+        var reread = (await response.Content.ReadFromJsonAsync<GeneratedWeekResponse>())!;
+
+        Assert.NotEmpty(reread.Volume);
+        Assert.All(reread.Volume, entry => Assert.Equal(8.0m, entry.Target));
+        Assert.All(reread.Shortfalls, shortfall => Assert.Equal(8.0m, shortfall.Target));
+    }
+
+    [Fact]
+    public async Task A_muscle_no_exercise_trains_directly_is_uncovered_rather_than_short()
+    {
+        var client = await SignedInClientAsync();
+        await SetProfileAsync(client, 4);
+
+        var week = await GenerateAsync(client);
+
+        // Guards the assertions below against passing vacuously. Today this is exactly one
+        // muscle, Adductors -- the only group no row of the 63-exercise catalogue trains
+        // directly. **If this line ever fails, the catalogue grew an adductor exercise and the
+        // right response is to re-decide this assertion, not to delete it**: an empty list would
+        // make every Assert.All below true of nothing.
+        Assert.NotEmpty(week.Uncovered);
+
+        // The two lists are disjoint by construction: uncovered is about the catalogue, a
+        // shortfall is about this week's time budget, and only the second is the user's to fix
+        // (TD-013).
+        Assert.All(week.Uncovered, muscle =>
+        {
+            Assert.True(Enum.TryParse<MuscleGroup>(muscle, out _), muscle);
+            Assert.DoesNotContain(week.Volume, entry => entry.MuscleGroup == muscle);
+            Assert.DoesNotContain(week.Shortfalls, entry => entry.MuscleGroup == muscle);
+        });
+    }
+
+    [Fact]
     public async Task The_current_week_is_the_one_most_recently_generated()
     {
         var client = await SignedInClientAsync();
