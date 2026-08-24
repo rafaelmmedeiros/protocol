@@ -52,7 +52,35 @@ point: git carries what changed, this carries what a future session would otherw
     because blocking it is a decision that should be taken against an observed case.
 
 ### S5.3 — Research: what happens to volume a missed session did not deliver
-- **Status:** pending
+- **Status:** completed
+- **Tests:** no tests — this step produced records
+- **Observations:**
+  - **The step's own premise was wrong and the plan carried the error.** It asks what happens to
+    volume a missed session "did not deliver", which presumes volume was lost. Under `ADR-027`
+    nothing is lost: the untrained session is carried forward and its volume arrives late. The
+    real question was never repay-or-report — it was noticing there is nothing to repay, and that
+    the deficient quantity is the **rate**, which `TD-024` had already made reportable the step
+    before.
+  - **The queue's effect on the engineer's own case is a change of kind, not of degree.** With a
+    week regenerated every Monday, a user completing three of four sessions starves whichever
+    session sits fourth — permanently, invisibly, and concentrated on those muscles. A queue
+    rotates it (`S1 S2 S3` / `S4 S1 S2` / `S3 S4 S1`), so every muscle reaches the full cycle dose
+    at three quarters of the declared pace. A systematic per-muscle deficit becomes a uniform rate
+    deficit.
+  - **A gap in the plan surfaced and is not filled here: skipping is undefined.** `S5.9`'s actions
+    describe a session completing by binding or by an explicit mark, and neither is skipping.
+    `S5.10`'s acceptance criterion assumes a session that "never completes" over four cycles —
+    which a strict queue cannot produce, because it would simply stall there and nothing else
+    would ever be trained. Either the queue can be advanced past a session or that criterion is
+    unreachable, and `TD-025` is explicit that its central claim only holds while sessions are
+    completed in order. **Reported rather than decided**: it changes what `S5.9` builds, and the
+    skill says a wrong plan is revised through `/protocol-milestone`, not patched mid-build.
+  - **The evidence pointed the right way for the wrong reason and the record says so.** Enes 2024
+    and Barsuhn 2024 both argue against adding sets, but both started above 20 weekly sets and we
+    prescribe 6.0 — the corpus itself calls that "a null in a region we never enter". What
+    actually decides it is that a repayment is a catch-up above target for someone who has just
+    demonstrated less capacity than they declared, which is `cold-start-first-block`'s
+    over-prescription failure exactly.
 
 ### S5.4 — What a prescribed slot says
 - **Status:** pending
