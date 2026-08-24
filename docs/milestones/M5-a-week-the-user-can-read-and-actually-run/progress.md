@@ -27,7 +27,29 @@ point: git carries what changed, this carries what a future session would otherw
     corpus cannot price it — every trial equates volume and reports frequency per week.
 
 ### S5.2 — Research: the dose window when the plan is a queue
-- **Status:** pending
+- **Status:** completed
+- **Tests:** no tests — this step produced records
+- **Observations:**
+  - **The question was decided by `ADR-005`, not by the literature.** Both alternatives — a
+    rolling seven-day window and a Monday-anchored dose window — require the generator to know how
+    fast the user will train or which sessions land in which calendar week. Both are future
+    behaviour, and a generator that reads them stops being a pure function of profile and
+    catalogue. The corpus could not have settled this: it says plainly that **volume as prescribed
+    is not volume as performed** and that no trial models a user who does not complete it.
+  - **`TD-023` had already answered it and nobody noticed, including the plan.** A cycle holds
+    exactly as many sessions as the declared frequency in every row of that table, so a cycle *is*
+    the declared week and no number had to move — only what the numbers attach to. The plan framed
+    this as choosing between three windows; the real work was seeing that one of them was already
+    there.
+  - **That property is load-bearing and unenforced.** If a future template ever holds a session
+    count different from its frequency, `TD-024`'s central claim quietly stops being true and
+    nothing fails. `S5.8` carries the test.
+  - **The compressed case is the sharp one and it was nearly missed.** The stretched cycle —
+    eleven days, ~3.8 sets a week — is the obvious worry and it is merely slower progress. The
+    mirror is worse: a two-session template consumed three times in a calendar week reaches 18
+    fractional sets, above the ~12 where the meta-analyses stop agreeing, and it means `TD-022`'s
+    "8.0, exceeded nowhere" no longer bounds a calendar week. Reported rather than blocked,
+    because blocking it is a decision that should be taken against an observed case.
 
 ### S5.3 — Research: what happens to volume a missed session did not deliver
 - **Status:** pending
