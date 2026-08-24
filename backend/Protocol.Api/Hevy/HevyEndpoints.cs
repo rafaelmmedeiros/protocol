@@ -126,6 +126,9 @@ public static class HevyEndpoints
                         Results.BadRequest(new ApiError(HevyErrorCodes.ExerciseNotMappable)),
                     PushOutcome.RoutineMissing =>
                         Results.Conflict(new ApiError(HevyErrorCodes.PushedRoutineMissing)),
+                    PushOutcome.Unreadable => Results.Json(
+                        new ApiError(HevyErrorCodes.HevyUnreadable),
+                        statusCode: StatusCodes.Status502BadGateway),
                     PushOutcome.RateLimited => Results.Json(
                         new ApiError(HevyErrorCodes.HevyRateLimited),
                         statusCode: StatusCodes.Status503ServiceUnavailable),

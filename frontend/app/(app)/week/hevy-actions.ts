@@ -36,6 +36,9 @@ async function sentenceFor(code: string | undefined): Promise<string> {
       return dict.hevy.unreachable;
     case "HevyRateLimited":
       return dict.hevy.rateLimited;
+    case "HevyUnreadable":
+      // Kept apart from "unreachable" on purpose: retrying cannot fix a shape we read wrong.
+      return dict.hevy.unreadable;
     case "WeekAlreadyTrainedFrom":
       return dict.hevy.alreadyTrainedFrom;
     case "PushedRoutineMissing":

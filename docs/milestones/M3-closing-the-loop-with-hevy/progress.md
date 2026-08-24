@@ -224,3 +224,25 @@ file carries what a future session would otherwise rediscover.
   - **The development database is untouched, counted rather than assumed.** Eight accounts, none
     matching `e2e-%` and none matching the `restart-%` prefix the trap check used — the same eight
     `M1` and `M2` closed with.
+
+### After the ladder — the first real push
+- **Status:** fixed
+- **Tests:** 4 unit (`HevyResponseShapeTests`), one forward-only repair migration
+- **Observations:**
+  - **The first push against the real Hevy failed, and the whole suite was green.** The folder was
+    created (201) and the routine refused (400). The cause: their write responses are **enveloped**
+    and their OpenAPI document declares bare objects — `{"routine_folder": {...}}` and
+    `{"routine": [ ... ]}`, the second an array. The folder identifier deserialised to **zero**,
+    was stored happily, and every routine went to a folder that does not exist.
+  - **Nothing in the suite could have caught it**, and that is the useful part. The stub and the
+    fake both return well-formed values of *our* shape, so they agreed with the bug.
+    `HevyResponseShapeTests` now deserialises bodies captured from the live service, including a
+    test asserting that the documented shape loses both identifiers — the lesson kept as an
+    assertion rather than as a comment.
+  - **A success we cannot read is now its own outcome.** `Unreadable`, separate from
+    `Unreachable`, because telling the user to try again is a lie when the fault is our reading of
+    their shape. And a refusal's body is logged rather than discarded — the 400 carried its reason
+    the whole time.
+  - **Diagnosis cost artifacts in a real account.** Two probe routines and one folder were created
+    while narrowing this down, plus the folders the failed pushes made. Hevy has no delete
+    endpoint (`ADR-017`), so they have to be removed by hand in the app.

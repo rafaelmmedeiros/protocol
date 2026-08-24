@@ -73,6 +73,26 @@ public sealed record HevyRepRange(
 // Inbound: what we read
 // ---------------------------------------------------------------------------------------------
 
+/// <summary>
+/// What <c>POST /v1/routine_folders</c> actually answers.
+/// <para>
+/// **Their OpenAPI document declares the bare object and the service returns an envelope.** The
+/// difference cost a silent bug: deserialising the declared shape produced a folder with
+/// <c>id = 0</c>, which was stored happily and then rejected by every routine sent into it. The
+/// contract was read rather than assumed, which was right — and the contract was wrong, which
+/// only a live call could show.
+/// </para>
+/// </summary>
+public sealed record HevyFolderEnvelope(
+    [property: JsonPropertyName("routine_folder")] HevyRoutineFolder? RoutineFolder);
+
+/// <summary>
+/// What <c>POST /v1/routines</c> and <c>PUT /v1/routines/{id}</c> actually answer: an envelope
+/// holding an **array**, where the document declares a bare object.
+/// </summary>
+public sealed record HevyRoutineEnvelope(
+    [property: JsonPropertyName("routine")] IReadOnlyList<HevyRoutine>? Routine);
+
 /// <summary>A routine as Hevy returns it, after creating or updating one.</summary>
 public sealed record HevyRoutine(
     [property: JsonPropertyName("id")] string Id,

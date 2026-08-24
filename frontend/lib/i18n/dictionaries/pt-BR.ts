@@ -214,6 +214,7 @@ export const ptBR: Dictionary = {
     keyInvalid: "O Hevy não aceitou essa chave.",
     notConnectedError: "Conecte sua conta do Hevy primeiro.",
     unreachable: "Não foi possível falar com o Hevy. Nada foi salvo -- tente de novo.",
+    unreadable: "O Hevy respondeu num formato que este app não esperava. Nada foi salvo, e tentar de novo não resolve -- esse é nosso para consertar.",
     rateLimited: "O Hevy está recusando requisições agora. O que chegou foi mantido; tente de novo em instantes.",
 
     push: "Enviar para o Hevy",

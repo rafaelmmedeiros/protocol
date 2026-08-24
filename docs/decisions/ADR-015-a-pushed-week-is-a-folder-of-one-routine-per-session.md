@@ -49,3 +49,28 @@ folder is what keeps repeated pushes legible in a surface we cannot clean up.
 the same vocabulary the app shows. Titles are display only on the way back (standard 9): nothing
 in the import ever reads them, and `ADR-019` matches on identifiers alone. A routine's title is
 useful to a human scrolling Hevy and to nobody else.
+
+**Revisions.**
+
+- 2026-08-24 — **Their write responses are enveloped and their OpenAPI document says they are
+  not.** `POST /v1/routine_folders` answers `{"routine_folder": { ... }}` and `POST /v1/routines`
+  answers `{"routine": [ ... ]}` — an envelope holding an **array** — where the document declares
+  a bare object for both.
+
+  Deserialising the declared shape produced a folder identifier of **zero**, which was stored
+  without complaint. Every routine was then sent to folder 0, which does not exist, and Hevy
+  refused each one with a 400 whose body we were discarding. The user saw "Hevy could not be
+  reached" for a service that had answered twice.
+
+  Three things changed, and the second is the one that mattered most. The envelopes are now
+  modelled from bodies the live service actually returned, pinned by `HevyResponseShapeTests`. A
+  successful response whose body does not carry what we asked for is its own outcome,
+  `Unreadable`, rather than being reported as unreachable — a "try again" is a lie when the fault
+  is our reading of their shape. And a refusal's body is logged instead of thrown away.
+
+  The stored zeros are corrected by a forward-only migration, and the push treats a non-positive
+  folder identifier as absent so those weeks recover by creating a real one.
+
+  **The lesson is not "read the contract" — that was done.** It is that a published contract is
+  evidence and not proof, and one live call is what separates the two. The same instinct that ran
+  the `routine_id` experiment should have run a write once before shipping the writer.

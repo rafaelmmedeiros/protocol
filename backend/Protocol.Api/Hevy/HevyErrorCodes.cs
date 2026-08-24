@@ -21,6 +21,13 @@ public static class HevyErrorCodes
     /// </summary>
     public const string HevyRateLimited = "HevyRateLimited";
 
+    /// <summary>
+    /// Hevy answered successfully and the body did not carry what we asked for, which means our
+    /// reading of their shape is wrong. Never folded into <see cref="HevyUnreachable"/>: telling
+    /// the user to try again would be a lie, because retrying cannot fix our own bug.
+    /// </summary>
+    public const string HevyUnreadable = "HevyUnreadable";
+
     /// <summary>A prescribed exercise has no external key and cannot be named to Hevy (ADR-016).</summary>
     public const string ExerciseNotMappable = "ExerciseNotMappable";
 

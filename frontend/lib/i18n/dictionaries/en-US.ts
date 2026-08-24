@@ -224,6 +224,7 @@ export const enUS = {
     keyInvalid: "Hevy did not accept that key.",
     notConnectedError: "Connect your Hevy account first.",
     unreachable: "Hevy could not be reached. Nothing was saved -- try again.",
+    unreadable: "Hevy answered in a shape this app did not expect. Nothing was saved, and retrying will not help -- this one is ours to fix.",
     rateLimited: "Hevy is refusing requests for now. What arrived was kept; try again shortly.",
 
     push: "Send to Hevy",

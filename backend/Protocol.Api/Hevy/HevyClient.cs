@@ -65,24 +65,24 @@ public sealed class HevyClient(HttpClient http, ILogger<HevyClient> logger, IHev
         string apiKey,
         string title,
         CancellationToken token) =>
-        await WriteAsync<HevyRoutineFolder, long>(
+        await WriteAsync<HevyFolderEnvelope, long>(
             apiKey,
             HttpMethod.Post,
             "routine_folders",
             new HevyFolderRequest(new HevyFolderPayload(title)),
-            folder => folder.Id,
+            envelope => envelope.RoutineFolder?.Id ?? 0,
             token);
 
     public async Task<HevyWrite<string>> CreateRoutineAsync(
         string apiKey,
         HevyRoutinePayload routine,
         CancellationToken token) =>
-        await WriteAsync<HevyRoutine, string>(
+        await WriteAsync<HevyRoutineEnvelope, string>(
             apiKey,
             HttpMethod.Post,
             "routines",
             new HevyRoutineRequest(routine),
-            created => created.Id,
+            envelope => envelope.Routine?.FirstOrDefault()?.Id,
             token);
 
     public async Task<HevyWrite<string>> UpdateRoutineAsync(
@@ -90,12 +90,14 @@ public sealed class HevyClient(HttpClient http, ILogger<HevyClient> logger, IHev
         string routineId,
         HevyRoutinePayload routine,
         CancellationToken token) =>
-        await WriteAsync<HevyRoutine, string>(
+        await WriteAsync<HevyRoutineEnvelope, string>(
             apiKey,
             HttpMethod.Put,
             $"routines/{Uri.EscapeDataString(routineId)}",
             new HevyRoutineRequest(routine),
-            updated => updated.Id,
+            // The identifier we asked for, when the answer does not repeat it. A PUT names its
+            // target in the path, so losing it here would be losing the join for no reason.
+            envelope => envelope.Routine?.FirstOrDefault()?.Id ?? routineId,
             token);
 
     public async Task<HevyWrite<HevyWorkoutEventPage>> ListWorkoutEventsAsync(
@@ -151,7 +153,7 @@ public sealed class HevyClient(HttpClient http, ILogger<HevyClient> logger, IHev
         HttpMethod method,
         string path,
         object body,
-        Func<TResponse, TValue> select,
+        Func<TResponse, TValue?> select,
         CancellationToken token)
     {
         var response = await SendWithBackoffAsync(
@@ -176,11 +178,33 @@ public sealed class HevyClient(HttpClient http, ILogger<HevyClient> logger, IHev
             if (response.IsSuccessStatusCode)
             {
                 var payload = await response.Content.ReadFromJsonAsync<TResponse>(token);
+                var value = payload is null ? default : select(payload);
 
-                return payload is null
-                    ? new HevyWrite<TValue>(HevyWriteOutcome.Unreachable)
-                    : new HevyWrite<TValue>(HevyWriteOutcome.Ok, select(payload));
+                // A success whose body we could not read is not a success. Treating it as one is
+                // how a folder identifier of zero got stored and then rejected by every routine
+                // sent into it -- the shape was wrong and nothing said so.
+                if (payload is null || value is null || value.Equals(default(TValue)))
+                {
+                    logger.LogWarning(
+                        "Hevy answered {Status} to {Path} with a body we could not read",
+                        (int)response.StatusCode,
+                        path);
+
+                    return new HevyWrite<TValue>(HevyWriteOutcome.Unreadable);
+                }
+
+                return new HevyWrite<TValue>(HevyWriteOutcome.Ok, value);
             }
+
+            // The reason, logged rather than discarded. Hevy answers a 400 with an `error`
+            // string, and throwing it away turns a fixable mistake into a mystery.
+            var reason = await response.Content.ReadAsStringAsync(token);
+
+            logger.LogWarning(
+                "Hevy refused {Path} with {Status}: {Reason}",
+                path,
+                (int)response.StatusCode,
+                reason.Length > 500 ? reason[..500] : reason);
 
             return new HevyWrite<TValue>(response.StatusCode switch
             {

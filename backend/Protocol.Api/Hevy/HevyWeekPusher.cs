@@ -49,7 +49,10 @@ public sealed class HevyWeekPusher(AppDbContext db, IHevyClient hevy, HevyKeyPro
 
         var apiKey = protector.Unprotect(connection.ProtectedApiKey);
 
-        if (week.HevyRoutineFolderId is null)
+        // Not `is null`: rows written before the response envelope was understood carry a stored
+        // zero, which is not a folder Hevy has. Treating it as absent lets those weeks recover by
+        // creating a real folder rather than failing forever against one that never existed.
+        if (week.HevyRoutineFolderId is null or <= 0)
         {
             var folder = await hevy.CreateFolderAsync(apiKey, FolderTitle(week), token);
 
@@ -147,6 +150,7 @@ public sealed class HevyWeekPusher(AppDbContext db, IHevyClient hevy, HevyKeyPro
     {
         HevyWriteOutcome.NotFound => PushOutcome.RoutineMissing,
         HevyWriteOutcome.RateLimited => PushOutcome.RateLimited,
+        HevyWriteOutcome.Unreadable => PushOutcome.Unreadable,
         _ => PushOutcome.Unreachable,
     });
 }
@@ -188,4 +192,11 @@ public enum PushOutcome
 
     /// <summary>Hevy did not answer.</summary>
     Unreachable,
+
+    /// <summary>
+    /// Hevy answered and the body did not carry what we needed — our reading of their shape is
+    /// wrong. Kept apart from <see cref="Unreachable"/> because it is a bug of ours, and a
+    /// "try again" would be a lie.
+    /// </summary>
+    Unreadable,
 }

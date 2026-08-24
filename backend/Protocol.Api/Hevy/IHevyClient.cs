@@ -98,4 +98,14 @@ public enum HevyWriteOutcome
 
     /// <summary>Hevy did not answer, or answered with something we cannot act on.</summary>
     Unreachable,
+
+    /// <summary>
+    /// Hevy answered successfully and the body did not carry what we needed.
+    /// <para>
+    /// Its own outcome rather than folded into <see cref="Unreachable"/>, because it means our
+    /// reading of their shape is wrong — which is a bug of ours, not an outage of theirs, and the
+    /// two want different reactions.
+    /// </para>
+    /// </summary>
+    Unreadable,
 }
