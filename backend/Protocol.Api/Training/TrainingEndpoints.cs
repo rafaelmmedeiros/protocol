@@ -624,7 +624,7 @@ public static class TrainingEndpoints
     /// contains. A substitution has to land on the same rung, or one slot would rest three
     /// minutes in a week where every other slot rests ninety seconds.
     /// </summary>
-    private static CutLevel InferCut(GeneratedWeek week, IReadOnlyDictionary<Guid, Exercise> catalogue)
+    internal static CutLevel InferCut(GeneratedWeek week, IReadOnlyDictionary<Guid, Exercise> catalogue)
     {
         var slots = week.Sessions.SelectMany(session => session.Prescriptions).ToList();
         if (slots.Count == 0) return CutLevel.None;
@@ -979,6 +979,10 @@ public sealed record GeneratedWeekResponse(
     {
         var titles = catalogue.ToDictionary(exercise => exercise.Id);
 
+        // Read back from what the week contains rather than stored, exactly as a substitution
+        // reads it -- and it is what separates a ceiling slot from a cut one below (TD-022).
+        var cut = TrainingEndpoints.InferCut(week, titles);
+
         return new GeneratedWeekResponse(
             week.Id,
             week.WeekStartDate,
@@ -1001,7 +1005,8 @@ public sealed record GeneratedWeekResponse(
                                 .OrderBy(prescription => prescription.Position)
                                 .Select(prescription => GeneratedPrescriptionResponse.From(
                                     prescription,
-                                    titles.GetValueOrDefault(prescription.ExerciseId))),
+                                    titles.GetValueOrDefault(prescription.ExerciseId),
+                                    cut)),
                         ])),
             ]);
     }
@@ -1043,9 +1048,36 @@ public sealed record GeneratedPrescriptionResponse(
     int MinReps,
     int MaxReps,
     int RepsInReserve,
-    int RestSeconds)
+    int RestSeconds,
+
+    /// <summary>
+    /// What the slot exists to train, and what it loads on the way. Every entry is an enum name;
+    /// the frontend owns the words (root standard 3, root standard 2). This is the answer to
+    /// "why is this exercise here" -- the generator's own reason is that this muscle was furthest
+    /// from its target and this exercise trains it (ADR-029).
+    /// </summary>
+    IReadOnlyList<ExerciseMuscleResponse> Muscles,
+
+    /// <summary>
+    /// The class that decided the repetition range and the rest interval (TD-009, TD-011). A
+    /// substitution takes the replacement's class, not this one, which is why a swap changes both
+    /// numbers (ADR-012).
+    /// </summary>
+    string OrderClass,
+    string MovementPattern,
+    string Equipment,
+
+    /// <summary>
+    /// Whether the slot was drawn for the guaranteed target or bought above it (TD-022). Not
+    /// derivable from <c>sets</c> alone: a fully cut week carries two sets everywhere for the
+    /// opposite reason.
+    /// </summary>
+    string SlotKind)
 {
-    public static GeneratedPrescriptionResponse From(GeneratedPrescription prescription, Exercise? exercise) =>
+    public static GeneratedPrescriptionResponse From(
+        GeneratedPrescription prescription,
+        Exercise? exercise,
+        CutLevel cut) =>
         new(
             prescription.Id,
             prescription.Position,
@@ -1056,8 +1088,23 @@ public sealed record GeneratedPrescriptionResponse(
             prescription.MinReps,
             prescription.MaxReps,
             prescription.RepsInReserve,
-            prescription.RestSeconds);
+            prescription.RestSeconds,
+            [
+                .. (exercise?.Muscles ?? [])
+                    .OrderBy(muscle => muscle.Role)
+                    .ThenBy(muscle => muscle.MuscleGroup)
+                    .Select(muscle => new ExerciseMuscleResponse(
+                        muscle.MuscleGroup.ToString(),
+                        muscle.Role.ToString())),
+            ],
+            exercise?.OrderClass.ToString() ?? string.Empty,
+            exercise?.MovementPattern.ToString() ?? string.Empty,
+            exercise?.Equipment.ToString() ?? string.Empty,
+            TrainingPrescription.KindOf(prescription.Sets, cut).ToString()); // TD-022
 }
+
+/// <summary>One muscle a slot loads, and how. Enum names only (root standard 3).</summary>
+public sealed record ExerciseMuscleResponse(string MuscleGroup, string Role);
 
 /// <summary>
 /// What the user has, and everything they could say they have. The vocabulary travels with the

@@ -110,6 +110,73 @@ public class GeneratedWeekEndpointsTests(ApiFactory factory) : IClassFixture<Api
     }
 
     [Fact]
+    public async Task Every_prescription_says_what_it_trains_and_which_class_decided_its_numbers()
+    {
+        var client = await SignedInClientAsync();
+        await SetProfileAsync(client, 4);
+
+        var week = await GenerateAsync(client);
+        var prescriptions = week.Sessions.SelectMany(session => session.Prescriptions).ToList();
+
+        Assert.NotEmpty(prescriptions);
+        Assert.All(prescriptions, prescription =>
+        {
+            // Exactly one primary is the catalogue's own invariant (TD-005); the screen's
+            // "why is this here" answer is that muscle.
+            Assert.Single(prescription.Muscles, muscle => muscle.Role == nameof(MuscleRole.Primary));
+
+            Assert.All(prescription.Muscles, muscle =>
+            {
+                Assert.True(Enum.TryParse<MuscleGroup>(muscle.MuscleGroup, out _), muscle.MuscleGroup);
+                Assert.True(Enum.TryParse<MuscleRole>(muscle.Role, out _), muscle.Role);
+            });
+
+            // Enum names, never sentences (root standard 3) -- parsing is the assertion.
+            Assert.True(Enum.TryParse<OrderClass>(prescription.OrderClass, out _), prescription.OrderClass);
+            Assert.True(Enum.TryParse<MovementPattern>(prescription.MovementPattern, out _), prescription.MovementPattern);
+            Assert.True(Enum.TryParse<Equipment>(prescription.Equipment, out _), prescription.Equipment);
+            Assert.True(Enum.TryParse<SlotKind>(prescription.SlotKind, out _), prescription.SlotKind);
+        });
+    }
+
+    [Fact]
+    public async Task A_week_with_minutes_to_spare_marks_its_ceiling_slots()
+    {
+        var client = await SignedInClientAsync();
+        await SetProfileAsync(client, 5, 3_600);
+
+        var week = await GenerateAsync(client);
+        var prescriptions = week.Sessions.SelectMany(session => session.Prescriptions).ToList();
+
+        // Both kinds are present and told apart by the field rather than by inference: a full
+        // slot carries three sets, a ceiling slot two, and in a *cut* week two would mean the
+        // opposite thing (TD-022). The test below is the one that pins that distinction.
+        Assert.Contains(prescriptions, p => p.SlotKind == nameof(SlotKind.Ceiling));
+        Assert.Contains(prescriptions, p => p.SlotKind == nameof(SlotKind.Full));
+
+        Assert.All(
+            prescriptions.Where(p => p.SlotKind == nameof(SlotKind.Ceiling)),
+            p => Assert.Equal(TrainingPrescription.CeilingSetsPerSlot, p.Sets));
+    }
+
+    [Fact]
+    public async Task A_cut_week_has_no_ceiling_slots_however_few_sets_it_carries()
+    {
+        var client = await SignedInClientAsync();
+
+        // Twenty-five minutes is TD-012's minimum and forces the ladder to its last rung, so
+        // every slot carries two sets for TD-013's reason. None of them was bought.
+        await SetProfileAsync(client, 2, 1_500);
+
+        var week = await GenerateAsync(client);
+        var prescriptions = week.Sessions.SelectMany(session => session.Prescriptions).ToList();
+
+        Assert.NotEmpty(prescriptions);
+        Assert.All(prescriptions, p => Assert.Equal(nameof(SlotKind.Full), p.SlotKind));
+        Assert.All(prescriptions, p => Assert.Equal(TrainingPrescription.ReducedSetsPerSlot, p.Sets));
+    }
+
+    [Fact]
     public async Task The_current_week_is_the_one_most_recently_generated()
     {
         var client = await SignedInClientAsync();

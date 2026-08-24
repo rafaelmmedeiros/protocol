@@ -64,6 +64,25 @@ public sealed record PlannedSlot(
 public sealed record MuscleShortfall(MuscleGroup MuscleGroup, decimal FractionalSets);
 
 /// <summary>
+/// Why a slot is the size it is — the distinction TD-022 created and a reader cannot infer from
+/// the set count alone.
+/// <para>
+/// Two sets means opposite things one record apart: <see cref="Full"/> at reduced size is what
+/// TD-013's ladder falls back to when the time budget could not otherwise reach the floor, while
+/// <see cref="Ceiling"/> is what a lifter gets *because* they had minutes to spare. Without this
+/// the screen shows a two-set slot and the reader takes a generous week for a cut one.
+/// </para>
+/// </summary>
+public enum SlotKind
+{
+    /// <summary>Drawn to reach the guaranteed target (TD-014). Carries the week's set count.</summary>
+    Full,
+
+    /// <summary>Bought above the guaranteed target because the declared minutes were there (TD-022).</summary>
+    Ceiling,
+}
+
+/// <summary>
 /// How far down TD-013's cut ladder the generator had to go for the week to fit.
 /// <para>
 /// Reported rather than hidden, because it is not an edge case: at three sessions of forty

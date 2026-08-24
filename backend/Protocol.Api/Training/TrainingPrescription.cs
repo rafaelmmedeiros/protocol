@@ -81,6 +81,20 @@ public static class TrainingPrescription
     public const int CeilingSetsPerSlot = 2; // TD-022
 
     /// <summary>
+    /// Why a slot is the size it is. A slot carrying fewer than <see cref="SetsPerSlot"/> sets is
+    /// a purchase above the guaranteed target — unless the whole week was set-cut, in which case
+    /// every slot is reduced for TD-013's opposite reason and none of them is a purchase.
+    /// <para>
+    /// It lives here rather than on the response because it is the domain's rule, and because the
+    /// set count alone cannot answer it (TD-022).
+    /// </para>
+    /// </summary>
+    public static SlotKind KindOf(int sets, CutLevel cut) =>
+        cut != CutLevel.RestToFloorAndFewerSets && sets < SetsPerSlot
+            ? SlotKind.Ceiling  // TD-022
+            : SlotKind.Full;    // TD-008, or TD-013 when the whole week is cut
+
+    /// <summary>
     /// What is prescribed into a slot of a given <see cref="OrderClass"/>.
     /// <para>
     /// Repetition ranges are convention that a genuine null permits — growth is equivalent

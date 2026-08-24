@@ -83,7 +83,27 @@ point: git carries what changed, this carries what a future session would otherw
     over-prescription failure exactly.
 
 ### S5.4 — What a prescribed slot says
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 14 integration in `GeneratedWeekEndpointsTests` (3 new), backend build clean
+- **Observations:**
+  - **The response record's own property shadowed the enum it needed.** Naming the field
+    `SlotKind` on `GeneratedPrescriptionResponse` made `SlotKind.Ceiling` resolve to the property
+    rather than to the type, inside the record's own body. The fix was better than a rename: the
+    rule moved to `TrainingPrescription.KindOf`, beside the constants it reads, which is where a
+    domain rule belonged anyway. A response record was never the right home for "why is this slot
+    this size".
+  - **`InferCut` had to become `internal`.** The response mapper now needs the same cut level a
+    substitution needs, read back from what the week contains rather than stored. Two callers, one
+    rule — worth noticing if a third ever wants it, because at that point it wants to be a method
+    on the week rather than on the endpoints class.
+  - **A ceiling slot and a cut slot both carry two sets and mean opposite things**, so the field
+    is not derivable from `sets` and the test says so directly: a 2x25 week (`TD-012`'s minimum,
+    which forces the ladder to its last rung) returns every slot as `Full` at two sets, while a
+    5x60 week returns both kinds. Without that second test the first would have passed against an
+    implementation that simply reported "fewer than three sets means bought".
+  - **Enum-name assertions are written as `Enum.TryParse`**, which is what actually pins root
+    standard 3 here: a response that started returning a sentence would fail the parse rather than
+    the eye.
 
 ### S5.5 — Per-muscle volume against the week's own target
 - **Status:** pending
