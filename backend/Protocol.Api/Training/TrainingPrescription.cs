@@ -25,6 +25,20 @@ public static class TrainingPrescription
     public const decimal WeeklyTargetFractionalSets = 6.0m; // TD-014
 
     /// <summary>
+    /// What a muscle group receives when the declared minutes are there to pay for it. The
+    /// weekly figure is a band, not a number: <see cref="WeeklyTargetFractionalSets"/> is what
+    /// every supported configuration reaches, and this is the most a lifter with time to spare
+    /// gets. It is TD-008's own eight — defended on concavity, given up by TD-014 for
+    /// reachability rather than for dose, and restored here only where the minutes exist.
+    /// <para>
+    /// <b>The cut ladder never runs on its behalf.</b> Compressing a researched rest interval to
+    /// buy volume above the researched target would trade a measured quantity for a convention,
+    /// in that direction (TD-021).
+    /// </para>
+    /// </summary>
+    public const decimal WeeklyCeilingFractionalSets = 8.0m; // TD-021
+
+    /// <summary>
     /// Below four fractional sets the prescription leaves the region every dose-response model
     /// behind it was fitted in. A muscle under this floor is a surfaced failure, never a silent
     /// shortfall (TD-008).
@@ -48,6 +62,23 @@ public static class TrainingPrescription
     /// reach the floor. Spread evenly across all slots, never concentrated (TD-013).
     /// </summary>
     public const int ReducedSetsPerSlot = 2; // TD-013
+
+    /// <summary>
+    /// Two sets per slot, in a slot bought <i>above</i> the guaranteed target because the
+    /// declared minutes were there to pay for it — the exact opposite of
+    /// <see cref="ReducedSetsPerSlot"/>, which is what the ladder falls back to when they were
+    /// not.
+    /// <para>
+    /// The value closes the arithmetic rather than expressing a preference: a slot of three sets
+    /// credits 3.0 to its primary muscle, so a muscle at the guaranteed 6.0 would land at 9.0 and
+    /// the band from 6.0 to 8.0 is narrower than one slot. At two sets it lands on 8.0 exactly.
+    /// </para>
+    /// <para>
+    /// <b>Equal to <see cref="ReducedSetsPerSlot"/> today and deliberately not merged with it.</b>
+    /// They answer different questions and nothing should make one follow the other (TD-022).
+    /// </para>
+    /// </summary>
+    public const int CeilingSetsPerSlot = 2; // TD-022
 
     /// <summary>
     /// What is prescribed into a slot of a given <see cref="OrderClass"/>.

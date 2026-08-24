@@ -440,6 +440,97 @@ public class WeekGeneratorTests
             Assert.True(entry.Value >= 2, $"{entry.Key} was trained {entry.Value}x"));
     }
 
+    [Fact]
+    public void No_muscle_group_ever_exceeds_the_ceiling()
+    {
+        // The assertion TD-022 exists because of. Three implementations of the band passed a
+        // reading of the record and failed this: a three-set phase-2 slot landed muscles at 10.5,
+        // bounding only the primary muscle left them at 10.5 anyway because indirect credit
+        // piled up, and topping each session up before the later sessions had taken their
+        // guaranteed volume left ten of fifteen groups at 9.0. Only a week-wide second pass with
+        // the ceiling bounding every credited muscle holds. Before TD-021 the worst case across
+        // this whole grid was 7.5, so a regression here reads as "the band leaks", not as noise.
+        foreach (var days in (int[])[2, 3, 4, 5, 6])
+        {
+            foreach (var minutes in (int[])[25, 30, 40, 45, 60, 75, 90, 120])
+            {
+                var week = Generate(days, minutes * 60);
+
+                var over = VolumeByMuscle(week)
+                    .Where(entry => entry.Value > TrainingPrescription.WeeklyCeilingFractionalSets)
+                    .ToList();
+
+                Assert.True(
+                    over.Count == 0,
+                    $"{days}x{minutes} exceeded the ceiling: "
+                    + string.Join(", ", over.Select(entry => $"{entry.Key}:{entry.Value}")));
+            }
+        }
+    }
+
+    [Fact]
+    public void Ninety_minutes_buys_more_volume_than_forty_at_five_days()
+    {
+        // The blind spot that let session duration ship inert. Its sibling above runs at three
+        // days a week, the one frequency where forty minutes genuinely binds -- so it passed
+        // green while fifty through a hundred and twenty minutes produced identical weeks at
+        // every other frequency.
+        var shorter = Generate(5, 2_400);
+        var longer = Generate(5, 5_400);
+
+        Assert.True(
+            TotalSets(longer) > TotalSets(shorter),
+            $"expected more sets at 5x90; got {TotalSets(longer)} against {TotalSets(shorter)}");
+    }
+
+    [Fact]
+    public void Three_sessions_of_forty_minutes_stay_below_the_ceiling()
+    {
+        // TD-014's protected case, pinned by a test rather than by argument. At 3x40 the clock
+        // binds before the ceiling does, so the week reaches the guaranteed target and no more --
+        // which is the whole reason TD-021 raised a ceiling instead of raising the target.
+        var week = Generate(3, 2_400);
+
+        Assert.True(week.MeetsFloor, "3x40 should still reach TD-008's floor");
+        Assert.True(
+            VolumeByMuscle(week).Values.Max() < TrainingPrescription.WeeklyCeilingFractionalSets,
+            "3x40 has no minutes to spare and must not reach the ceiling");
+    }
+
+    [Fact]
+    public void A_week_with_time_to_spare_mixes_full_and_ceiling_slots()
+    {
+        // The visible consequence of TD-022: a session holds three-set slots taken for the
+        // guaranteed target beside two-set slots bought above it. Asserted because a reader who
+        // does not know that reads the two-set slot as a cut week (TD-013) instead.
+        var slots = Generate(5, 3_600).Sessions.SelectMany(session => session.Slots).ToList();
+
+        Assert.Contains(slots, slot => slot.Sets == TrainingPrescription.SetsPerSlot);
+        Assert.Contains(slots, slot => slot.Sets == TrainingPrescription.CeilingSetsPerSlot);
+    }
+
+    /// <summary>
+    /// What each muscle group finishes the week holding, primary sets whole and secondary sets
+    /// half (TD-006). Recomputed here from the slots rather than read off the plan, so the
+    /// assertion does not trust the same arithmetic it is checking.
+    /// </summary>
+    private static Dictionary<MuscleGroup, decimal> VolumeByMuscle(WeekPlan week)
+    {
+        var volumes = Enum.GetValues<MuscleGroup>().ToDictionary(muscle => muscle, _ => 0.0m);
+
+        foreach (var slot in week.Sessions.SelectMany(session => session.Slots))
+        {
+            foreach (var muscle in slot.Exercise.Muscles)
+            {
+                volumes[muscle.MuscleGroup] += slot.Sets * (muscle.Role == MuscleRole.Primary
+                    ? TrainingPrescription.PrimarySetCredit
+                    : TrainingPrescription.SecondarySetCredit);
+            }
+        }
+
+        return volumes;
+    }
+
     private static int TotalSets(WeekPlan week) =>
         week.Sessions.SelectMany(session => session.Slots).Sum(slot => slot.Sets);
 

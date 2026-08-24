@@ -571,9 +571,14 @@ public static class TrainingEndpoints
         CutLevel cut)
     {
         var prescription = TrainingPrescription.For(replacement.OrderClass);
-        var sets = cut == CutLevel.RestToFloorAndFewerSets
-            ? TrainingPrescription.ReducedSetsPerSlot   // TD-013
-            : TrainingPrescription.SetsPerSlot;         // TD-008
+
+        // The set count is the replaced slot's own, not the week's cut level re-derived. Since
+        // TD-022 a session mixes three-set slots with two-set ones bought above the guaranteed
+        // target, so re-deriving would silently promote a phase-2 slot to a full one and push the
+        // muscle past the ceiling on a swap. Reps, reserve and rest still come from the
+        // replacement's own OrderClass (ADR-012) -- what a slot *is* comes from the exercise, how
+        // much of it there is was decided when the week was generated.
+        var sets = replacedSlot.Sets; // TD-022
         var rest = cut == CutLevel.None
             ? prescription.RestSeconds                  // TD-011
             : TrainingPrescription.RestFloorSeconds;    // TD-011, never below
@@ -624,7 +629,12 @@ public static class TrainingEndpoints
         var slots = week.Sessions.SelectMany(session => session.Prescriptions).ToList();
         if (slots.Count == 0) return CutLevel.None;
 
-        if (slots.Any(slot => slot.Sets < TrainingPrescription.SetsPerSlot))
+        // Every slot, not any. TD-013 spreads a set cut evenly across the whole week and never
+        // concentrates it, so a week where *some* slots carry fewer sets is not a cut week -- it
+        // is a week where phase 2 bought slots above the guaranteed target, and those carry two
+        // sets by TD-022. Reading `any` here would report a full ladder descent for a week that
+        // cut nothing, and a substitution would then rewrite the replacement at floor rest.
+        if (slots.All(slot => slot.Sets < TrainingPrescription.SetsPerSlot))
         {
             return CutLevel.RestToFloorAndFewerSets;
         }

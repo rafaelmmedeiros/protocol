@@ -57,6 +57,14 @@ docker compose -f docker-compose.test.yml run --rm --build backend-tests   # fro
   to seed before the migrations run, and nothing new to remap before the new catalogue rows exist.
   Reordering these registrations breaks things that fail silently rather than loudly — a remap that
   finds nothing logs that it found nothing and the coverage number simply stays wrong.
+- **The generator fills a week in two passes, week-wide, and the order is load-bearing.** Pass 1
+  takes every session to `TD-014`'s guaranteed target against no ceiling; pass 2 then spends the
+  minutes the user declared and pass 1 did not need, bounded by `TD-022`'s ceiling over **every**
+  muscle a slot credits, secondary roles included. Collapsing the two into one loop per session
+  is the obvious-looking refactor and it silently breaks the bound: a later session's unbounded
+  pass-1 draw lands on top of volume the ceiling already bought. That arrangement was measured at
+  9.0 against a ceiling of 8.0 in ten of fifteen muscle groups, and it compiles, passes every
+  other test, and produces a plausible week.
 - **A derived column is refreshed by a hosted service, never by a migration.** Both the seeder's
   requirements backfill and `PerformedExerciseRemapper` (`ADR-026`) exist because the need recurs:
   every catalogue widening reopens the same gap. A migration would close today's instance and leave

@@ -54,6 +54,10 @@ public static class WeekGenerator
         // clock and near-free for growth, sets second because they move a muscle down the volume
         // curve. The fill is capacity-bounded, so the ladder's "drop a slot" rung has no trigger
         // here -- nothing ever overflows.
+        //
+        // MeetsFloor reads TD-008's floor, which only phase 1 of the fill can move, so a rung is
+        // never descended to reach TD-021's ceiling. That is what keeps "the ladder buys the
+        // guaranteed target and never the ceiling" true here rather than only in the record.
         foreach (var cut in (CutLevel[])[CutLevel.None, CutLevel.RestToFloor, CutLevel.RestToFloorAndFewerSets])
         {
             var week = Build(profile, catalogue, weekStart, split, cut, preferences);
@@ -139,26 +143,57 @@ public static class WeekGenerator
             }
         }
 
-        var sessions = new List<PlannedSession>(split.Count);
+        // Pass 1 fills every session to the guaranteed target; pass 2 then spends what minutes
+        // are left, across the whole week. **The two passes are week-wide and not per-session,
+        // and that ordering is load-bearing.** Topping a session up before the later sessions
+        // have taken their guaranteed volume lets an unbounded phase-1 draw land on top of volume
+        // the ceiling already bought -- measured at 9.0 against a ceiling of 8.0, in ten of
+        // fifteen muscle groups. The guaranteed target must never be blocked by a bound, so the
+        // fix is to finish claiming it before anything optional is bought (TD-022).
+        var picks = new List<SessionPicks>(split.Count);
         for (var index = 0; index < split.Count; index++)
         {
-            var day = split[index];
-            var slots = FillSession(
-                day, index, schedule, catalogue, profile.SessionDurationSeconds, cut, setsPerSlot, volumes,
-                preferences);
+            var budget = SessionTimeBudget.SlotSecondsAvailable(profile.SessionDurationSeconds);
+            var chosen = new List<PickedSlot>();
 
+            var remaining = Draw(
+                SharesOf(split[index], index, schedule, TrainingPrescription.WeeklyTargetFractionalSets),
+                budget, catalogue, chosen, volumes, cut, setsPerSlot, preferences);
+
+            picks.Add(new SessionPicks(index, chosen, remaining));
+        }
+
+        foreach (var session in picks)
+        {
+            // Two sets rather than three, and that is the whole of TD-022: three credits 3.0 to
+            // the primary muscle, so a muscle at the guaranteed 6.0 would land at 9.0 and the
+            // band from 6.0 to 8.0 is narrower than one slot. At two it lands on 8.0 exactly.
+            session.Remaining = Draw(
+                SharesOf(split[session.Index], session.Index, schedule,
+                    TrainingPrescription.WeeklyCeilingFractionalSets),
+                session.Remaining, catalogue, session.Slots, volumes, cut,
+                Math.Min(setsPerSlot, TrainingPrescription.CeilingSetsPerSlot), // TD-022
+                preferences,
+                TrainingPrescription.WeeklyCeilingFractionalSets); // TD-022 — a bound, not a target
+        }
+
+        var sessions = new List<PlannedSession>(split.Count);
+        foreach (var session in picks)
+        {
             // A session with nothing in it is not a training day, and emitting one is worse than
             // emitting fewer days. It happens when the available catalogue is small enough that
             // the earlier sessions already carried every trainable muscle to target -- a real
             // outcome once equipment filtering exists (ADR-013), and the honest answer is that
             // the week is finished, not that Friday is blank. Padding it would mean prescribing
             // volume above the target, which is the one thing the target is for.
-            if (slots.Count == 0)
+            if (session.Slots.Count == 0)
             {
                 continue;
             }
 
-            sessions.Add(new PlannedSession(sessions.Count + 1, day.Day, day.Kind, slots));
+            var day = split[session.Index];
+            sessions.Add(new PlannedSession(
+                sessions.Count + 1, day.Day, day.Kind, OrderedSlots(session.Slots)));
         }
 
         var shortfalls = volumes
@@ -171,21 +206,55 @@ public static class WeekGenerator
         return new WeekPlan(weekStart, sessions, shortfalls, uncovered, cut);
     }
 
-    private static List<PlannedSlot> FillSession(
+    /// <summary>
+    /// Orders one session's picks into slots. Within a session the sequence is free for growth,
+    /// so it is ordered for technique quality under fatigue and load preservation instead: heavy
+    /// compounds first, isolation last. A small muscle trailing the session is allowed and is not
+    /// a benefit (TD-007).
+    /// <para>
+    /// A slot carries the set count it was drawn with, so a two-set slot bought above the
+    /// guaranteed target keeps its size wherever ordering puts it (TD-022).
+    /// </para>
+    /// </summary>
+    private static List<PlannedSlot> OrderedSlots(List<PickedSlot> picks) =>
+    [
+        .. picks
+            .OrderBy(pick => pick.Exercise.OrderClass)          // TD-007
+            .ThenBy(pick => pick.Exercise.PreferenceRank)       // TD-005
+            .ThenBy(pick => pick.Exercise.MovementPattern)
+            .ThenBy(pick => pick.Exercise.Equipment)
+            // Total, so the order the catalogue arrived in cannot decide anything. Without this
+            // the generator was not deterministic (ADR-005) -- an unordered query returned rows
+            // differently between calls, two candidates tied on every curated key, and the same
+            // profile produced two plans in alternation. A tie reaching this line is a curation
+            // gap (TD-015), not a preference.
+            .ThenBy(pick => pick.Exercise.Id)
+            .Select((pick, position) => new PlannedSlot(
+                position + 1,
+                pick.Exercise,
+                pick.Sets,
+                pick.Prescription)),
+    ];
+
+    /// <summary>
+    /// How much of a weekly figure this session is responsible for: an even share across the
+    /// sessions that can train each muscle, accumulated so far. Without it a second Push day
+    /// finds chest and triceps already at target and generates nothing, and per-muscle frequency
+    /// collapses to 1x — which is not what TD-003's templates are for.
+    /// <para>
+    /// The ceiling is shared the same way as the target, so the volume the extra minutes buy
+    /// spreads across the week instead of landing entirely in whichever session has room first
+    /// (TD-021).
+    /// </para>
+    /// </summary>
+    private static Dictionary<MuscleGroup, decimal> SharesOf(
         SplitDay day,
         int sessionIndex,
         Dictionary<MuscleGroup, List<int>> schedule,
-        IReadOnlyList<Exercise> catalogue,
-        int sessionDurationSeconds,
-        CutLevel cut,
-        int setsPerSlot,
-        Dictionary<MuscleGroup, decimal> volumes,
-        TrainingPreferences preferences)
+        decimal weeklyFigure)
     {
-        // How much of each muscle's weekly target this session is responsible for: an even share
-        // across the sessions that can train it, accumulated so far. This is what makes
-        // per-muscle frequency land at 2-3x rather than 1x (TD-003).
-        var targets = new Dictionary<MuscleGroup, decimal>();
+        var shares = new Dictionary<MuscleGroup, decimal>();
+
         foreach (var muscle in SplitTemplate.ScopeOf(day.Kind))
         {
             if (!schedule.TryGetValue(muscle, out var days))
@@ -194,15 +263,37 @@ public static class WeekGenerator
             }
 
             var occurrence = days.IndexOf(sessionIndex) + 1;
-            targets[muscle] = TrainingPrescription.WeeklyTargetFractionalSets * occurrence / days.Count;
+            shares[muscle] = weeklyFigure * occurrence / days.Count;
         }
 
-        var remaining = SessionTimeBudget.SlotSecondsAvailable(sessionDurationSeconds);
-        var chosen = new List<Exercise>();
+        return shares;
+    }
 
+    /// <summary>
+    /// Draws slots against a set of per-muscle shares until nothing is owed or nothing more
+    /// fits, crediting each as it lands. Returns the seconds left, so a second pass can spend
+    /// what the first did not.
+    /// <para>
+    /// A candidate that does not fit ends the pass rather than being skipped for a cheaper one.
+    /// That is deliberate and predates TD-021: the draw is ordered by who needs volume most, and
+    /// stepping past the neediest muscle to fit a cheaper slot would quietly reorder the
+    /// arithmetic TD-016 says a preference may not touch.
+    /// </para>
+    /// </summary>
+    private static int Draw(
+        Dictionary<MuscleGroup, decimal> targets,
+        int remaining,
+        IReadOnlyList<Exercise> catalogue,
+        List<PickedSlot> chosen,
+        Dictionary<MuscleGroup, decimal> volumes,
+        CutLevel cut,
+        int setsPerSlot,
+        TrainingPreferences preferences,
+        decimal? ceiling = null)
+    {
         while (true)
         {
-            var next = NextExercise(catalogue, targets, chosen, volumes, preferences);
+            var next = NextExercise(catalogue, targets, chosen, volumes, preferences, setsPerSlot, ceiling);
             if (next is null)
             {
                 break;
@@ -216,35 +307,14 @@ public static class WeekGenerator
             }
 
             remaining -= cost;
-            chosen.Add(next);
+            chosen.Add(new PickedSlot(
+                next,
+                setsPerSlot,
+                TrainingPrescription.For(next.OrderClass) with { RestSeconds = rest }));
             Credit(next, setsPerSlot, volumes);
         }
 
-        // Within a session the sequence is free for growth, so it is ordered for technique
-        // quality under fatigue and load preservation instead: heavy compounds first, isolation
-        // last. A small muscle trailing the session is allowed and is not a benefit (TD-007).
-        return
-        [
-            .. chosen
-                .OrderBy(exercise => exercise.OrderClass)          // TD-007
-                .ThenBy(exercise => exercise.PreferenceRank)       // TD-005
-                .ThenBy(exercise => exercise.MovementPattern)
-                .ThenBy(exercise => exercise.Equipment)
-                // Total, so the order the catalogue arrived in cannot decide anything. Without
-                // this the generator was not deterministic (ADR-005) -- an unordered query
-                // returned rows differently between calls, two candidates tied on every curated
-                // key, and the same profile produced two plans in alternation. A tie reaching
-                // this line is a curation gap (TD-015), not a preference.
-                .ThenBy(exercise => exercise.Id)
-                .Select((exercise, position) => new PlannedSlot(
-                    position + 1,
-                    exercise,
-                    setsPerSlot,
-                    TrainingPrescription.For(exercise.OrderClass) with
-                    {
-                        RestSeconds = RestFor(exercise.OrderClass, cut),
-                    })),
-        ];
+        return remaining;
     }
 
     /// <summary>
@@ -257,9 +327,11 @@ public static class WeekGenerator
     private static Exercise? NextExercise(
         IReadOnlyList<Exercise> catalogue,
         Dictionary<MuscleGroup, decimal> targets,
-        List<Exercise> chosen,
+        List<PickedSlot> chosen,
         Dictionary<MuscleGroup, decimal> volumes,
-        TrainingPreferences preferences)
+        TrainingPreferences preferences,
+        int setsPerSlot = 0,
+        decimal? ceiling = null)
     {
         var neediest = targets
             .Select(entry => (Muscle: entry.Key, Deficit: entry.Value - volumes[entry.Key]))
@@ -272,7 +344,14 @@ public static class WeekGenerator
         {
             var exercise = catalogue
                 .Where(candidate => PrimaryOf(candidate) == muscle)
-                .Where(candidate => !chosen.Contains(candidate))
+                .Where(candidate => chosen.All(pick => pick.Exercise != candidate))
+                // The ceiling is a bound on what a muscle ends the week holding, not a target to
+                // draw against, and it is checked over **every** muscle a slot credits rather
+                // than over its primary alone. Measured: without this the extra slots' indirect
+                // credit piled up and carried fifteen of fifteen muscle groups past 8.0, to 10.5
+                // -- against a pre-TD-021 generator whose worst case across the whole supported
+                // grid was 7.5. Phase 1 passes no ceiling and is unaffected (TD-022).
+                .Where(candidate => ceiling is null || !WouldExceed(candidate, setsPerSlot, volumes, ceiling.Value))
                 // A stated preference outranks the catalogue's curated order without exception
                 // (TD-016). It reorders the *draw*, which is why it sits above OrderClass here --
                 // a user who wants dumbbells over a barbell is asking for the secondary compound.
@@ -297,6 +376,22 @@ public static class WeekGenerator
         return null;
     }
 
+    /// <summary>
+    /// Whether crediting this slot would carry any muscle it loads — primary or secondary — past
+    /// the ceiling. Secondary credit counts, which is the whole point: it is what the indirect
+    /// half of TD-006 delivers, and ignoring it is what let a ceiling of 8.0 land at 10.5.
+    /// </summary>
+    private static bool WouldExceed(
+        Exercise exercise,
+        int sets,
+        Dictionary<MuscleGroup, decimal> volumes,
+        decimal ceiling) =>
+        exercise.Muscles.Any(muscle =>
+            volumes[muscle.MuscleGroup] + (sets * (muscle.Role == MuscleRole.Primary
+                ? TrainingPrescription.PrimarySetCredit    // TD-006
+                : TrainingPrescription.SecondarySetCredit)) // TD-006
+            > ceiling);
+
     private static MuscleGroup PrimaryOf(Exercise exercise) =>
         exercise.Muscles.Single(muscle => muscle.Role == MuscleRole.Primary).MuscleGroup;
 
@@ -316,6 +411,26 @@ public static class WeekGenerator
 
             volumes[muscle.MuscleGroup] += sets * credit;
         }
+    }
+
+    /// <summary>
+    /// One drawn slot before ordering: the exercise, the set count it was drawn with, and the
+    /// prescription it carries. The set count travels with the pick because a week now mixes
+    /// three-set slots with two-set ones bought above the guaranteed target (TD-022).
+    /// </summary>
+    private sealed record PickedSlot(Exercise Exercise, int Sets, SlotPrescription Prescription);
+
+    /// <summary>
+    /// A session between the two passes: what it has drawn so far and how many seconds it has
+    /// left for the second pass to spend.
+    /// </summary>
+    private sealed class SessionPicks(int index, List<PickedSlot> slots, int remaining)
+    {
+        public int Index { get; } = index;
+
+        public List<PickedSlot> Slots { get; } = slots;
+
+        public int Remaining { get; set; } = remaining;
     }
 
     /// <summary>

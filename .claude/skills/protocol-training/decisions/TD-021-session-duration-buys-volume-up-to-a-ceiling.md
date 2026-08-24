@@ -1,7 +1,7 @@
 ---
 id: TD-021
 title: Session duration buys volume above the weekly target, up to a ceiling of 8.0 fractional sets
-status: active
+status: superseded-by TD-022
 knowledge: [references/weekly-set-volume-for-hypertrophy.md, references/volume-progression-across-a-block.md, references/cold-start-first-block.md, references/session-time-cost-of-a-set.md, references/cutting-training-volume-under-a-time-constraint.md]
 decided: 2026-08-24
 ---
