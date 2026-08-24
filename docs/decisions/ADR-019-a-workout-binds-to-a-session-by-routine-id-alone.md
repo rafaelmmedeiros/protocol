@@ -66,3 +66,20 @@ at the level progression actually reads.
 - **Coverage is measurable.** The proportion of imported workouts that bind is a number the system
   can report, and if it is low in practice that is evidence for revisiting this record — with
   data, rather than with a heuristic chosen in advance.
+
+**Revisions.**
+
+- 2026-08-24 — **The join was exercised outside a controlled experiment for the first time, and it
+  bound.** A generated week was pushed as four routines; one session was trained by opening the
+  pushed routine in the Hevy app; the sync returned it carrying that routine's id, matching
+  session 1 (`Upper`, Monday). One of one. Nothing in the decision changes — this is the evidence
+  the last consequence above asked for, and it points the same way the record does. Two things it
+  also settled: the engineer's account had **no routines at all** before the push (one leftover
+  test routine, zero folders), so the `routine_id: null` on all of their prior history was never a
+  statement about how they start a workout; and the workout inherited the routine's title
+  verbatim, exactly as the first consequence predicts.
+- 2026-08-24 — **The coverage figure this record calls measurable is currently misleading, and
+  that is a defect in the measurement rather than in the decision.** `WeekComparisonBuilder`
+  reports bound over *every* imported workout — 1 of 759 — but 758 of those predate the first push
+  and could never have bound. The rate this record wants is over workouts that had a routine to
+  bind to. Fixing the denominator belongs to whichever step next touches the comparison.
