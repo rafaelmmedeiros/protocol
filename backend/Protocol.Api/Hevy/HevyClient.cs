@@ -73,6 +73,38 @@ public sealed class HevyClient(HttpClient http, ILogger<HevyClient> logger, IHev
             envelope => envelope.RoutineFolder?.Id ?? 0,
             token);
 
+    public async Task<HevyWrite<bool>> FolderExistsAsync(
+        string apiKey,
+        long folderId,
+        CancellationToken token)
+    {
+        var response = await SendWithBackoffAsync(
+            () =>
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, $"routine_folders/{folderId}");
+                request.Headers.Add(KeyHeader, apiKey);
+                return request;
+            },
+            token);
+
+        if (response is null)
+        {
+            return new HevyWrite<bool>(HevyWriteOutcome.Unreachable);
+        }
+
+        using (response)
+        {
+            // Status only. The body of a 404 here is plain prose, and nothing should read it.
+            return response.StatusCode switch
+            {
+                HttpStatusCode.OK => new HevyWrite<bool>(HevyWriteOutcome.Ok, true),
+                HttpStatusCode.NotFound => new HevyWrite<bool>(HevyWriteOutcome.NotFound),
+                HttpStatusCode.TooManyRequests => new HevyWrite<bool>(HevyWriteOutcome.RateLimited),
+                _ => new HevyWrite<bool>(HevyWriteOutcome.Unreachable),
+            };
+        }
+    }
+
     public async Task<HevyWrite<string>> CreateRoutineAsync(
         string apiKey,
         HevyRoutinePayload routine,

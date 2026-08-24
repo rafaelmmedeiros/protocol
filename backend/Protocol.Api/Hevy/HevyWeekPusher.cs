@@ -49,9 +49,27 @@ public sealed class HevyWeekPusher(AppDbContext db, IHevyClient hevy, HevyKeyPro
 
         var apiKey = protector.Unprotect(connection.ProtectedApiKey);
 
-        // Not `is null`: rows written before the response envelope was understood carry a stored
-        // zero, which is not a folder Hevy has. Treating it as absent lets those weeks recover by
-        // creating a real folder rather than failing forever against one that never existed.
+        // A folder we created can be deleted in Hevy by the user, and we cannot delete anything
+        // ourselves (ADR-017). Sending routines into one that is gone is refused with a 400 whose
+        // only explanation is prose; asking first turns that into a fact we can act on.
+        if (week.HevyRoutineFolderId is { } stored && stored > 0)
+        {
+            var exists = await hevy.FolderExistsAsync(apiKey, stored, token);
+
+            if (exists.Outcome == HevyWriteOutcome.NotFound)
+            {
+                // Gone. Treated exactly like never having had one: the week recovers by creating
+                // a real folder instead of failing forever against a dead identifier.
+                week.HevyRoutineFolderId = null;
+            }
+            else if (!exists.Ok)
+            {
+                return Failed(exists.Outcome);
+            }
+        }
+
+        // Not `is null` alone: rows written before the response envelope was understood carry a
+        // stored zero, which is not a folder Hevy ever had.
         if (week.HevyRoutineFolderId is null or <= 0)
         {
             var folder = await hevy.CreateFolderAsync(apiKey, FolderTitle(week), token);

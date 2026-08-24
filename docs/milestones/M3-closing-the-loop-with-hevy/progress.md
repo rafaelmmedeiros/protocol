@@ -281,3 +281,22 @@ file carries what a future session would otherwise rediscover.
     behavioural: eight generations under the engineer's exact profile and equipment now write one
     row. The guard that matches the failure is an integration test that generates repeatedly
     through the API, where the catalogue comes from a real query — the level the bug lived at.
+
+### After the ladder — the deleted folder
+- **Status:** fixed
+- **Tests:** 1 integration (`A_folder_the_user_deleted_in_Hevy_is_recreated`)
+- **Observations:**
+  - **The error-body logging added an hour earlier paid for itself immediately.** The failure read
+    `400 {"error":"[public-post-routine] Invalid routine folder id: 3492661"}` in the log, so there
+    was nothing to guess: the user had deleted the folder as well as the routines, and the stored
+    identifier pointed at nothing. Before that change the same failure was an opaque "could not be
+    reached".
+  - **The fix asks rather than parses.** `GET /v1/routine_folders/{id}` answers 404 when a folder
+    is gone, and a status is a fact where their error sentence is not — branching on a third
+    party's prose is what standard 3 refuses to do in our own API, and it breaks the day they
+    reword it.
+  - **Three deletions, three recoveries, one principle.** A stored folder of zero, a routine the
+    user removed, and now a folder the user removed all end the same way: treat the stored
+    identifier as absent and create a real one. `ADR-017`'s promise is that this system never
+    deletes anything in Hevy — the corollary, learned the hard way, is that it has to survive the
+    user deleting anything.

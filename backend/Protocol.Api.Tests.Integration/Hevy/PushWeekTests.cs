@@ -236,6 +236,37 @@ public class PushWeekTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task A_folder_the_user_deleted_in_Hevy_is_recreated()
+    {
+        // The engineer hit this on the first real attempt: they deleted the folder as well as the
+        // routines, and the routine POST came back 400 with "Invalid routine folder id" -- a
+        // sentence, not a code. Asking whether the folder exists turns that into a fact, and a
+        // gone folder is treated exactly like never having had one.
+        Hevy.Forget();
+        var (client, _, week) = await ReadyAsync();
+        var pushed = await PushAsync(client, week.Id);
+
+        Hevy.MissingFolders.Add(pushed!.FolderId!.Value);
+        foreach (var session in pushed.Sessions)
+        {
+            Hevy.Missing.Add(session.RoutineId);
+        }
+
+        var again = await client.PostAsJsonAsync($"/hevy/weeks/{week.Id}/push", new { locale = "en-US" });
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+
+        var second = await again.Content.ReadFromJsonAsync<HevyPushResponse>();
+
+        Assert.NotEqual(pushed.FolderId, second!.FolderId);
+        Assert.All(second.Sessions, session => Assert.Equal(second.FolderId, second.FolderId));
+
+        // And the new folder is what the routines were sent into.
+        Assert.All(
+            Hevy.Created.TakeLast(second.Sessions.Count),
+            created => Assert.Equal(second.FolderId, created.Payload.FolderId));
+    }
+
+    [Fact]
     public async Task Pushing_without_a_connected_account_says_so()
     {
         var email = $"{Guid.NewGuid():N}@protocol.test";

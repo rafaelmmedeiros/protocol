@@ -69,6 +69,7 @@ public sealed class StubHevyClient : IHevyClient
             Created.Clear();
             Updated.Clear();
             Missing.Clear();
+            MissingFolders.Clear();
             Events.Clear();
             Requested.Clear();
             RefuseFromPage = 0;
@@ -89,6 +90,19 @@ public sealed class StubHevyClient : IHevyClient
         {
             FolderTitles.Add(title);
             return Task.FromResult(new HevyWrite<long>(HevyWriteOutcome.Ok, _nextFolderId++));
+        }
+    }
+
+    /// <summary>Folder identifiers Hevy will claim not to have — the user deleted them.</summary>
+    public HashSet<long> MissingFolders { get; } = [];
+
+    public Task<HevyWrite<bool>> FolderExistsAsync(string apiKey, long folderId, CancellationToken token)
+    {
+        lock (_gate)
+        {
+            return Task.FromResult(MissingFolders.Contains(folderId)
+                ? new HevyWrite<bool>(HevyWriteOutcome.NotFound)
+                : new HevyWrite<bool>(HevyWriteOutcome.Ok, true));
         }
     }
 

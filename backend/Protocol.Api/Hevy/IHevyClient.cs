@@ -27,6 +27,17 @@ public interface IHevyClient
     /// <summary>Creates the folder a week's routines live in (ADR-015). Its identifier is a number.</summary>
     Task<HevyWrite<long>> CreateFolderAsync(string apiKey, string title, CancellationToken token);
 
+    /// <summary>
+    /// Whether a folder we created is still there.
+    /// <para>
+    /// Asked because the user can delete it in Hevy and we cannot: sending routines into a folder
+    /// that no longer exists is refused with a 400 whose only explanation is prose, and branching
+    /// on a third party's error sentence is exactly what standard 3 refuses to do in our own API.
+    /// A 404 here is a fact; the sentence beside it is not.
+    /// </para>
+    /// </summary>
+    Task<HevyWrite<bool>> FolderExistsAsync(string apiKey, long folderId, CancellationToken token);
+
     /// <summary>Creates one session's routine. Its identifier is a string, and it is the join (ADR-019).</summary>
     Task<HevyWrite<string>> CreateRoutineAsync(string apiKey, HevyRoutinePayload routine, CancellationToken token);
 

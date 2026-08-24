@@ -42,6 +42,9 @@ public sealed class FakeHevyClient : IHevyClient
     public Task<HevyWrite<long>> CreateFolderAsync(string apiKey, string title, CancellationToken token) =>
         Task.FromResult(new HevyWrite<long>(HevyWriteOutcome.Ok, Interlocked.Increment(ref _nextFolderId)));
 
+    public Task<HevyWrite<bool>> FolderExistsAsync(string apiKey, long folderId, CancellationToken token) =>
+        Task.FromResult(new HevyWrite<bool>(HevyWriteOutcome.Ok, true));
+
     public Task<HevyWrite<string>> CreateRoutineAsync(
         string apiKey,
         HevyRoutinePayload routine,

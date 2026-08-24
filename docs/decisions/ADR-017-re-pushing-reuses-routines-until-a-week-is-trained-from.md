@@ -118,3 +118,18 @@ accumulation is meaningful.
   regenerated, or one folder per user with routines replaced in place. Both change what a folder
   *means* in Hevy, which is this record's subject, so whichever wins is a new record superseding
   this one rather than a revision of it.
+
+- 2026-08-24 — **A folder the user deleted is recreated too, and it is checked rather than
+  inferred.** The routine case was fixed one attempt before this one; the engineer had deleted the
+  folder as well, and the routine `POST` came back **400 with `Invalid routine folder id`** — a
+  sentence, not a code.
+
+  Branching on a third party's error prose is precisely what standard 3 refuses to do in our own
+  API, and it would break the day they reword it. So the push **asks** instead:
+  `GET /v1/routine_folders/{id}` answers 404 when the folder is gone, and a 404 is a fact. A folder
+  that no longer exists is then treated exactly like never having had one.
+
+  The cost is one request per push against a stored folder. That is the cheapest possible way to
+  turn "Hevy said something we cannot parse" into "the folder is gone", and it keeps this record's
+  central promise intact: this system never deletes anything in Hevy, and it survives the user
+  deleting whatever they like.
