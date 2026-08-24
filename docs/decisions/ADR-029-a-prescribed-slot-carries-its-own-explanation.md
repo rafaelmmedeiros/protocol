@@ -66,3 +66,32 @@ duration; the comparison uses the stored value, not today's constant.
   swap.
 - **A week now mixes three-set and two-set slots** (`TD-022`), so the explanation has to say which
   of the two a slot is, or the reader takes a ceiling slot for a cut week.
+
+**Revisions.**
+
+- 2026-08-24 — **The consequence above claiming the target is already snapshotted onto the week
+  was false, and building `S5.5` found it.** `ADR-003` snapshots `Goal`, `DaysPerWeek` and
+  `SessionDurationSeconds`; it has never stored a volume target, and `ShortfallsOf` has been
+  comparing against `TrainingPrescription.WeeklyTargetFractionalSets` — today's constant — since
+  `M1`. The claim was written without checking the schema.
+
+  **Option A still wins and Option B is still rejected.** What changes is one narrow exception
+  inside A, and the line that draws it is `ADR-026`'s test: *could this be recomputed from data
+  already stored?* What a slot trains can — it is catalogue data, and it stays derived at read
+  time with no column, which is the whole of this record. **The target cannot.** A week holding
+  6.0 fractional sets of quadriceps is indistinguishable from one that aimed at 8.0 and ran out
+  of minutes, so no amount of joining recovers the number the week was judged against. It is a
+  parameter of the decision rather than a property of the plan.
+
+  So `generated_weeks` gains `WeeklyTargetFractionalSets` and `WeeklyCeilingFractionalSets`, an
+  additive forward-only migration (root standard 10) extending exactly what `ADR-003` already
+  does for goal, days and duration. Everything else this record decided is untouched: no muscle,
+  class, pattern, equipment or volume figure is stored.
+
+- 2026-08-24 — **The backfill for the eight existing weeks is `6.0` and `6.0`, and the second
+  number is the one worth explaining.** Those weeks were generated under `TD-014`'s target of 6.0,
+  **before `TD-022` created a ceiling at all**. Writing `8.0` into them would assert they could
+  have bought volume above the target, which no code that produced them was capable of. A ceiling
+  equal to the target is the faithful statement that they were built to stop there. It is still an
+  assertion about history rather than a recovered fact, which is why it is written here rather
+  than left implicit in a migration.

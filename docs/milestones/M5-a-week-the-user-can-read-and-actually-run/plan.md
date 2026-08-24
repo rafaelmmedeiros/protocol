@@ -189,14 +189,21 @@ the target the week was generated under — including the muscles that fall shor
 
 **Technical actions:**
 
-1. Compute per-muscle fractional volume from the stored slots, primary whole and secondary half
+1. Add `WeeklyTargetFractionalSets` and `WeeklyCeilingFractionalSets` to `generated_weeks` as an
+   additive forward-only migration, and write them when a week is generated (per `ADR-029`
+   revision of 2026-08-24, `ADR-003`; standard 10)
+2. Backfill existing rows with `6.0` and `6.0` — those weeks predate the ceiling and were built
+   to stop at the target (per `ADR-029` revision of 2026-08-24)
+3. Compute per-muscle fractional volume from the stored slots, primary whole and secondary half
    (per `TD-006`)
-2. Compare against the target snapshotted onto the week rather than against today's constant (per
+4. Compare against the target stored on the week rather than against today's constant (per
    `ADR-029`, `ADR-003`)
-3. Return direct and indirect volume as separate figures, so the half-weighted half is visible
+5. Return direct and indirect volume as separate figures, so the half-weighted half is visible
    rather than folded in (per `TD-006`)
-4. Keep shortfall and uncovered separate in the response, because they are different failures and
+6. Keep shortfall and uncovered separate in the response, because they are different failures and
    only one is the user's to fix (per `TD-013`; `WeekPlan` already separates them)
+7. Express both figures per **cycle**, which is the window they are now measured over (per
+   `TD-024`)
 
 **Tests:**
 
@@ -204,13 +211,15 @@ the target the week was generated under — including the muscles that fall shor
 |----------|-------|-----------|
 | Direct and indirect volume per muscle | Unit | `Protocol.Api.Tests.Unit/Training/WeekGeneratorTests.cs` |
 | Volume compared against the week's stored target | Integration | `Protocol.Api.Tests.Integration/Training/GeneratedWeekEndpointsTests.cs` |
+| A stored week keeps its own target when the constant moves | Integration | `Protocol.Api.Tests.Integration/Training/GeneratedWeekEndpointsTests.cs` |
 
 **Depends on:** S5.4
 
 **Acceptance criteria:**
 
 - A week whose target constant has since changed still reports against the target it was generated
-  under.
+  under — asserted by writing a week, changing the stored value, and reading it back, since the
+  constant itself cannot move inside a test.
 - Direct and indirect are separately readable for every muscle group.
 - A muscle no catalogue exercise trains directly is reported as uncovered, not as a shortfall.
 
@@ -416,6 +425,16 @@ containerized stack.
 | `prescription.slotKind` | full or ceiling | slot's set count against `TD-022` |
 | `volume[]` | `{ muscleGroup, direct, indirect, target }` | stored slots, target from the week |
 | `shortfalls[]`, `uncovered[]` | unchanged shape | already computed |
+
+**`generated_weeks` gains** (`S5.5`), the only schema change in this milestone:
+
+| Column | Type | Why it is stored rather than derived |
+|---|---|---|
+| `WeeklyTargetFractionalSets` | `decimal` | Not recoverable from the plan: a week holding 6.0 is indistinguishable from one that aimed at 8.0 and ran out of minutes (`ADR-029`) |
+| `WeeklyCeilingFractionalSets` | `decimal` | Same, and `TD-022`'s band has two edges |
+
+Existing rows backfill to `6.0` / `6.0`. Everything else a slot explains stays derived at read
+time and adds no column.
 
 **Completion** (`S5.9`): a session carries how it completed — bound or marked — and nothing is
 written into `performed_workouts` either way (standard 7).
