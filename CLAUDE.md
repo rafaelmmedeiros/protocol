@@ -116,6 +116,15 @@ cost a data migration, or a recount of every analysis already produced, if adopt
     nothing ever has a reason to reset this one, and its volume is declared `external` so that
     compose cannot remove it even when asked. When a reset seems like the only way forward,
     that is the moment to stop and ask.
+
+    **There is now one supported way to get a clean start, and it is not a reset** (`ADR-025`):
+    Settings has an *Erase everything of mine* action that removes one user's own rows and
+    nothing else. It exists only where `Development:AllowErase` is set, which is
+    `docker-compose.app.yml` and the test stack; a published deployment never maps the route.
+    Reach for it instead of `psql` — that is the whole reason it was built. It does not weaken
+    this standard: the database, the shared catalogue and everyone else's data are untouched,
+    and the affordance stops being adequate the moment `M5` starts storing judgements Hevy
+    cannot return.
 19. **Git is the log of how the work went, not a snapshot of where it ended.** Work is
     committed as each coherent unit finishes — a step of a milestone, a harness fix, a document
     corrected — not batched at the end. Local commits happen without asking; **pushing is a

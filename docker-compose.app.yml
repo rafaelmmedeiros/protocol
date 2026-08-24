@@ -35,6 +35,12 @@ services:
       ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=protocol;Username=protocol;Password=protocol
       Frontend__Origin: http://localhost:3000
       ASPNETCORE_ENVIRONMENT: Development
+      # Makes POST /training/erase exist at all (ADR-025). Without it the route is never mapped
+      # and the answer is a 404 from the router, not a refusal from a check someone could relax.
+      # It is here because this is the local stack the loop is iterated against; a published
+      # deployment must never set it, and M5 is when this affordance stops being adequate --
+      # that milestone starts storing judgements Hevy cannot return and no regeneration reproduces.
+      Development__AllowErase: "true"
     ports:
       - "8080:8080"
     depends_on:

@@ -44,6 +44,10 @@ services:
       # the E2E run would reach api.hevyapp.com. Set here and nowhere else -- the application
       # stack must never have it.
       Hevy__UseFake: "true"
+      # The erase endpoint has an end-to-end test, so it has to exist in the container the browser
+      # drives. Its absence when the switch is off is asserted in the integration suite instead,
+      # which can build a host with the flag unset -- something a running container cannot do.
+      Development__AllowErase: "true"
     depends_on:
       postgres:
         condition: service_healthy

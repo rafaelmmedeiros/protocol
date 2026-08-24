@@ -6,6 +6,7 @@ import { API_URL } from "@/lib/api";
 import { getDictionary, getLocale } from "@/lib/i18n";
 import { LOCALES } from "@/lib/i18n/locales";
 import { parseTheme, THEME_COOKIE, THEMES } from "@/lib/preferences";
+import { ErasePanel } from "./erase-panel";
 import { HevyConnection } from "./hevy-connection";
 import { SettingsForm, type Choice } from "./settings-form";
 
@@ -21,10 +22,19 @@ const LOCALE_NAMES: Record<(typeof LOCALES)[number], string> = {
 export default async function SettingsPage() {
   const [dict, locale, cookieStore] = await Promise.all([getDictionary(), getLocale(), cookies()]);
 
-  const response = await fetch(`${API_URL}/hevy/connection`, {
-    headers: { cookie: cookieStore.toString() },
-    cache: "no-store",
-  });
+  const [response, erasable] = await Promise.all([
+    fetch(`${API_URL}/hevy/connection`, {
+      headers: { cookie: cookieStore.toString() },
+      cache: "no-store",
+    }),
+    // A 404 means the endpoint was never mapped, which is how a published deployment answers
+    // (ADR-025). The API owns the switch; asking it is what keeps this tier from carrying a
+    // second flag that could disagree.
+    fetch(`${API_URL}/training/erase`, {
+      headers: { cookie: cookieStore.toString() },
+      cache: "no-store",
+    }),
+  ]);
 
   // Whether an account is connected, and nothing else -- the API has no endpoint that returns
   // the key, so there is nothing else to read (ADR-014).
@@ -86,6 +96,24 @@ export default async function SettingsPage() {
           }}
         />
       </Card>
+
+      {erasable.ok && (
+        <Card className="mt-8">
+          <CardHeader title={dict.erase.title} />
+          <ErasePanel
+            strings={{
+              title: dict.erase.title,
+              lead: dict.erase.lead,
+              keeps: dict.erase.keeps,
+              start: dict.erase.start,
+              areYouSure: dict.erase.areYouSure,
+              confirm: dict.erase.confirm,
+              cancel: dict.erase.cancel,
+              erasing: dict.erase.erasing,
+            }}
+          />
+        </Card>
+      )}
     </>
   );
 }

@@ -13,6 +13,9 @@ public static class TrainingErrorCodes
     /// <summary>Generating or reading with no profile saved.</summary>
     public const string ProfileNotFound = "ProfileNotFound";
 
+    /// <summary>An erase arrived without its confirmation. ADR-025 makes it deliberate or nothing.</summary>
+    public const string EraseNotConfirmed = "EraseNotConfirmed";
+
     /// <summary>Any goal other than hypertrophy (ADR-004).</summary>
     public const string GoalNotSupported = "GoalNotSupported";
 

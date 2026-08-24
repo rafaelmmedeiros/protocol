@@ -296,6 +296,18 @@ export const enUS = {
     catalogueCoverage: (explained: number, total: number) =>
       `We recognise ${explained} of your ${total} logged exercises.`,
   },
+  erase: {
+    title: "Erase everything of mine",
+    lead: "Removes your profile, gym, preferences, generated weeks, imported history and Hevy connection. Your account stays, so you stay signed in.",
+    keeps: "The exercise catalogue is shared with everyone and is never touched. Neither is anyone else's data.",
+    start: "Erase everything",
+    areYouSure: "This cannot be undone.",
+    confirm: "Yes, erase it",
+    cancel: "Keep it",
+    erasing: "Erasing...",
+    done: "Everything of yours is gone. Start again from the profile screen.",
+    failed: "Nothing was erased. Try again.",
+  },
   common: {
     noDataYet: "No data yet",
     awaitingImport: "Waiting for the first Hevy import.",

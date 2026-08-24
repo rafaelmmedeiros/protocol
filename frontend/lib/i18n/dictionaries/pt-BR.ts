@@ -286,6 +286,18 @@ export const ptBR: Dictionary = {
     gapsLead:
       "Registrados no Hevy e ausentes do nosso catálogo, então não sugerem equipamento e não contam para nenhum músculo.",
   },
+  erase: {
+    title: "Apagar tudo que é meu",
+    lead: "Remove seu perfil, academia, preferências, semanas geradas, histórico importado e a conexão com o Hevy. Sua conta permanece, então você continua conectado.",
+    keeps: "O catálogo de exercícios é compartilhado com todos e nunca é tocado. Os dados de outras pessoas também não.",
+    start: "Apagar tudo",
+    areYouSure: "Isso não tem volta.",
+    confirm: "Sim, apagar",
+    cancel: "Manter",
+    erasing: "Apagando...",
+    done: "Tudo que era seu foi apagado. Recomece pela tela de perfil.",
+    failed: "Nada foi apagado. Tente de novo.",
+  },
   common: {
     noDataYet: "Sem dados ainda",
     awaitingImport: "Esperando a primeira importação do Hevy.",

@@ -17,6 +17,8 @@ public static class TrainingEndpoints
     {
         var group = app.MapGroup("/training").WithTags("Training").RequireAuthorization();
 
+        MapEraseIfEnabled(app, group);
+
         group.MapGet("/profile", async (ClaimsPrincipal user, AppDbContext db, CancellationToken token) =>
             {
                 var profile = await db.TrainingProfiles
@@ -799,6 +801,74 @@ public static class TrainingEndpoints
         return rows.Count == 0 ? ExerciseCatalogue.AssumedGym : rows.ToHashSet();
     }
 
+    /// <summary>
+    /// The erase endpoint, mapped only where the switch is set (ADR-025).
+    /// <para>
+    /// <b>Mapped, not guarded.</b> With the switch off the route does not exist and the router
+    /// answers 404 — there is no check inside a handler that a later change could relax, and no
+    /// documented endpoint that politely refuses. A feature justified by "we are still iterating"
+    /// has to be absent where that is untrue, and absence is the only version of that which cannot
+    /// be undone by accident.
+    /// </para>
+    /// </summary>
+    private static void MapEraseIfEnabled(IEndpointRouteBuilder app, RouteGroupBuilder group)
+    {
+        var configuration = app.ServiceProvider.GetRequiredService<IConfiguration>();
+
+        if (!configuration.GetValue<bool>(EraseUserData.EnabledKey))
+        {
+            return;
+        }
+
+        // The frontend has to know whether to draw the panel, and the switch is the API's. A second
+        // flag on that tier could disagree with this one, and the disagreement would show up as a
+        // button that 404s. One authority, probed.
+        group.MapGet("/erase", () => Results.Ok(new EraseAvailability(true)))
+            .WithName("EraseAvailability");
+
+        group.MapPost("/erase", async (
+                EraseRequest request,
+                ClaimsPrincipal user,
+                AppDbContext db,
+                ILoggerFactory loggers,
+                CancellationToken token) =>
+            {
+                // Deliberate, never a side effect (ADR-025). The confirmation is a required field
+                // rather than a screen-only concern, so nothing reaches this by replaying a URL or
+                // by a redirect that happened to be a POST.
+                if (!request.Confirmed)
+                {
+                    return Results.BadRequest(new ApiError(TrainingErrorCodes.EraseNotConfirmed));
+                }
+
+                var userId = UserIdOf(user);
+                var erased = await EraseUserData.EraseAsync(db, userId, token);
+
+                // With the counts, because afterwards "the data was erased" and "the import never
+                // ran" look identical from every screen (root standard 12).
+                loggers.CreateLogger(typeof(EraseUserData)).LogWarning(
+                    "Erased everything for {UserId}: {Profiles} profile, {Equipment} equipment, "
+                    + "{Exclusions} exclusions, {PreferredVariants} preferred variants, "
+                    + "{Declined} declined suggestions, {Weeks} generated weeks, "
+                    + "{Snapshots} snapshots, {Workouts} imported workouts, "
+                    + "{Connections} Hevy connections. The catalogue and the key ring were not "
+                    + "touched.",
+                    userId,
+                    erased.Profiles,
+                    erased.Equipment,
+                    erased.Exclusions,
+                    erased.PreferredVariants,
+                    erased.DeclinedSuggestions,
+                    erased.GeneratedWeeks,
+                    erased.Snapshots,
+                    erased.PerformedWorkouts,
+                    erased.HevyConnections);
+
+                return Results.Ok(erased);
+            })
+            .WithName("EraseUserData");
+    }
+
     private static string UserIdOf(ClaimsPrincipal user) =>
         user.FindFirstValue(ClaimTypes.NameIdentifier)
         ?? throw new InvalidOperationException("Authenticated principal has no identifier.");
@@ -1038,3 +1108,15 @@ public sealed record CandidateResponse(
     string OrderClass);
 
 public sealed record SubstituteRequest(Guid ExerciseId);
+
+/// <summary>
+/// Confirmation that the erase is meant. A field rather than a screen concern, so the deliberate
+/// half of ADR-025 lives where it cannot be routed around.
+/// </summary>
+public sealed record EraseRequest(bool Confirmed);
+
+/// <summary>
+/// That the erase endpoint exists. Only ever reachable when it does — the alternative reading, a
+/// 404, is what the frontend acts on.
+/// </summary>
+public sealed record EraseAvailability(bool Available);

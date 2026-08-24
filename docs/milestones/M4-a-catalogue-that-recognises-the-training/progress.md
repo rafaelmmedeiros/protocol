@@ -149,7 +149,36 @@ file carries what a future session would otherwise rediscover.
     reach the path, which is a different reason from the one written down.
 
 ### S4.6 — Erasing everything of mine
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 205 backend unit, 123 backend integration (5 new in `EraseUserDataTests`), 38 E2E in
+  Docker (2 new in `erase.spec.ts`), `check-docs` clean
+- **Observations:**
+  - **Mapped, not guarded — and that distinction is the whole gate.** With `Development:AllowErase`
+    unset the route does not exist and the router answers 404. There is no check inside a handler
+    that a later change could relax, and no documented endpoint that politely refuses. The
+    integration suite proves the absence because the base `ApiFactory` never sets the switch: it is
+    the default configuration answering, not a flag turned off for the occasion.
+  - **The frontend asks the API rather than carrying a second flag.** A `DEVELOPMENT_ALLOW_ERASE` on
+    the web tier could disagree with the API's, and the disagreement would surface as a button that
+    404s. `GET /training/erase` exists only where the POST does, so the page probes it and draws the
+    panel on the answer.
+  - **The tests assert through the API, which `backend/CLAUDE.md` requires and which is also the
+    stronger claim here.** What is being reproduced is *what the product looks like to a new
+    account* — tables can be empty while a screen still answers. The one exception reads the context
+    directly and says why at the line: the catalogue and the Data Protection key ring have no
+    endpoint, and what is asserted is precisely that rows *nobody asked about* were left alone.
+  - **A silently-failed setup would have made the erase test pass for the wrong reason**, and nearly
+    did: `POST /training/week` is `/training/weeks`, so the week was never generated and there was
+    nothing to delete. Every setup call now asserts its own response with the body in the message.
+  - **`ADR-025` touches root standard 14, and standard 18 puts that correction here.** Standard 14
+    said a reset is the moment to stop and ask; there is now a supported way to get a clean start
+    that is not a reset, and a reader who does not know that will still reach for `psql`. The
+    standard names the affordance, its switch, and the fact that it expires at `M5`.
+  - **The affordance's expiry is written in three places on purpose.** `ADR-025` carries it as a
+    record, `EraseUserData`'s doc comment carries it where someone would actually read it, and
+    standard 14 carries it where someone looking for permission to reset would land. `M5` starts
+    storing judgements Hevy cannot return and no regeneration reproduces, and on that day this is
+    no longer adequate.
 
 ### S4.7 — The ladder, containerized
 - **Status:** pending
