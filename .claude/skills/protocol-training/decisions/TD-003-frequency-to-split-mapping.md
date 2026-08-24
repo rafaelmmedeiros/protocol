@@ -1,7 +1,7 @@
 ---
 id: TD-003
 title: One split template per supported frequency, chosen for schedulability rather than growth
-status: active
+status: superseded-by TD-023
 knowledge: [references/split-templates-by-frequency.md, references/per-muscle-training-frequency.md]
 decided: 2026-08-23
 ---
