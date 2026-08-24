@@ -168,6 +168,15 @@ decided: <YYYY-MM-DD>
   Set the old record's `status` to `superseded-by`, and leave everything else in it untouched.
 - **Every training judgement in code cites its record** — root standard 15. The comment is the
   link; there is no second index to keep in sync.
+- **A number with checkable arithmetic is measured before the record is committed, and the
+  record says what was measured.** Not after, and not by reading the generator — by running it
+  across the supported grid and reading the result. `TD-021` declared a band of 6.0 to 8.0
+  fractional sets and was superseded within the hour: a slot credits 3.0 to its primary muscle,
+  so the band was narrower than one slot and no muscle could finish inside it. That was
+  derivable from constants the record itself cited, and three further readings of it failed in
+  implementation afterwards. The measurement takes about two minutes. **Records are append-only,
+  so a falsified one is not corrected but outlived** — it stays in the corpus permanently,
+  asserting something no generated week ever satisfied.
 
 ## Growth
 
