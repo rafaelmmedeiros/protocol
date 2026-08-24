@@ -60,7 +60,7 @@ public class HevyMappingTests
         Assert.All(exercise.Sets, set =>
         {
             Assert.Equal("normal", set.Type);             // no warm-up sets are pushed
-            Assert.Null(set.WeightKg);                    // no load until M4 has watched a lift
+            Assert.Null(set.WeightKg);                    // M4 fixed what a load means (ADR-024); M5 decides what to ask for
             Assert.Null(set.Reps);                        // a single number is what censors the log
             Assert.NotNull(set.RepRange);
             Assert.Equal(8, set.RepRange.Start);          // TD-009

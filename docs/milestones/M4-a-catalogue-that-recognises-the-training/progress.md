@@ -97,7 +97,27 @@ file carries what a future session would otherwise rediscover.
     assumed-gym user still sees all three.
 
 ### S4.4 — What a logged load means
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 202 backend unit (4 new in `ImportedVolumeTests`), `check-docs` clean
+- **Observations:**
+  - **Volume-load did not exist anywhere before this step.** `PerformedVolume` counted sets and
+    nothing counted kilograms, so the step was an addition rather than a correction — which is why
+    no existing test failed on the way in. `VolumeLoadOf` and `VolumeLoadByMuscle` sit beside
+    `ByMuscle` and share its rules deliberately: working sets only, and `TD-006`'s fractional
+    credit. Two quantities counted on different rules cannot be read side by side.
+  - **The guard is a test rather than a comment.** `ADR-024`'s rejected option B — inspect
+    `Equipment` and double a dumbbell load — is the tempting fix, and it is tempting precisely
+    because it is what several logging apps do.
+    `A_barbell_and_a_dumbbell_set_at_the_same_weight_count_the_same` asserts both the raw figure and
+    the credited one, so the arithmetic cannot start branching on the implement without something
+    going red.
+  - **A null load is an absence, not a zero.** Bodyweight work stores no weight because the load is
+    the body and Hevy does not report it. Such a set contributes no kilograms and still counts as a
+    set, asserted in both directions in one test — the two numbers disagreeing there is the correct
+    behaviour and would otherwise read as a bug.
+  - **A comment in `HevyMappingTests` had gone stale and was corrected here (standard 18).** It read
+    "no load until M4 has watched a lift", which by the end of this step implied M4 would start
+    pushing loads. M4 fixed what a load *means*; `M5` decides what to ask for.
 
 ### S4.5 — How far the catalogue still is
 - **Status:** pending

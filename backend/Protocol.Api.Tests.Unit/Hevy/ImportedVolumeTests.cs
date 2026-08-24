@@ -176,4 +176,112 @@ public class ImportedVolumeTests
             PerformedVolume.ByMuscle(current, Catalogue())[
                 exercise.Muscles.First(m => m.Role == MuscleRole.Primary).MuscleGroup]);
     }
+
+    // ---- Volume-load (S4.4, ADR-024) ---------------------------------------------------------
+
+    private static PerformedWorkout ALoggedLift(Exercise exercise, params (SetKind Kind, double? Weight, double? Reps)[] sets) => new()
+    {
+        Id = Guid.CreateVersion7(),
+        UserId = "user-1",
+        ExternalWorkoutId = "workout-load",
+        StartedAt = DateTimeOffset.UnixEpoch,
+        EndedAt = DateTimeOffset.UnixEpoch,
+        ExternallyUpdatedAt = DateTimeOffset.UnixEpoch,
+        Version = 1,
+        Exercises =
+        [
+            new PerformedExercise
+            {
+                Position = 0,
+                ExerciseId = exercise.Id,
+                ExternalTemplateId = exercise.ExternalTemplateId,
+                Sets = [.. sets.Select((set, index) => new PerformedSet
+                {
+                    Position = index,
+                    Kind = set.Kind,
+                    WeightKg = set.Weight,
+                    Reps = set.Reps,
+                })],
+            },
+        ],
+    };
+
+    private static Exercise ByTemplate(string id) =>
+        ExerciseCatalogue.All.Single(exercise => exercise.ExternalTemplateId == id);
+
+    [Fact]
+    public void Volume_load_counts_working_sets_and_ignores_every_other_kind()
+    {
+        // The same exclusion ByMuscle applies, for the same reason: a warm-up is retained on
+        // import (ADR-018) and is not training this system asked for. Counting it would inflate
+        // every kilogram figure M5 ever compares against.
+        var exercise = ByTemplate("A5AC6449");   // Bicep Curl (Barbell)
+
+        var workout = ALoggedLift(
+            exercise,
+            (SetKind.WarmUp, 20, 10),
+            (SetKind.Working, 30, 10),
+            (SetKind.DropSet, 20, 12),
+            (SetKind.ToFailure, 30, 6));
+
+        Assert.Equal(300m, PerformedVolume.VolumeLoadOf(workout.Exercises.Single()));
+    }
+
+    [Fact]
+    public void A_barbell_and_a_dumbbell_set_at_the_same_weight_count_the_same()
+    {
+        // ADR-024: the log is a total, whatever the implement. The engineer's own history says so
+        // — dumbbell curls sit alongside barbell curls at 18.9 against 18.8 kg across 233 sets,
+        // where a per-hand reading would put them at half.
+        //
+        // This is the guard against the tempting fix: inspecting Equipment and doubling the
+        // dumbbell figure. That is option B of the record, and it would apply a factor-of-two
+        // error to every dumbbell movement the system reasons about.
+        var barbell = ByTemplate("A5AC6449");    // Bicep Curl (Barbell)
+        var dumbbell = ByTemplate("37FCC2BB");   // Bicep Curl (Dumbbell)
+
+        Assert.Equal(Equipment.Barbell, barbell.Equipment);
+        Assert.Equal(Equipment.Dumbbell, dumbbell.Equipment);
+
+        var withBar = ALoggedLift(barbell, (SetKind.Working, 30, 10));
+        var withDumbbells = ALoggedLift(dumbbell, (SetKind.Working, 30, 10));
+
+        Assert.Equal(
+            PerformedVolume.VolumeLoadOf(withBar.Exercises.Single()),
+            PerformedVolume.VolumeLoadOf(withDumbbells.Exercises.Single()));
+
+        // And the same at the muscle they share, where the fractional credit is applied.
+        var barLoads = PerformedVolume.VolumeLoadByMuscle([withBar], Catalogue());
+        var dumbbellLoads = PerformedVolume.VolumeLoadByMuscle([withDumbbells], Catalogue());
+
+        Assert.Equal(barLoads[MuscleGroup.Biceps], dumbbellLoads[MuscleGroup.Biceps]);
+    }
+
+    [Fact]
+    public void An_indirect_muscle_is_credited_half_the_kilograms()
+    {
+        // The same TD-006 rule the set count uses. Planned and performed have to be counted the
+        // same way, and so do sets and kilograms — two quantities counted on different rules
+        // cannot be read side by side.
+        var exercise = ByTemplate("A5AC6449");   // Bicep Curl (Barbell): biceps primary, forearms secondary
+        var workout = ALoggedLift(exercise, (SetKind.Working, 30, 10));
+
+        var loads = PerformedVolume.VolumeLoadByMuscle([workout], Catalogue());
+
+        Assert.Equal(300m, loads[MuscleGroup.Biceps]);
+        Assert.Equal(150m, loads[MuscleGroup.Forearms]);
+    }
+
+    [Fact]
+    public void A_set_with_no_load_contributes_no_kilograms_and_is_still_a_set()
+    {
+        // Bodyweight work stores a null load because the load is the body and Hevy does not report
+        // it. Reading that as zero kilograms would be a claim rather than an absence — but the set
+        // still happened, and the set count still credits it.
+        var exercise = ByTemplate("1B2B1E7C");   // Pull Up
+        var workout = ALoggedLift(exercise, (SetKind.Working, null, 8));
+
+        Assert.Empty(PerformedVolume.VolumeLoadByMuscle([workout], Catalogue()));
+        Assert.NotEmpty(PerformedVolume.ByMuscle([workout], Catalogue()));
+    }
 }
