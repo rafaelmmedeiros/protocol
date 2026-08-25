@@ -489,6 +489,34 @@ public static class TrainingEndpoints
                 DeclareAsync(id, SessionDeclaration.Skipped, user, db, token)) // ADR-032
             .WithName("SkipSession");
 
+        group.MapGet("/accumulation", async (
+                ClaimsPrincipal user, AppDbContext db, CancellationToken token) =>
+            {
+                var userId = UserIdOf(user);
+
+                var plans = await db.GeneratedWeeks
+                    .AsNoTracking()
+                    .Include(week => week.Sessions).ThenInclude(session => session.Prescriptions)
+                    .Where(week => week.UserId == userId)
+                    .OrderByDescending(week => week.GeneratedAt)
+                    .ToListAsync(token);
+
+                // Every version, because the builder decides which reading counts -- a workout
+                // deleted upstream must stop counting rather than be deleted here (standard 7).
+                var performed = await db.PerformedWorkouts
+                    .AsNoTracking()
+                    .Include(workout => workout.Exercises).ThenInclude(exercise => exercise.Sets)
+                    .Where(workout => workout.UserId == userId)
+                    .ToListAsync(token);
+
+                return Results.Ok(TrainingAccumulation.Build(
+                    plans,
+                    plans.FirstOrDefault(),
+                    performed,
+                    await CatalogueAsync(db, token)));
+            })
+            .WithName("GetAccumulation");
+
         group.MapGet("/weeks/current/prescriptions/{id:guid}/candidates", async (
                 Guid id,
                 ClaimsPrincipal user,

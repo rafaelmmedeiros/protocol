@@ -285,3 +285,37 @@ test("a session can be skipped, and skipping is not reported as trained", async 
   await expect(page.getByTestId("session-outcome").first()).not.toHaveText(firstOutcome);
   await expect(page.getByTestId("session-skip")).toHaveCount(1);
 });
+
+test("skipping a session shows up as volume that is not coming back", async ({ page }) => {
+  await register(page);
+  await saveProfile(page, "2", "60");
+
+  await page.goto("/week");
+  await page.getByTestId("week-generate").click();
+  await expect(page.getByTestId("week-accumulation")).toBeVisible();
+
+  // Nothing done and nothing skipped: the deferred column carries the plan and the skipped
+  // column is zero everywhere.
+  const skipped = page.getByTestId("accumulation-skipped");
+  expect(await skipped.count()).toBeGreaterThan(0);
+  for (const cell of await skipped.all()) {
+    await expect(cell).toHaveText("0");
+  }
+
+  // The subscription opens before the click: the outcome of a previous press survives on screen,
+  // and a completed request does not mean the re-render has happened yet.
+  const skipping = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.url().includes("/week"),
+  );
+  await page.getByTestId("session-skip").click();
+  await skipping;
+
+  // ADR-032: the volume in that session is now reported as never arriving, rather than as still
+  // ahead in the queue. Polled rather than read once, so the assertion waits for the render.
+  await expect
+    .poll(async () => {
+      const cells = await page.getByTestId("accumulation-skipped").allInnerTexts();
+      return cells.some((value) => Number(value) > 0);
+    })
+    .toBe(true);
+});

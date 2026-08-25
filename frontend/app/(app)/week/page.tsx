@@ -51,6 +51,20 @@ type Session = {
   prescriptions: Prescription[];
 };
 
+type Accumulation = {
+  weeksMeasured: number;
+  /** The target the current plan was generated with, per cycle (TD-024). */
+  targetPerCycle: number;
+  muscles: {
+    muscleGroup: string;
+    performed: number;
+    /** Waiting in sessions still ahead in the queue. */
+    deferred: number;
+    /** Passed over. It never arrives, and nothing is added later to make up for it. */
+    skipped: number;
+  }[];
+};
+
 type MuscleVolume = {
   muscleGroup: string;
   direct: number;
@@ -149,6 +163,8 @@ export default async function WeekPage() {
     read<{ connected: boolean }>("/hevy/connection"),
     read<Comparison>(`/training/weeks/${week.id}/comparison`),
   ]);
+
+  const accumulation = await read<Accumulation>("/training/accumulation");
 
   const generatedAt = new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
@@ -403,6 +419,73 @@ export default async function WeekPage() {
                   )
                   .join(", ")}
               </p>
+            </div>
+          )}
+        </Card>
+      </section>
+
+      <section className="mt-8" data-testid="week-accumulation">
+        <Card>
+          <CardHeader
+            title={strings.accumulationTitle}
+            meta={
+              accumulation ? (
+                <span>{strings.accumulationWeeks(accumulation.weeksMeasured)}</span>
+              ) : null
+            }
+          />
+          <p className="mb-4 text-xs text-ink-muted">{strings.accumulationLead}</p>
+
+          {!accumulation || accumulation.muscles.length === 0 ? (
+            <p className="text-sm text-ink-muted">{strings.accumulationEmpty}</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <caption className="sr-only">{strings.accumulationTitle}</caption>
+                <thead>
+                  <tr className="text-left text-xs text-ink-muted">
+                    <th scope="col" className="pb-2 font-normal">
+                      {strings.volumeTitle}
+                    </th>
+                    <th scope="col" className="pb-2 text-right font-normal">
+                      {strings.performedShort}
+                    </th>
+                    <th scope="col" className="pb-2 text-right font-normal">
+                      {strings.deferredShort}
+                    </th>
+                    <th scope="col" className="pb-2 text-right font-normal">
+                      {strings.skippedShort}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {accumulation.muscles.map((entry) => (
+                    <tr key={entry.muscleGroup} data-testid="accumulation-row">
+                      <th scope="row" className="py-1.5 text-left font-normal text-ink">
+                        {strings.muscles[entry.muscleGroup as keyof typeof strings.muscles] ??
+                          entry.muscleGroup}
+                      </th>
+                      <td className="tabular py-1.5 text-right font-mono text-xs text-ink">
+                        {entry.performed}
+                      </td>
+                      <td className="tabular py-1.5 text-right font-mono text-xs text-ink-muted">
+                        {entry.deferred}
+                      </td>
+                      {/* Skipped volume is the one number here that never resolves, so it is the
+                          one the eye should land on — but it is still arithmetic and never a
+                          verdict (TD-016's pattern). */}
+                      <td
+                        className="tabular py-1.5 text-right font-mono text-xs"
+                        data-testid="accumulation-skipped"
+                      >
+                        <span className={entry.skipped > 0 ? "text-ink" : "text-ink-muted"}>
+                          {entry.skipped}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </Card>

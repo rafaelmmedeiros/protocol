@@ -248,7 +248,30 @@ point: git carries what changed, this carries what a future session would otherw
     have got wrong silently (`ADR-029`'s test, one level up from where it was written).
 
 ### S5.10 — What a muscle has actually accumulated
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 226 backend unit (5 new), 145 integration (1 new), 22 frontend unit, 46 E2E in Docker
+  (1 new)
+- **Observations:**
+  - **The integration test failed first and the code was right.** It regenerated with the duration
+    moved by a minute each cycle, expecting four plans; `ADR-009` correctly wrote no new row,
+    because a minute does not change a plan — so the skip landed on the same session four times
+    and the figure stayed flat. Four durations that genuinely produce different plans fixed the
+    test. Worth keeping because the instinct on a flat number is to suspect the accumulator.
+  - **A superseded plan's untouched sessions are not skips**, and a unit test pins it. Regenerating
+    leaves the old week standing (`ADR-009`); its sessions were never declared anything. Counting
+    them as lost volume would make pressing *generate again* produce a deficit, which is the kind
+    of number that teaches a user to distrust every other one on the screen.
+  - **The E2E needed the invariant `frontend/CLAUDE.md` already records.** Reading the cells once
+    after the click passed locally and failed in Docker: the outcome of the previous render
+    survives on screen, and a completed request is not a completed re-render. Subscribing to the
+    response before the click and polling the cells fixed it — the third time this repo has paid
+    for that lesson, and the first where the rule was already written down.
+  - **Nothing new was needed for the warm-up exclusion.** `PerformedVolume.ByMuscle` already
+    excluded warm-up sets and uncatalogued exercises, so the accumulation reuses the arithmetic the
+    generator plans with rather than growing a second copy of `TD-006`.
+  - **Three columns that must not be summed.** Performed, deferred and skipped are different
+    quantities and the table keeps them apart; only skipped never resolves, which is why it is the
+    one the eye lands on — still as a number, never as a verdict.
 
 ### S5.11 — The ladder, containerized
 - **Status:** pending

@@ -121,6 +121,15 @@ export const enUS = {
     extraSlotNote:
       "Bought with minutes your sessions had left over. An extra slot carries two sets instead of three.",
     swapNote: "Swapping changes the repetition range and the rest interval with it.",
+    accumulationTitle: "What you have actually done",
+    accumulationLead:
+      "Sets per muscle group across every plan you have had. Deferred volume is waiting in sessions still ahead of you; skipped volume is not coming back. Nothing is added to a later plan to make up for either.",
+    accumulationWeeks: (weeks: number) =>
+      weeks === 1 ? "measured over 1 week of training" : `measured over ${weeks} weeks of training`,
+    accumulationEmpty: "Nothing to add up yet. Train a session, or skip one, and it shows here.",
+    performedShort: "done",
+    deferredShort: "still ahead",
+    skippedShort: "skipped",
     volumeTitle: "Sets per muscle group",
     volumeLead:
       "One cycle of your plan. A set counts whole for the muscle it trains and half for a muscle it only helps, against the target this plan was built with.",

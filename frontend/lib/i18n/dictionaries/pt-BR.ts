@@ -116,6 +116,15 @@ export const ptBR: Dictionary = {
     extraSlotNote:
       "Comprado com os minutos que sobraram das suas sessões. Um slot extra leva duas séries em vez de três.",
     swapNote: "Trocar muda a faixa de repetições e o descanso junto.",
+    accumulationTitle: "O que você fez de fato",
+    accumulationLead:
+      "Séries por grupo muscular somando todos os planos que você teve. Volume adiado está esperando em sessões ainda à sua frente; volume pulado não volta. Nada é acrescentado a um plano seguinte para compensar nenhum dos dois.",
+    accumulationWeeks: (weeks: number) =>
+      weeks === 1 ? "medido sobre 1 semana de treino" : `medido sobre ${weeks} semanas de treino`,
+    accumulationEmpty: "Nada a somar ainda. Treine uma sessão, ou pule uma, e aparece aqui.",
+    performedShort: "feito",
+    deferredShort: "à frente",
+    skippedShort: "pulado",
     volumeTitle: "Séries por grupo muscular",
     volumeLead:
       "Um ciclo do seu plano. Uma série conta inteira para o músculo que ela treina e metade para um músculo que ela apenas auxilia, contra o alvo com que este plano foi montado.",

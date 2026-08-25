@@ -460,6 +460,47 @@ public class GeneratedWeekEndpointsTests(ApiFactory factory) : IClassFixture<Api
     }
 
     [Fact]
+    public async Task A_session_skipped_every_cycle_surfaces_as_a_growing_deficit()
+    {
+        // The capability, end to end: skipping the same session across cycles has to become a
+        // number the user can see, reported as skipped rather than as still coming (ADR-032).
+        var client = await SignedInClientAsync();
+        await SetProfileAsync(client, 2);
+
+        decimal? previous = null;
+
+        // A regeneration writes a new row only when the plan actually differs (ADR-009), and a
+        // minute of duration does not change one -- found by this test failing with the skipped
+        // figure flat. These four durations produce four genuinely different plans.
+        int[] durations = [1_500, 3_600, 5_400, 7_200];
+
+        for (var cycle = 0; cycle < durations.Length; cycle++)
+        {
+            await SetProfileAsync(client, 2, durations[cycle]);
+            var week = await GenerateAsync(client);
+
+            await client.PostAsync(
+                $"/training/weeks/current/sessions/{week.Sessions[0].Id}/skip", null);
+
+            var report = await client.GetFromJsonAsync<AccumulationReport>("/training/accumulation");
+            var worst = report!.Muscles.Max(muscle => muscle.Skipped);
+
+            Assert.True(
+                previous is null || worst > previous,
+                $"cycle {cycle}: skipped volume did not grow ({previous} then {worst})");
+
+            previous = worst;
+        }
+
+        var final = await client.GetFromJsonAsync<AccumulationReport>("/training/accumulation");
+
+        // Skipped and deferred are separate figures, and nothing was performed.
+        Assert.All(final!.Muscles, muscle => Assert.Equal(0m, muscle.Performed));
+        Assert.Contains(final.Muscles, muscle => muscle.Skipped > 0);
+        Assert.Equal(TrainingPrescription.WeeklyTargetFractionalSets, final.TargetPerCycle);
+    }
+
+    [Fact]
     public async Task The_current_week_is_the_one_most_recently_generated()
     {
         var client = await SignedInClientAsync();
