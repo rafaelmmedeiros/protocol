@@ -327,17 +327,21 @@ and the generator fills against the window `S5.2` decided.
 
 ### S5.9 — A session is done, and the queue advances
 
-**Description:** A session completes when a workout binds to it, or when the user says so, and the
-next session becomes current.
+**Description:** A session leaves the head of the queue when a workout binds to it, when the user
+marks it done, or when the user skips it — and the next session becomes current.
 
 **Technical actions:**
 
 1. Advance on a bound workout, using `routine_id` and nothing else (per `ADR-019`, `ADR-028`)
 2. Add an explicit mark for a session nothing bound to, writing nothing into imported history
    (per `ADR-028`; standard 7)
-3. Report which sessions completed by binding and which by mark, so the binding rate is visible
-   (per `ADR-028`)
-4. Fix the coverage denominator: count bound against workouts that had a routine to bind to, not
+3. Add a skip, stored, which advances the queue without claiming the session happened (per
+   `ADR-032`; standard 7)
+4. Store only what cannot be derived: binding stays a join on `routine_id`, the mark and the skip
+   are declarations and are columns (per `ADR-029`, `ADR-032`)
+5. Report which sessions left by binding, which by mark and which by skip, so the binding rate is
+   visible and a skip is never read as a completion (per `ADR-028`, `ADR-032`)
+6. Fix the coverage denominator: count bound against workouts that had a routine to bind to, not
    against every workout ever imported (per `ADR-019`, revision of 2026-08-24)
 
 **Tests:**
@@ -346,6 +350,7 @@ next session becomes current.
 |----------|-------|-----------|
 | A bound workout advances the queue | Integration | `Protocol.Api.Tests.Integration/Training/GeneratedWeekEndpointsTests.cs` |
 | A mark advances it and writes no history | Integration | `Protocol.Api.Tests.Integration/Training/GeneratedWeekEndpointsTests.cs` |
+| A skip advances it and is distinguishable from a mark | Integration | `Protocol.Api.Tests.Integration/Training/GeneratedWeekEndpointsTests.cs` |
 | Coverage counts only bindable workouts | Unit | `Protocol.Api.Tests.Unit/Training/WeekComparisonTests.cs` |
 | Marking a session on the week screen | E2E | `frontend/e2e/week.spec.ts` |
 
@@ -354,8 +359,10 @@ next session becomes current.
 **Acceptance criteria:**
 
 - A session marked done advances the queue and leaves `performed_workouts` byte-for-byte unchanged.
+- A session skipped advances the queue, leaves `performed_workouts` unchanged, and is reported as
+  skipped rather than as done.
 - Coverage against a history that predates the first push does not report a near-zero rate.
-- The two completion routes are distinguishable in the response.
+- The three routes out of the queue are distinguishable in the response.
 
 ---
 
@@ -369,8 +376,10 @@ missed shows up as a number rather than as a week that looks complete.
 1. Accumulate performed volume per muscle across cycles from imported history, warm-up sets
    excluded (per `TD-006`)
 2. Apply `S5.3`'s record — report, repay to a cap, or repay in full — citing it at the line
-3. Express it as arithmetic and not as a verdict, the pattern `TD-016` already sets for shortfall
-4. Count against the window `S5.2` decided, so the accumulated figure and the prescribed one are
+3. Report deferred volume apart from skipped volume: one is still ahead in the queue and the other
+   will never arrive (per `ADR-032`)
+4. Express it as arithmetic and not as a verdict, the pattern `TD-016` already sets for shortfall
+5. Count against the window `S5.2` decided, so the accumulated figure and the prescribed one are
    the same kind of number
 
 **Tests:**
@@ -385,8 +394,8 @@ missed shows up as a number rather than as a week that looks complete.
 
 **Acceptance criteria:**
 
-- Four cycles in which the same session never completes produce a visible, growing deficit for the
-  muscles that session trains.
+- Four cycles in which the same session is skipped produce a visible, growing deficit for the
+  muscles that session trains, reported as skipped rather than as deferred.
 - The figure is a number against a target, with no adjectival judgement attached.
 - Warm-up sets contribute nothing.
 
