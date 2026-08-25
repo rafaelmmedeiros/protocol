@@ -14,6 +14,8 @@ import { GenerateForm } from "./generate-form";
 import { LoopControls } from "./loop-controls";
 import { SlotActions, type Candidate } from "./slot-actions";
 
+type Muscle = { muscleGroup: string; role: string };
+
 type Prescription = {
   id: string;
   position: number;
@@ -25,6 +27,13 @@ type Prescription = {
   maxReps: number;
   repsInReserve: number;
   restSeconds: number;
+  /** What the slot exists to train, and what it loads on the way. Codes, never sentences. */
+  muscles: Muscle[];
+  orderClass: string;
+  movementPattern: string;
+  equipment: string;
+  /** `Full` or `Ceiling` — and the two are not distinguishable from `sets` alone. */
+  slotKind: string;
 };
 
 type Session = {
@@ -36,12 +45,23 @@ type Session = {
   prescriptions: Prescription[];
 };
 
+type MuscleVolume = {
+  muscleGroup: string;
+  direct: number;
+  indirect: number;
+  /** The target this plan was built with, not today's constant. */
+  target: number;
+};
+
 type Week = {
   id: string;
   weekStartDate: string;
   generatedAt: string;
   daysPerWeek: number;
   sessions: Session[];
+  volume: MuscleVolume[];
+  shortfalls: { muscleGroup: string; fractionalSets: number; target: number }[];
+  uncovered: string[];
 };
 
 /** Reads whatever the server has: the current week, and whether a profile exists at all. */
@@ -189,7 +209,14 @@ export default async function WeekPage() {
                   data-testid="prescription"
                   className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2.5 first:pt-0 last:pb-0"
                 >
-                  <span className="text-sm text-ink">{prescription.exerciseTitle}</span>
+                  <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-ink">
+                    {prescription.exerciseTitle}
+                    {/* Only the ceiling slot is marked. A full slot is the norm and a badge on
+                        it would read as a rank rather than as an explanation. */}
+                    {prescription.slotKind === "Ceiling" && (
+                      <Pill>{strings.extraSlot}</Pill>
+                    )}
+                  </span>
                   <span className="tabular flex flex-wrap items-baseline gap-x-3 font-mono text-xs text-ink-muted">
                     <span data-testid="prescription-volume">
                       {prescription.sets} &times; {prescription.minReps}&ndash;
@@ -202,6 +229,35 @@ export default async function WeekPage() {
                       {strings.rest} {formatRest(prescription.restSeconds, strings)}
                     </span>
                   </span>
+                  {/* Why this exercise is here, in the order the generator decided it: the
+                      muscle that was furthest from its target, then what else the slot loads,
+                      then how it is done. No claim about any of it being better. */}
+                  <p
+                    className="w-full text-xs text-ink-muted"
+                    data-testid="prescription-explains"
+                  >
+                    <span>
+                      {strings.trains}{" "}
+                      <span className="text-ink">
+                        {muscleNames(prescription.muscles, "Primary", strings.muscles)}
+                      </span>
+                    </span>
+                    {prescription.muscles.some((muscle) => muscle.role === "Secondary") && (
+                      <>
+                        {" · "}
+                        {strings.alsoLoads}{" "}
+                        {muscleNames(prescription.muscles, "Secondary", strings.muscles)}
+                      </>
+                    )}
+                    {" · "}
+                    {strings.classes[prescription.orderClass as keyof typeof strings.classes] ??
+                      prescription.orderClass}
+                    {" · "}
+                    {strings.implements[
+                      prescription.equipment as keyof typeof strings.implements
+                    ] ?? prescription.equipment}
+                  </p>
+
                   <SlotActions
                     prescriptionId={prescription.id}
                     exerciseId={prescription.exerciseId}
@@ -210,6 +266,9 @@ export default async function WeekPage() {
                       swapTo: strings.swapTo,
                       refuse: strings.refuse,
                       noAlternatives: strings.noAlternatives,
+                      swapNote: strings.swapNote,
+                      classes: strings.classes,
+                      implements: strings.implements,
                     }}
                   />
                 </li>
@@ -218,6 +277,87 @@ export default async function WeekPage() {
           </Card>
         ))}
       </div>
+
+      {week.sessions.some((session) =>
+        session.prescriptions.some((prescription) => prescription.slotKind === "Ceiling"),
+      ) && (
+        <p className="mt-4 text-xs text-ink-muted" data-testid="week-extra-note">
+          <span className="text-ink">{strings.extraSlot}</span> — {strings.extraSlotNote}
+        </p>
+      )}
+
+      <section className="mt-8" data-testid="week-volume">
+        <Card>
+          <CardHeader title={strings.volumeTitle} meta={null} />
+          <p className="mb-4 text-xs text-ink-muted">{strings.volumeLead}</p>
+
+          {/* Wide content scrolls inside its own box rather than the page. */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <caption className="sr-only">{strings.volumeTitle}</caption>
+              <thead>
+                <tr className="text-left text-xs text-ink-muted">
+                  <th scope="col" className="pb-2 font-normal">
+                    {strings.volumeTitle}
+                  </th>
+                  <th scope="col" className="pb-2 text-right font-normal">
+                    {strings.directShort}
+                  </th>
+                  <th scope="col" className="pb-2 text-right font-normal">
+                    {strings.indirectShort}
+                  </th>
+                  <th scope="col" className="pb-2 text-right font-normal">
+                    {strings.ofTarget}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {week.volume.map((entry) => (
+                  <tr key={entry.muscleGroup} data-testid="volume-row">
+                    <th scope="row" className="py-1.5 text-left font-normal text-ink">
+                      {strings.muscles[entry.muscleGroup as keyof typeof strings.muscles] ??
+                        entry.muscleGroup}
+                    </th>
+                    <td className="tabular py-1.5 text-right font-mono text-xs text-ink-muted">
+                      {entry.direct}
+                    </td>
+                    <td className="tabular py-1.5 text-right font-mono text-xs text-ink-muted">
+                      {entry.indirect}
+                    </td>
+                    <td className="tabular py-1.5 text-right font-mono text-xs">
+                      <span className="text-ink">{entry.direct + entry.indirect}</span>
+                      <span className="text-ink-muted">
+                        {" "}
+                        {strings.ofTarget} {entry.target}
+                      </span>
+                      {week.shortfalls.some(
+                        (shortfall) => shortfall.muscleGroup === entry.muscleGroup,
+                      ) && (
+                        <span className="text-ink-muted"> · {strings.shortOfFloor}</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {week.uncovered.length > 0 && (
+            <div className="mt-5 border-t border-line pt-4" data-testid="week-uncovered">
+              <h3 className="text-sm text-ink">{strings.uncoveredTitle}</h3>
+              <p className="mt-1 text-xs text-ink-muted">{strings.uncoveredLead}</p>
+              <p className="mt-2 text-xs text-ink">
+                {week.uncovered
+                  .map(
+                    (muscle) =>
+                      strings.muscles[muscle as keyof typeof strings.muscles] ?? muscle,
+                  )
+                  .join(", ")}
+              </p>
+            </div>
+          )}
+        </Card>
+      </section>
 
       {connection?.connected && comparison && (
         <ComparisonView
@@ -253,6 +393,21 @@ export default async function WeekPage() {
       )}
     </>
   );
+}
+
+/**
+ * The muscles of one role, translated and joined. Sorted by the API already, so the order a
+ * reader sees is the order the catalogue curates rather than whatever the join produced.
+ */
+function muscleNames(
+  muscles: Muscle[],
+  role: string,
+  names: Record<string, string>,
+): string {
+  return muscles
+    .filter((muscle) => muscle.role === role)
+    .map((muscle) => names[muscle.muscleGroup] ?? muscle.muscleGroup)
+    .join(", ");
 }
 
 /**

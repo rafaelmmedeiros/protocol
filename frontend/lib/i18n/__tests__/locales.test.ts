@@ -43,6 +43,17 @@ describe("the dictionaries", () => {
     expect(ptBR.nav.dashboard).not.toBe(enUS.nav.dashboard);
     expect(ptBR.login.invalidCredentials).not.toBe(enUS.login.invalidCredentials);
   });
+
+  // A vocabulary block is the easiest thing to add in English and forget: key parity passes,
+  // the compiler is satisfied, and a pt-BR reader sees "Chest". Sampled rather than exhaustive
+  // because a few entries are legitimately the same word in both.
+  it("translate the vocabularies the week screen renders", () => {
+    expect(ptBR.week.muscles.Chest).not.toBe(enUS.week.muscles.Chest);
+    expect(ptBR.week.muscles.Hamstrings).not.toBe(enUS.week.muscles.Hamstrings);
+    expect(ptBR.week.classes.CompoundPrimary).not.toBe(enUS.week.classes.CompoundPrimary);
+    expect(ptBR.week.implements.Barbell).not.toBe(enUS.week.implements.Barbell);
+    expect(ptBR.week.volumeLead).not.toBe(enUS.week.volumeLead);
+  });
 });
 
 function keysOf(value: object, prefix = ""): string[] {

@@ -137,7 +137,29 @@ point: git carries what changed, this carries what a future session would otherw
     and recorded here because the two lists will not always agree.
 
 ### S5.6 — The week screen explains itself
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 22 frontend unit (1 new), 41 E2E in Docker (3 new), typecheck clean
+- **Observations:**
+  - **The plan named a test file that does not exist.** It asks for
+    `lib/i18n/__tests__/dictionaries.test.ts`; the real file is `locales.test.ts`, and it already
+    compares every key recursively — so the new strings were covered the moment they were added,
+    without writing anything. What it did *not* cover is the failure that actually happens: a
+    vocabulary block added in English and forgotten, which passes key parity and satisfies the
+    compiler while a pt-BR reader sees "Chest". That assertion is the new test.
+  - **`Pill` takes five tones and no `title`.** The first attempt marked a ceiling slot with a
+    tooltip, which the compiler refused and which would have been the wrong answer anyway: a
+    tooltip is not keyboard-reachable, and standard 13 puts elements before ARIA. The note became
+    a visible line, rendered only when the week actually contains a bought slot.
+  - **Fifteen volume rows, not sixteen.** `Adductors` is uncovered and appears in its own block
+    instead, so the E2E asserts 15. A future adductor exercise changes that number and the test
+    will say so — which is the intended direction, since the count is the assertion that the two
+    lists stay disjoint.
+  - **The equipment vocabulary is `week.implements`, not `week.equipment`.** The exercise's
+    `Equipment` enum (ten values: how the movement is done) is a different vocabulary from
+    `EquipmentItem` (what a gym contains), which the `equipment` section already translates under
+    `equipment.items`. Two blocks named `equipment` one level apart would be read as one.
+  - **`ok`, `warn` and `bad` were available and deliberately not used.** An extra slot is neither
+    good nor bad, and this tier reserves green and red as data ink for progress and regression.
 
 ### S5.7 — The split becomes a choice
 - **Status:** pending

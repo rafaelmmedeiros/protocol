@@ -103,6 +103,60 @@ export const enUS = {
     rir: "left in reserve",
     minutesShort: "min",
     secondsShort: "s",
+    trains: "Trains",
+    alsoLoads: "Also loads",
+    extraSlot: "extra",
+    extraSlotNote:
+      "Bought with minutes your sessions had left over. An extra slot carries two sets instead of three.",
+    swapNote: "Swapping changes the repetition range and the rest interval with it.",
+    volumeTitle: "Sets per muscle group",
+    volumeLead:
+      "One cycle of your plan. A set counts whole for the muscle it trains and half for a muscle it only helps, against the target this plan was built with.",
+    directShort: "direct",
+    indirectShort: "indirect",
+    ofTarget: "of",
+    shortOfFloor: "short",
+    uncoveredTitle: "Not trained directly",
+    uncoveredLead:
+      "No exercise in the catalogue trains these as its main muscle, so they only ever add up through the half-counted sets above. Training more does not change that.",
+    /** Keyed by the API's `MuscleGroup` names, which are codes and never displayed raw. */
+    muscles: {
+      Chest: "Chest",
+      FrontDelts: "Front delts",
+      SideDelts: "Side delts",
+      RearDelts: "Rear delts",
+      Lats: "Lats",
+      UpperBack: "Upper back",
+      Biceps: "Biceps",
+      Triceps: "Triceps",
+      Forearms: "Forearms",
+      Quads: "Quads",
+      Hamstrings: "Hamstrings",
+      Glutes: "Glutes",
+      Calves: "Calves",
+      Abs: "Abs",
+      SpinalErectors: "Spinal erectors",
+      Adductors: "Adductors",
+    },
+    /** Keyed by the API's `OrderClass`. Describes where a slot sits, never how good it is. */
+    classes: {
+      CompoundPrimary: "Heavy compound",
+      CompoundSecondary: "Secondary compound",
+      Isolation: "Isolation",
+    },
+    /** Keyed by the API's `Equipment` — what the movement is done with. */
+    implements: {
+      Barbell: "Barbell",
+      Dumbbell: "Dumbbell",
+      Machine: "Machine",
+      Cable: "Cable",
+      SmithMachine: "Smith machine",
+      Bodyweight: "Bodyweight",
+      BodyweightLoadable: "Bodyweight, loadable",
+      Band: "Band",
+      Kettlebell: "Kettlebell",
+      Other: "Other",
+    },
     /** The plain-English names the API sends, turned into words. */
     kinds: {
       FullBody: "Full body",

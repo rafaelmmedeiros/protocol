@@ -194,3 +194,53 @@ test("a week survives a full page load, and generating again replaces what is sh
   await page.getByTestId("week-generate").click();
   await expect(page.getByTestId("session-day")).toHaveCount(5);
 });
+
+test("a slot says what it trains and what decided its numbers", async ({ page }) => {
+  await register(page);
+  await saveProfile(page, "4", "60");
+
+  await page.goto("/week");
+  await page.getByTestId("week-generate").click();
+  await expect(page.getByTestId("week-sessions")).toBeVisible();
+
+  // Every slot, not the first one: a join that dropped a row would still render the rest.
+  const explanations = page.getByTestId("prescription-explains");
+  const slots = page.getByTestId("prescription");
+  await expect(explanations).toHaveCount(await slots.count());
+
+  // The text is translated, so this asserts the shape rather than the words: a muscle name, a
+  // class and an implement, separated by the middle dot the component joins them with.
+  await expect(explanations.first()).toContainText("·");
+  await expect(explanations.first()).not.toHaveText("");
+});
+
+test("the week reports what every muscle group receives", async ({ page }) => {
+  await register(page);
+  await saveProfile(page, "4", "60");
+
+  await page.goto("/week");
+  await page.getByTestId("week-generate").click();
+
+  const volume = page.getByTestId("week-volume");
+  await expect(volume).toBeVisible();
+
+  // One row per muscle group the catalogue trains directly. Fifteen of the sixteen: Adductors
+  // is uncovered and is reported in its own block instead, which is the distinction TD-013 draws
+  // between a shortfall the user can fix and a gap in what exists.
+  await expect(page.getByTestId("volume-row")).toHaveCount(15);
+  await expect(page.getByTestId("week-uncovered")).toBeVisible();
+});
+
+test("swapping an exercise says what else it would change", async ({ page }) => {
+  await register(page);
+  await saveProfile(page, "4", "60");
+
+  await page.goto("/week");
+  await page.getByTestId("week-generate").click();
+  await expect(page.getByTestId("week-sessions")).toBeVisible();
+
+  // A slot with alternatives carries the note; one without carries nothing to explain.
+  const notes = page.getByTestId(/^swap-note-/);
+  expect(await notes.count()).toBeGreaterThan(0);
+  await expect(notes.first()).not.toHaveText("");
+});
