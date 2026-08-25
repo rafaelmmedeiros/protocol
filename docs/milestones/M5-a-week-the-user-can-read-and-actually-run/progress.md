@@ -1,6 +1,6 @@
 # M5 — progress
 
-Status: `in-progress`
+Status: `completed`
 
 One entry per step of `plan.md`, in the plan's linearised order. The `Observations` line is the
 point: git carries what changed, this carries what a future session would otherwise rediscover.
@@ -274,4 +274,44 @@ point: git carries what changed, this carries what a future session would otherw
     one the eye lands on — still as a number, never as a verdict.
 
 ### S5.11 — The ladder, containerized
-- **Status:** pending
+- **Status:** completed
+- **Tests:** all eleven rungs green — `check-docs` 120 documents; backend build clean; 226 backend
+  unit; 145 backend integration; frontend typecheck and 22 unit; the app stack healthy on rebuilt
+  images; both smokes; 46 E2E and both backend suites in Docker; a clean tree
+- **Observations:**
+  - **The migrations ran against the development database and changed nothing they were not meant
+    to.** Before: 2 weeks, both dated, 8 sessions all carrying a weekday, 51 prescriptions. After
+    three migrations — the volume band, the split choice, the queue's nullable columns and the
+    session declaration — the counts are identical and **both weeks still carry their date and all
+    eight sessions still carry their day**. That is the only execution of `ADR-027`'s nullability
+    against rows that cannot be recreated, and it is what "not rewritten" had to mean in practice
+    rather than in a test.
+  - **The backfill landed as `ADR-029` decided and not as EF scaffolded it**: target `6.0` and
+    ceiling `6.0`, never `8.0`. Those two weeks predate `TD-022`, so a ceiling equal to the target
+    is the faithful statement that they were built to stop there. Had the scaffolded `defaultValue:
+    0m` shipped, every muscle in them would now read as infinitely over target.
+  - **The development database lost its imported history again between `S5.7` and here** — 759
+    workouts to 0, and the two weeks are all that remain. Not caused by this milestone: nothing in
+    it deletes, and the erase affordance (`ADR-025`) is the supported way to reach that state. It
+    does mean the accumulation report has no performed volume to show on this account until the
+    next sync, which is worth knowing before reading the screen and concluding it is broken.
+  - **Rung 7 could not be finished from a browser.** The legacy weeks belong to the engineer's
+    account and registering a throwaway user against the development stack is exactly what
+    standard 14 and `P4` exist to prevent. What *was* verified: the rows survive the migration
+    intact, the API booted and passed its healthcheck reading the new model against them, and the
+    integration suite reads a row of exactly that shape through the real HTTP pipeline. The one
+    thing not verified is a human looking at that specific week in the running app.
+
+## Milestone outcome
+
+All six capability bullets are covered, and the coverage table in `plan.md` names the step for
+each. Two things are true of this milestone that are worth carrying forward:
+
+- **Three records were written and then falsified by measurement inside the same milestone.**
+  `TD-021` (superseded by `TD-022` within the hour), `ADR-029`'s claim that the target was already
+  snapshotted, and `S5.3`'s premise that a missed session loses volume. Each was caught by
+  building the thing rather than by reading, and `P12`'s gate exists because of the first.
+- **The milestone changed what a plan *is*, and nothing in the stored history was rewritten to
+  match.** A week generated under `ADR-008` still says what it said; a plan generated now says
+  something different; the same screen renders both. That is the property `ADR-003` and root
+  standard 7 were protecting, tested against real rows for the first time here.

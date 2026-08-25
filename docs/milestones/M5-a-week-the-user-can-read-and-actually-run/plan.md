@@ -472,19 +472,19 @@ number and a researched one distinguishable.
 
 ## Deliverables
 
-- [ ] `S5.1` — which splits a frequency may offer, superseding `TD-003`
-- [ ] `S5.2` — the dose window under a queue
-- [ ] `S5.3` — what happens to volume a missed session did not deliver
-- [ ] `S5.4` — what a prescribed slot says
-- [ ] `S5.5` — per-muscle volume against the week's own target
-- [ ] `S5.6` — the week screen explains itself
-- [ ] `S5.7` — the split becomes a choice
-- [ ] `S5.8` — the plan becomes a queue
-- [ ] `S5.9` — a session is done, and the queue advances
-- [ ] `S5.10` — what a muscle has actually accumulated
-- [ ] `S5.11` — the ladder, containerized
-- [ ] the verification ladder from `/protocol-feature`, green
-- [ ] every capability bullet above covered by at least one step
+- [x] `S5.1` — which splits a frequency may offer, superseding `TD-003`
+- [x] `S5.2` — the dose window under a queue
+- [x] `S5.3` — what happens to volume a missed session did not deliver
+- [x] `S5.4` — what a prescribed slot says
+- [x] `S5.5` — per-muscle volume against the week's own target
+- [x] `S5.6` — the week screen explains itself
+- [x] `S5.7` — the split becomes a choice
+- [x] `S5.8` — the plan becomes a queue
+- [x] `S5.9` — a session is done, and the queue advances
+- [x] `S5.10` — what a muscle has actually accumulated
+- [x] `S5.11` — the ladder, containerized
+- [x] the verification ladder from `/protocol-feature`, green
+- [x] every capability bullet above covered by at least one step
 
 **Coverage of the capability bullets:**
 
