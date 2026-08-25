@@ -17,7 +17,12 @@ type Profile = {
   goal: string;
   daysPerWeek: number;
   sessionDurationSeconds: number;
+  /** Null when the user never chose; the API also sends what that resolves to. */
+  split: string | null;
+  admittedSplits: string[];
 };
+
+type SplitOptions = { daysPerWeek: number; templates: string[]; default: string };
 
 /** Reads the saved profile, or null when there is not one yet. */
 async function getProfile(): Promise<Profile | null> {
@@ -31,8 +36,28 @@ async function getProfile(): Promise<Profile | null> {
   return (await response.json()) as Profile;
 }
 
+/**
+ * Every frequency's templates, not just the saved one's. The frequency is edited on this page,
+ * and a first-time user has no saved one at all — which is exactly the case that made serving a
+ * single row wrong.
+ */
+async function getSplitOptions(): Promise<SplitOptions[]> {
+  const cookieStore = await cookies();
+  const response = await fetch(`${API_URL}/training/splits`, {
+    headers: { cookie: cookieStore.toString() },
+    cache: "no-store",
+  });
+
+  if (!response.ok) return [];
+  return (await response.json()) as SplitOptions[];
+}
+
 export default async function ProfilePage() {
-  const [dict, profile] = await Promise.all([getDictionary(), getProfile()]);
+  const [dict, profile, splitOptions] = await Promise.all([
+    getDictionary(),
+    getProfile(),
+    getSplitOptions(),
+  ]);
 
   // Collected by the schema, programmed one at a time. Surfacing the rest as unavailable is
   // what ADR-004 asks for: the field is right from the first migration, and nothing is
@@ -55,6 +80,10 @@ export default async function ProfilePage() {
         currentMinutes={
           profile ? secondsToMinutes(profile.sessionDurationSeconds) : DEFAULTS.minutes
         }
+        currentSplit={profile?.split ?? ""}
+        // The table travels rather than being copied here, so this tier never carries a version
+        // of TD-023 that would drift from the record.
+        splitOptions={splitOptions}
         bounds={{ minDays: 2, maxDays: 6, minMinutes: 25, maxMinutes: 120 }}
         strings={{
           goalLabel: dict.profile.goalLabel,
@@ -64,6 +93,10 @@ export default async function ProfilePage() {
           daysHint: dict.profile.daysHint,
           durationLabel: dict.profile.durationLabel,
           durationHint: dict.profile.durationHint,
+          splitLabel: dict.profile.splitLabel,
+          splitHint: dict.profile.splitHint,
+          splitDefault: dict.profile.splitDefault,
+          splits: dict.profile.splits,
           save: dict.profile.save,
           saving: dict.profile.saving,
           saved: dict.profile.saved,

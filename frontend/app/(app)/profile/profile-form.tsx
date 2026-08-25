@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,10 @@ export type ProfileStrings = {
   daysHint: string;
   durationLabel: string;
   durationHint: string;
+  splitLabel: string;
+  splitHint: string;
+  splitDefault: string;
+  splits: Record<string, string>;
   save: string;
   saving: string;
   saved: string;
@@ -39,6 +43,8 @@ export function ProfileForm({
   currentGoal,
   currentDays,
   currentMinutes,
+  currentSplit,
+  splitOptions,
   bounds,
 }: {
   goals: GoalChoice[];
@@ -46,10 +52,21 @@ export function ProfileForm({
   currentGoal: string;
   currentDays: number;
   currentMinutes: number;
+  /** What was chosen, or empty for the frequency's default (ADR-030). */
+  currentSplit: string;
+  /** Every frequency's templates (TD-023), served by the API and never listed in this tier. */
+  splitOptions: { daysPerWeek: number; templates: string[] }[];
   bounds: { minDays: number; maxDays: number; minMinutes: number; maxMinutes: number };
 }) {
   const [state, action] = useActionState<ProfileState, FormData>(saveProfile, { saved: false });
   const message = state.error;
+
+  // Which splits exist depends on the frequency, and the frequency is edited right here — so
+  // the list follows the field rather than the saved value. The table comes from the API, so
+  // filtering it is not a second copy of TD-023.
+  const [days, setDays] = useState(currentDays);
+  const admittedSplits =
+    splitOptions.find((option) => option.daysPerWeek === days)?.templates ?? [];
 
   return (
     <form action={action} className="flex max-w-md flex-col gap-6">
@@ -76,9 +93,34 @@ export function ProfileForm({
         label={strings.daysLabel}
         hint={strings.daysHint}
         defaultValue={currentDays}
+        onChange={(event) => setDays(Number(event.target.value))}
         min={bounds.minDays}
         max={bounds.maxDays}
         required
+      />
+
+      <Select
+        id="split"
+        name="split"
+        data-testid="profile-split"
+        label={strings.splitLabel}
+        hint={strings.splitHint}
+        defaultValue={currentSplit}
+        // Keyed by the frequency so the browser re-reads defaultValue when the list changes;
+        // without it a choice made for five days stays selected under four and is then refused.
+        key={days}
+        options={[
+          // The empty value is a real answer and is listed first: it means "whatever this
+          // frequency maps to", which is what a user who never chose is on.
+          { value: "", label: strings.splitDefault },
+          ...admittedSplits.map((id) => ({
+            value: id,
+            // No option is marked as recommended or as the default. Split organisation has no
+            // detectable effect on growth once volume is equated, and a badge here is exactly
+            // where that claim would come back (TD-023).
+            label: strings.splits[id] ?? id,
+          })),
+        ]}
       />
 
       <Field

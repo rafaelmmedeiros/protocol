@@ -181,6 +181,22 @@ export const enUS = {
     daysHint: "How many sessions you will realistically train, not how many you would like to.",
     durationLabel: "Minutes a session",
     durationHint: "How long a session can last, door to door. Rest between sets is decided for you.",
+    splitLabel: "Split",
+    splitHint:
+      "How the week is arranged. Once weekly volume is the same, the arrangement does not change what you grow — pick the one you will actually follow.",
+    splitDefault: "Use the usual one for this frequency",
+    /** Keyed by the API's `SplitTemplateId`. Shapes, never rankings. */
+    splits: {
+      FullBodyX2: "Full body, twice",
+      FullBodyX3: "Full body, three times",
+      UpperLowerFull: "Upper / Lower / Full body",
+      UpperLowerX2: "Upper / Lower, twice",
+      PushPullLegsFull: "Push / Pull / Legs / Full body",
+      UpperLowerUpperLowerFull: "Upper / Lower / Upper / Lower / Full body",
+      UpperLowerPushPullLegs: "Upper / Lower / Push / Pull / Legs",
+      PushPullLegsX2: "Push / Pull / Legs, twice",
+      UpperLowerX3: "Upper / Lower, three times",
+    },
     save: "Save profile",
     saving: "Saving...",
     saved: "Profile saved",
@@ -196,6 +212,7 @@ export const enUS = {
       `Choose between ${min} and ${max} days a week.`,
     DurationOutOfRange: (min: number, max: number) =>
       `A session has to be between ${min} and ${max} minutes.`,
+    SplitNotAdmitted: "That split is not one this number of days a week can be arranged into.",
     ProfileNotFound: "No profile saved yet.",
     unknown: "Could not save the profile.",
   },

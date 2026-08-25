@@ -40,7 +40,11 @@ public static class TrainingProfileRules
     /// acceptable. Order matters only in that one error is returned at a time; the goal is
     /// checked first because a profile for an unsupported goal has no defensible bounds at all.
     /// </summary>
-    public static ApiError? Validate(TrainingGoal goal, int daysPerWeek, int sessionDurationSeconds)
+    public static ApiError? Validate(
+        TrainingGoal goal,
+        int daysPerWeek,
+        int sessionDurationSeconds,
+        SplitTemplateId? split = null)
     {
         if (goal != SupportedGoal)
         {
@@ -50,6 +54,13 @@ public static class TrainingProfileRules
         if (daysPerWeek < MinDaysPerWeek || daysPerWeek > MaxDaysPerWeek)
         {
             return new ApiError(TrainingErrorCodes.FrequencyOutOfRange, MinDaysPerWeek, MaxDaysPerWeek);
+        }
+
+        // Checked after the frequency, because "this split is not admitted" is meaningless
+        // until the frequency it would be admitted by is itself valid (TD-023).
+        if (split is { } chosen && !SplitTemplate.Admitted(daysPerWeek).Contains(chosen))
+        {
+            return new ApiError(TrainingErrorCodes.SplitNotAdmitted);
         }
 
         if (sessionDurationSeconds < MinSessionDurationSeconds

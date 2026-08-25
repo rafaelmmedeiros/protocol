@@ -25,6 +25,19 @@ public sealed class TrainingProfile
     public required int DaysPerWeek { get; set; }
 
     /// <summary>
+    /// Which template this frequency is run with, or <c>null</c> for whatever it maps to
+    /// (TD-023, ADR-030).
+    /// <para>
+    /// <b>Null carries information and is not an unset field.</b> It distinguishes a user who
+    /// never chose from one who chose the default, which is what makes a future change to the
+    /// mapping safe: the first should follow the new mapping and the second must not be moved
+    /// silently. Writing the mapped value at creation would destroy that distinction
+    /// permanently, and it is not recoverable afterwards.
+    /// </para>
+    /// </summary>
+    public SplitTemplateId? Split { get; set; }
+
+    /// <summary>
     /// How long a session may last, in seconds — the unit is in the field name (root
     /// standard 4). Minutes exist only in what a user sees; the domain never holds them.
     /// Supported range is decided by TD-012.

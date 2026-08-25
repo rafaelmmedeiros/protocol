@@ -10,6 +10,12 @@ namespace Protocol.Api.Training;
 /// </summary>
 public static class TrainingErrorCodes
 {
+    /// <summary>
+    /// The chosen split is not one this frequency admits (TD-023). A code and never a sentence
+    /// (root standard 3); the frontend names both the split and the frequency.
+    /// </summary>
+    public const string SplitNotAdmitted = nameof(SplitNotAdmitted);
+
     /// <summary>Generating or reading with no profile saved.</summary>
     public const string ProfileNotFound = "ProfileNotFound";
 

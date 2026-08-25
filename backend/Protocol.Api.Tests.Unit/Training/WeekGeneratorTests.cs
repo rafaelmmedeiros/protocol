@@ -19,17 +19,21 @@ public class WeekGeneratorTests
     /// </summary>
     private static readonly DateOnly ExpectedMonday = new(2026, 8, 31);
 
-    private static TrainingProfile Profile(int daysPerWeek, int seconds = 3_600) => new()
+    private static TrainingProfile Profile(
+        int daysPerWeek,
+        int seconds = 3_600,
+        SplitTemplateId? split = null) => new()
     {
         Id = Guid.Empty,
         UserId = "user-1",
         Goal = TrainingGoal.Hypertrophy,
         DaysPerWeek = daysPerWeek,
         SessionDurationSeconds = seconds,
+        Split = split,
     };
 
-    private static WeekPlan Generate(int daysPerWeek, int seconds = 3_600) =>
-        WeekGenerator.Generate(Profile(daysPerWeek, seconds), ExerciseCatalogue.All, Reference);
+    private static WeekPlan Generate(int daysPerWeek, int seconds = 3_600, SplitTemplateId? split = null) =>
+        WeekGenerator.Generate(Profile(daysPerWeek, seconds, split), ExerciseCatalogue.All, Reference);
 
     [Theory]
     [InlineData(2)]
@@ -576,6 +580,67 @@ public class WeekGeneratorTests
             week.Sessions.SelectMany(s => s.Slots).Select(slot => (slot.Exercise, slot.Sets)));
 
         Assert.Contains(volumes.Values, v => v.Direct > 0 && v.Indirect > 0);
+    }
+
+    [Fact]
+    public void A_profile_that_never_chose_a_split_generates_what_it_always_did()
+    {
+        // The property that makes ADR-030's nullable column safe: null is not an unset field, it
+        // is "whatever this frequency maps to", and that mapping is TD-003's answer unchanged.
+        foreach (var days in (int[])[2, 3, 4, 5, 6])
+        {
+            var unchosen = Generate(days);
+            var explicitDefault = Generate(days, split: SplitTemplate.Default(days));
+
+            Assert.Equal(
+                unchosen.Sessions.Select(session => session.Kind),
+                explicitDefault.Sessions.Select(session => session.Kind));
+        }
+    }
+
+    [Fact]
+    public void A_chosen_split_overrides_the_default()
+    {
+        var standard = Generate(5);
+        var chosen = Generate(5, split: SplitTemplateId.UpperLowerPushPullLegs);
+
+        // U/L/U/L/Full against U/L/Push/Pull/Legs -- same frequency, different shape.
+        Assert.Equal(
+            [SessionKind.Upper, SessionKind.Lower, SessionKind.Upper, SessionKind.Lower, SessionKind.FullBody],
+            standard.Sessions.Select(session => session.Kind));
+
+        Assert.Equal(
+            [SessionKind.Upper, SessionKind.Lower, SessionKind.Push, SessionKind.Pull, SessionKind.Legs],
+            chosen.Sessions.Select(session => session.Kind));
+    }
+
+    [Fact]
+    public void A_stored_split_the_frequency_no_longer_admits_falls_back_rather_than_throwing()
+    {
+        // Reachable only through a row whose frequency changed without its split -- the endpoint
+        // rejects that combination. Falling back beats generating from a template whose session
+        // count no longer matches the frequency, which is the property TD-024 leans on (ADR-030).
+        var week = Generate(3, split: SplitTemplateId.UpperLowerPushPullLegs);
+
+        Assert.Equal(3, week.Sessions.Count);
+        Assert.Equal(
+            SplitTemplate.For(SplitTemplate.Default(3)).Select(day => day.Kind),
+            week.Sessions.Select(session => session.Kind));
+    }
+
+    [Fact]
+    public void Every_admitted_template_holds_as_many_sessions_as_the_frequency_declares()
+    {
+        // TD-024's central claim is that a cycle *is* the declared week, and it rests entirely on
+        // this. Nothing else enforces it: a template with a different session count would break
+        // the dose window silently.
+        foreach (var days in (int[])[2, 3, 4, 5, 6])
+        {
+            foreach (var template in SplitTemplate.Admitted(days))
+            {
+                Assert.Equal(days, SplitTemplate.For(template).Count);
+            }
+        }
     }
 
     private static int TotalSets(WeekPlan week) =>

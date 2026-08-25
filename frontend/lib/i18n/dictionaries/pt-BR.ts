@@ -174,6 +174,22 @@ export const ptBR: Dictionary = {
     daysHint: "Quantas sessões você vai treinar de verdade, não quantas gostaria.",
     durationLabel: "Minutos por sessão",
     durationHint: "Quanto tempo uma sessão pode durar, do início ao fim. O descanso entre séries é decidido para você.",
+    splitLabel: "Divisão",
+    splitHint:
+      "Como a semana é arranjada. Com o mesmo volume semanal, o arranjo não muda o que você ganha — escolha a que você vai seguir de verdade.",
+    splitDefault: "Usar a habitual para esta frequência",
+    /** Keyed by the API's `SplitTemplateId`. Shapes, never rankings. */
+    splits: {
+      FullBodyX2: "Corpo inteiro, duas vezes",
+      FullBodyX3: "Corpo inteiro, três vezes",
+      UpperLowerFull: "Superior / Inferior / Corpo inteiro",
+      UpperLowerX2: "Superior / Inferior, duas vezes",
+      PushPullLegsFull: "Empurrar / Puxar / Pernas / Corpo inteiro",
+      UpperLowerUpperLowerFull: "Superior / Inferior / Superior / Inferior / Corpo inteiro",
+      UpperLowerPushPullLegs: "Superior / Inferior / Empurrar / Puxar / Pernas",
+      PushPullLegsX2: "Empurrar / Puxar / Pernas, duas vezes",
+      UpperLowerX3: "Superior / Inferior, três vezes",
+    },
     save: "Salvar perfil",
     saving: "Salvando...",
     saved: "Perfil salvo",
@@ -184,6 +200,7 @@ export const ptBR: Dictionary = {
       `Escolha entre ${min} e ${max} dias por semana.`,
     DurationOutOfRange: (min: number, max: number) =>
       `Uma sessão precisa ter entre ${min} e ${max} minutos.`,
+    SplitNotAdmitted: "Essa divisão não é uma das que este número de dias por semana comporta.",
     ProfileNotFound: "Nenhum perfil salvo ainda.",
     unknown: "Não foi possível salvar o perfil.",
   },

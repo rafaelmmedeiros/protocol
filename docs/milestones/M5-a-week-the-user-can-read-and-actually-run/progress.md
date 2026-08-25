@@ -162,7 +162,35 @@ point: git carries what changed, this carries what a future session would otherw
     good nor bad, and this tier reserves green and red as data ink for progress and regression.
 
 ### S5.7 — The split becomes a choice
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 216 backend unit (4 new), 137 integration (3 new, **1 pre-existing failure unrelated
+  to this step — see below**), 22 frontend unit, 43 E2E in Docker (2 new), typecheck clean
+- **Observations:**
+  - **`ComparisonEndpointsTests.Freestyle_training_is_imported_and_listed_unbound` fails, and it
+    is the clock rather than this step.** Proved by stashing every change and running it against
+    `HEAD`, where it fails identically. `ADR-008` anchors a generated week to the next week whose
+    days all lie ahead, so generating on a **Tuesday** with a Mon/Tue/Thu/Fri split anchors to the
+    following Monday — and the workout the test hardcodes at `2026-08-25` then falls outside the
+    compared week's seven-day window, leaving `UnboundWorkouts` empty. **The test passes only when
+    run on a Monday.** UTC crossed midnight between `S5.5` and here, which is why it appeared
+    mid-step. Reported rather than fixed: it is unrelated to this step, and `S5.8` deletes the
+    anchoring it depends on.
+  - **Serving one frequency's templates was wrong and the E2E caught it on the case I had not
+    considered: a user with no profile at all.** `admittedSplits` travelled on the profile, the
+    profile 404s before it exists, and the select rendered with only its empty option. The first
+    fix was a workaround — disable the choice while the days field differs from the saved value —
+    and the real fix removed it: the whole table travels as a vocabulary from `GET
+    /training/splits`, the way `EquipmentResponse.Vocabulary` already does, and the form filters
+    it by the frequency in the form rather than the frequency on the server.
+  - **The select needs `key={days}`.** Without it React keeps the previously selected option
+    mounted when the option list changes, so a split chosen for five days stays selected under
+    four and is then refused by the backend — a rejection the user cannot see the cause of.
+  - **`Validate` checks the split after the frequency on purpose.** "This split is not admitted"
+    is meaningless until the frequency that would admit it is itself valid, and reversing the two
+    produces that error for a frequency of 9.
+  - **The unit suite now pins `TD-024`'s load-bearing property**: every admitted template holds
+    exactly as many sessions as the frequency declares. Nothing else enforces it, and the dose
+    window silently stops being the declared week if it ever breaks.
 
 ### S5.8 — The plan becomes a queue
 - **Status:** pending

@@ -24,8 +24,12 @@ public class TrainingProfileEndpointsTests(ApiFactory factory) : IClassFixture<A
         return client;
     }
 
-    private static object Profile(string goal = "Hypertrophy", int days = 4, int seconds = 3_600) =>
-        new { goal, daysPerWeek = days, sessionDurationSeconds = seconds };
+    private static object Profile(
+        string goal = "Hypertrophy",
+        int days = 4,
+        int seconds = 3_600,
+        string? split = null) =>
+        new { goal, daysPerWeek = days, sessionDurationSeconds = seconds, split };
 
     [Fact]
     public async Task The_profile_is_unreachable_without_a_session()
@@ -142,6 +146,67 @@ public class TrainingProfileEndpointsTests(ApiFactory factory) : IClassFixture<A
         Assert.Equal(TrainingErrorCodes.DurationOutOfRange, error!.Code);
         Assert.Equal(1_500, error.Min);
         Assert.Equal(7_200, error.Max);
+    }
+
+    [Theory]
+    // Admitted at five sessions but not at four, and a name the enum does not know at all.
+    [InlineData("UpperLowerPushPullLegs")]
+    [InlineData("NotATemplate")]
+    public async Task A_split_the_frequency_does_not_admit_is_refused_with_its_code(string split)
+    {
+        var client = await SignedInClientAsync();
+
+        var response = await client.PutAsJsonAsync("/training/profile", Profile(days: 4, split: split));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<ApiError>();
+        Assert.Equal(TrainingErrorCodes.SplitNotAdmitted, error!.Code);
+    }
+
+    [Fact]
+    public async Task A_profile_carries_what_was_chosen_what_it_resolves_to_and_what_is_on_offer()
+    {
+        var client = await SignedInClientAsync();
+
+        // Never chose: null travels as null, and resolves to the frequency's default (ADR-030).
+        var unchosen = await client.PutAsJsonAsync("/training/profile", Profile(days: 5));
+        var before = await unchosen.Content.ReadFromJsonAsync<TrainingProfileResponse>();
+
+        Assert.Null(before!.Split);
+        Assert.Equal(nameof(SplitTemplateId.UpperLowerUpperLowerFull), before.ResolvedSplit);
+        Assert.Equal(
+            [
+                nameof(SplitTemplateId.UpperLowerUpperLowerFull),
+                nameof(SplitTemplateId.UpperLowerPushPullLegs),
+            ],
+            before.AdmittedSplits);
+
+        // Chose: the choice is stored and is distinguishable from having taken the default.
+        var chosen = await client.PutAsJsonAsync(
+            "/training/profile",
+            Profile(days: 5, split: nameof(SplitTemplateId.UpperLowerPushPullLegs)));
+        var after = await chosen.Content.ReadFromJsonAsync<TrainingProfileResponse>();
+
+        Assert.Equal(nameof(SplitTemplateId.UpperLowerPushPullLegs), after!.Split);
+        Assert.Equal(nameof(SplitTemplateId.UpperLowerPushPullLegs), after.ResolvedSplit);
+    }
+
+    [Fact]
+    public async Task A_chosen_split_survives_regeneration_and_shapes_the_week()
+    {
+        var client = await SignedInClientAsync();
+        await client.PutAsJsonAsync(
+            "/training/profile",
+            Profile(days: 5, split: nameof(SplitTemplateId.UpperLowerPushPullLegs)));
+
+        var first = await client.PostAsync("/training/weeks", null);
+        first.EnsureSuccessStatusCode();
+
+        var week = (await first.Content.ReadFromJsonAsync<GeneratedWeekResponse>())!;
+
+        Assert.Equal(
+            ["Upper", "Lower", "Push", "Pull", "Legs"],
+            week.Sessions.Select(session => session.Kind));
     }
 
     [Fact]

@@ -47,7 +47,8 @@ public static class WeekGenerator
             !preferences.ExcludedExerciseIds.Contains(exercise.Id)
             && exercise.Requirements.All(requirement => available.Contains(requirement.Item)))];
 
-        var split = SplitTemplate.For(profile.DaysPerWeek);
+        // Resolved once, here, from the profile's choice or the frequency's default (ADR-030).
+        var split = SplitTemplate.For(SplitTemplate.Resolve(profile.Split, profile.DaysPerWeek));
         var weekStart = WeekStartFor(reference, split); // ADR-008
 
         // TD-013's ladder, in order. Each rung buys time: rest first because it is 74-79% of the

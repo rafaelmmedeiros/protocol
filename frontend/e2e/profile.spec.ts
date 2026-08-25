@@ -101,3 +101,46 @@ test("the goals this product does not programme yet are visible but not choosabl
   );
   expect(disabled).toBe(3);
 });
+
+test("a split can be chosen, and the choice is not the same thing as the default", async ({
+  page,
+}) => {
+  await register(page);
+  await page.goto("/profile");
+
+  const split = page.getByTestId("profile-split");
+
+  // Four days admits two templates, plus the empty option that means "whatever this frequency
+  // maps to" — which is a real answer and not a placeholder (ADR-030).
+  await expect(split.locator("option")).toHaveCount(3);
+  await expect(split).toHaveValue("");
+
+  await split.selectOption("PushPullLegsFull");
+
+  const saved = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.url().includes("/profile"),
+  );
+  await page.getByTestId("profile-submit").click();
+  await saved;
+
+  await page.reload();
+  await expect(page.getByTestId("profile-split")).toHaveValue("PushPullLegsFull");
+});
+
+test("the splits on offer follow the frequency in the form, not the saved one", async ({ page }) => {
+  // The list belongs to a frequency and the frequency is edited on this screen. Two sessions
+  // admits exactly one arrangement, so its select carries only the default option — which is
+  // the case that proves the list is being filtered rather than fetched once (TD-023).
+  await register(page);
+  await page.goto("/profile");
+
+  const split = page.getByTestId("profile-split");
+  await expect(split.locator("option")).toHaveCount(3);
+
+  await page.getByTestId("profile-days").fill("5");
+  await expect(split.locator("option")).toHaveCount(3);
+  await expect(split.locator("option")).toContainText([/.*/, /Upper/, /Upper/]);
+
+  await page.getByTestId("profile-days").fill("2");
+  await expect(split.locator("option")).toHaveCount(2);
+});

@@ -40,6 +40,9 @@ export async function saveProfile(_previous: ProfileState, formData: FormData): 
     goal: formData.get("goal")?.toString() ?? "",
     daysPerWeek: Number(formData.get("daysPerWeek")),
     sessionDurationSeconds: Number.isFinite(minutes) ? minutesToSeconds(minutes) : 0,
+    // Empty means "no choice", which is a value and not an omission: it is how a user goes back
+    // to whatever their frequency maps to (ADR-030).
+    split: formData.get("split")?.toString() || null,
   };
 
   const response = await fetch(`${API_URL}/training/profile`, {
@@ -77,6 +80,8 @@ async function sentenceFor(body: unknown): Promise<string> {
   switch (error?.code) {
     case "GoalNotSupported":
       return errors.GoalNotSupported;
+    case "SplitNotAdmitted":
+      return errors.SplitNotAdmitted;
     case "ProfileNotFound":
       return errors.ProfileNotFound;
     case "FrequencyOutOfRange":

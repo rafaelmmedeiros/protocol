@@ -44,8 +44,22 @@ public static class TrainingEndpoints
                     return Results.BadRequest(new ApiError(TrainingErrorCodes.GoalNotSupported));
                 }
 
+                // Parsed rather than bound to the enum, so an unknown name becomes a code the
+                // frontend can translate instead of a framework error it cannot (root standard 3).
+                SplitTemplateId? split = null;
+                if (!string.IsNullOrWhiteSpace(request.Split))
+                {
+                    if (!Enum.TryParse<SplitTemplateId>(request.Split, ignoreCase: true, out var parsed)
+                        || !Enum.IsDefined(parsed))
+                    {
+                        return Results.BadRequest(new ApiError(TrainingErrorCodes.SplitNotAdmitted));
+                    }
+
+                    split = parsed;
+                }
+
                 var error = TrainingProfileRules.Validate(
-                    goal, request.DaysPerWeek, request.SessionDurationSeconds);
+                    goal, request.DaysPerWeek, request.SessionDurationSeconds, split);
 
                 if (error is not null)
                 {
@@ -64,6 +78,7 @@ public static class TrainingEndpoints
                         Goal = goal,
                         DaysPerWeek = request.DaysPerWeek,
                         SessionDurationSeconds = request.SessionDurationSeconds,
+                        Split = split,
                     };
                     db.TrainingProfiles.Add(profile);
                 }
@@ -75,12 +90,30 @@ public static class TrainingEndpoints
                     profile.Goal = goal;
                     profile.DaysPerWeek = request.DaysPerWeek;
                     profile.SessionDurationSeconds = request.SessionDurationSeconds;
+                    // Absent means "no choice", which is a value rather than a field left alone:
+                    // clearing it is how a user goes back to the frequency's default (ADR-030).
+                    profile.Split = split;
                 }
 
                 await db.SaveChangesAsync(token);
                 return Results.Ok(TrainingProfileResponse.From(profile));
             })
             .WithName("PutTrainingProfile");
+
+        // The whole table rather than one frequency's row, because the frequency it depends on
+        // is being edited on the screen that asks. Serving one row would make the answer stale
+        // the moment the user changes the number -- and a first-time user has no saved frequency
+        // at all, so there would be no row to serve (TD-023, ADR-030).
+        group.MapGet("/splits", () => Results.Ok(
+                Enumerable
+                    .Range(TrainingProfileRules.MinDaysPerWeek,
+                        TrainingProfileRules.MaxDaysPerWeek - TrainingProfileRules.MinDaysPerWeek + 1)
+                    .Select(days => new SplitOptionsResponse(
+                        days,
+                        [.. SplitTemplate.Admitted(days).Select(id => id.ToString())],
+                        SplitTemplate.Default(days).ToString()))
+                    .ToList()))
+            .WithName("GetSplitOptions");
 
         group.MapGet("/equipment", async (ClaimsPrincipal user, AppDbContext db, CancellationToken token) =>
             {
@@ -896,16 +929,42 @@ public static class TrainingEndpoints
 /// an unrecognised value becomes <see cref="TrainingErrorCodes.GoalNotSupported"/> — a code the
 /// frontend can translate — instead of a deserialization failure it cannot.
 /// </summary>
-public sealed record TrainingProfileRequest(string? Goal, int DaysPerWeek, int SessionDurationSeconds);
+public sealed record TrainingProfileRequest(
+    string? Goal,
+    int DaysPerWeek,
+    int SessionDurationSeconds,
+    /// <summary>A SplitTemplateId name, or null for the frequency's default (ADR-030).</summary>
+    string? Split);
 
 /// <summary>
 /// A profile as the API returns it. Duration is seconds, always: minutes are a rendering
 /// concern and are converted at the edge (root standard 4).
 /// </summary>
-public sealed record TrainingProfileResponse(string Goal, int DaysPerWeek, int SessionDurationSeconds)
+public sealed record TrainingProfileResponse(
+    string Goal,
+    int DaysPerWeek,
+    int SessionDurationSeconds,
+
+    /// <summary>What the user chose, or null when they never did (ADR-030).</summary>
+    string? Split,
+
+    /// <summary>What that resolves to today — the choice, or the frequency's default.</summary>
+    string ResolvedSplit,
+
+    /// <summary>
+    /// What this frequency admits (TD-023). Travels with the answer so the screen never
+    /// hardcodes a list that would drift from the record.
+    /// </summary>
+    IReadOnlyList<string> AdmittedSplits)
 {
     public static TrainingProfileResponse From(TrainingProfile profile) =>
-        new(profile.Goal.ToString(), profile.DaysPerWeek, profile.SessionDurationSeconds);
+        new(
+            profile.Goal.ToString(),
+            profile.DaysPerWeek,
+            profile.SessionDurationSeconds,
+            profile.Split?.ToString(),
+            SplitTemplate.Resolve(profile.Split, profile.DaysPerWeek).ToString(),
+            [.. SplitTemplate.Admitted(profile.DaysPerWeek).Select(id => id.ToString())]);
 }
 
 /// <summary>
@@ -1149,6 +1208,15 @@ public sealed record ExerciseMuscleResponse(string MuscleGroup, string Role);
 /// answer so the screen never hardcodes a list that would drift from the enum.
 /// </summary>
 public sealed record EquipmentResponse(IReadOnlyList<string> Items, IReadOnlyList<string> Vocabulary);
+
+/// <summary>
+/// What one frequency may be arranged into (TD-023). Enum names, never sentences: the frontend
+/// owns every word (root standard 3).
+/// </summary>
+public sealed record SplitOptionsResponse(
+    int DaysPerWeek,
+    IReadOnlyList<string> Templates,
+    string Default);
 
 /// <summary>
 /// An answer to one suggestion. <c>Accepted</c> adds the item; anything else records a refusal
