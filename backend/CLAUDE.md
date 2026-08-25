@@ -57,6 +57,18 @@ docker compose -f docker-compose.test.yml run --rm --build backend-tests   # fro
   to seed before the migrations run, and nothing new to remap before the new catalogue rows exist.
   Reordering these registrations breaks things that fail silently rather than loudly — a remap that
   finds nothing logs that it found nothing and the coverage number simply stays wrong.
+- **A plan is an ordered queue, and `WeekStartDate` and `Day` are history rather than fields.**
+  Both columns are nullable and hold values only on rows generated before `ADR-027`; nothing
+  writes them now. They are kept because a week that *was* anchored still means what it meant
+  (root standard 7, `ADR-003`), and the week screen renders both shapes from the same component.
+  Re-populating either is not a small convenience — it reintroduces the systematic per-muscle
+  deficit the queue exists to remove.
+- **Only a declaration is stored; a binding is derived on every read.** A session carries `Declared`
+  (marked or skipped) because a statement cannot be recomputed from anything, while whether a
+  workout bound to it is a join on `routine_id` (`ADR-019`) and is read fresh each time. That is
+  `ADR-029`'s test — *could this be recomputed from data already stored?* — and it pays for itself:
+  a workout deleted upstream stops binding its session, which a stored column would have got wrong
+  in silence.
 - **The generator fills a week in two passes, week-wide, and the order is load-bearing.** Pass 1
   takes every session to `TD-014`'s guaranteed target against no ceiling; pass 2 then spends the
   minutes the user declared and pass 1 did not need, bounded by `TD-022`'s ceiling over **every**

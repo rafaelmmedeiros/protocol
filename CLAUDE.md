@@ -86,6 +86,12 @@ cost a data migration, or a recount of every analysis already produced, if adopt
    calendar one, and it is never derived from locale — `en-US` starting the week on Sunday
    must not redraw the boundaries of an existing training block. Two screens disagreeing about
    which week a session belongs to reads as an analysis bug, not a formatting one.
+
+   **It constrains measurement and not the shape of a plan** (`ADR-027`). A generated plan is an
+   ordered queue of sessions with no dates; what was *performed* is still bucketed into
+   Monday-anchored weeks, and `Training/TrainingWeek` is the one place that bucketing happens.
+   The two were the same thing until `M5` and reading this standard as a claim about the
+   prescription is how weekday assignment would come back.
 7. **Training history is append-only.** It is the substrate every analysis stands on. An
    imported record is never mutated or deleted; a correction arrives as a new record. Hevy
    exposes `updated_at`, so workouts do change upstream — re-import must reconcile without
