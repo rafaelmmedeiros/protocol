@@ -411,14 +411,16 @@ public static class TrainingEndpoints
                 // all (ADR-009).
                 if (current is not null && Matches(current, plan))
                 {
-                    return Results.Ok(GeneratedWeekResponse.From(current, catalogue));
+                    return Results.Ok(GeneratedWeekResponse.From(
+                        current, catalogue, await BoundRoutineIdsAsync(db, userId, current, token)));
                 }
 
                 var week = Persist(plan, profile, userId, generatedAt);
                 db.GeneratedWeeks.Add(week);
                 await db.SaveChangesAsync(token);
 
-                return Results.Ok(GeneratedWeekResponse.From(week, catalogue));
+                return Results.Ok(GeneratedWeekResponse.From(
+                    week, catalogue, await BoundRoutineIdsAsync(db, userId, week, token)));
             })
             .WithName("GenerateTrainingWeek");
 
@@ -439,7 +441,8 @@ public static class TrainingEndpoints
                 }
 
                 var catalogue = await db.Exercises.AsNoTracking().ToListAsync(token);
-                return Results.Ok(GeneratedWeekResponse.From(week, catalogue));
+                return Results.Ok(GeneratedWeekResponse.From(
+                    week, catalogue, await BoundRoutineIdsAsync(db, userId, week, token)));
             })
             .WithName("GetCurrentTrainingWeek");
 
@@ -472,6 +475,19 @@ public static class TrainingEndpoints
                 return Results.Ok(WeekComparisonBuilder.Build(week, performed));
             })
             .WithName("GetWeekComparison");
+
+        // Two routes rather than one with a body, because they are two different statements and
+        // a caller should not be able to make the wrong one by mistyping a field. Neither writes
+        // anything into imported history (root standard 7).
+        group.MapPost("/weeks/current/sessions/{id:guid}/done", (
+                Guid id, ClaimsPrincipal user, AppDbContext db, CancellationToken token) =>
+                DeclareAsync(id, SessionDeclaration.Marked, user, db, token))   // ADR-028
+            .WithName("MarkSessionDone");
+
+        group.MapPost("/weeks/current/sessions/{id:guid}/skip", (
+                Guid id, ClaimsPrincipal user, AppDbContext db, CancellationToken token) =>
+                DeclareAsync(id, SessionDeclaration.Skipped, user, db, token)) // ADR-032
+            .WithName("SkipSession");
 
         group.MapGet("/weeks/current/prescriptions/{id:guid}/candidates", async (
                 Guid id,
@@ -544,7 +560,8 @@ public static class TrainingEndpoints
                 db.GeneratedWeeks.Add(replaced);
                 await db.SaveChangesAsync(token);
 
-                return Results.Ok(GeneratedWeekResponse.From(replaced, [.. catalogue.Values]));
+                return Results.Ok(GeneratedWeekResponse.From(
+                    replaced, [.. catalogue.Values], await BoundRoutineIdsAsync(db, userId, replaced, token)));
             })
             .WithName("SubstitutePrescription");
 
@@ -560,6 +577,73 @@ public static class TrainingEndpoints
     /// has not been needed (`ADR-012`).
     /// </para>
     /// </summary>
+    /// <summary>
+    /// Records what the user said about a session and returns the plan with the queue advanced.
+    /// <para>
+    /// A declaration is idempotent and replaceable: marking a session that was skipped is a
+    /// correction, not an error. Nothing about `performed_workouts` is touched either way.
+    /// </para>
+    /// </summary>
+    private static async Task<IResult> DeclareAsync(
+        Guid sessionId,
+        SessionDeclaration declaration,
+        ClaimsPrincipal user,
+        AppDbContext db,
+        CancellationToken token)
+    {
+        var userId = UserIdOf(user);
+        var week = await CurrentWeekAsync(db, userId, token);
+        var session = week?.Sessions.SingleOrDefault(s => s.Id == sessionId);
+
+        if (week is null || session is null)
+        {
+            return Results.NotFound(new ApiError(TrainingErrorCodes.SessionNotFound));
+        }
+
+        session.Declared = declaration;
+        session.DeclaredAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(token);
+
+        var catalogue = await CatalogueAsync(db, token);
+
+        return Results.Ok(GeneratedWeekResponse.From(
+            week,
+            [.. catalogue.Values],
+            await BoundRoutineIdsAsync(db, userId, week, token)));
+    }
+
+    /// <summary>
+    /// Which of this plan's routines a logged workout carries. Derived on every read rather than
+    /// stored, because it can be (`ADR-019`, `ADR-029`) — and because a workout deleted upstream
+    /// then stops counting as one, which a column would not notice.
+    /// </summary>
+    private static async Task<IReadOnlySet<string>> BoundRoutineIdsAsync(
+        AppDbContext db,
+        string userId,
+        GeneratedWeek week,
+        CancellationToken token)
+    {
+        var routineIds = week.Sessions
+            .Select(session => session.HevyRoutineId)
+            .Where(id => id is not null)
+            .Select(id => id!)
+            .ToList();
+
+        if (routineIds.Count == 0) return new HashSet<string>();
+
+        var bound = await db.PerformedWorkouts
+            .AsNoTracking()
+            .Where(workout => workout.UserId == userId
+                && !workout.IsDeleted
+                && workout.ExternalRoutineId != null
+                && routineIds.Contains(workout.ExternalRoutineId))
+            .Select(workout => workout.ExternalRoutineId!)
+            .Distinct()
+            .ToListAsync(token);
+
+        return bound.ToHashSet();
+    }
+
     private static async Task<List<Exercise>> CandidatesForAsync(
         AppDbContext db,
         string userId,
@@ -995,7 +1079,13 @@ public sealed record GeneratedWeekResponse(
     /// </summary>
     IReadOnlyList<string> Uncovered,
 
-    IReadOnlyList<GeneratedSessionResponse> Sessions)
+    IReadOnlyList<GeneratedSessionResponse> Sessions,
+
+    /// <summary>
+    /// The position of the first session still pending — what to train next. Null when every
+    /// session has left the queue by one of the three routes (`ADR-028`, `ADR-032`).
+    /// </summary>
+    int? NextSessionPosition)
 {
     /// <summary>
     /// Per-muscle fractional volume, recomputed from the prescriptions actually stored.
@@ -1069,8 +1159,27 @@ public sealed record GeneratedWeekResponse(
             prescription.Sets,
             prescription.RestSeconds));
 
-    public static GeneratedWeekResponse From(GeneratedWeek week, IReadOnlyList<Exercise> catalogue)
+    /// <summary>
+    /// Where a session stands. A declaration wins over a binding: a user who skipped a session
+    /// and then trained something that bound to it has said two things, and the later statement
+    /// is theirs rather than inferred.
+    /// </summary>
+    internal static SessionOutcome OutcomeOf(GeneratedSession session, IReadOnlySet<string> boundRoutineIds) =>
+        session.Declared switch
+        {
+            SessionDeclaration.Marked => SessionOutcome.Marked,   // ADR-028
+            SessionDeclaration.Skipped => SessionOutcome.Skipped, // ADR-032
+            _ => session.HevyRoutineId is { } routineId && boundRoutineIds.Contains(routineId)
+                ? SessionOutcome.Bound                            // ADR-019
+                : SessionOutcome.Pending,
+        };
+
+    public static GeneratedWeekResponse From(
+        GeneratedWeek week,
+        IReadOnlyList<Exercise> catalogue,
+        IReadOnlySet<string>? boundRoutineIds = null)
     {
+        boundRoutineIds ??= new HashSet<string>();
         var titles = catalogue.ToDictionary(exercise => exercise.Id);
 
         // Read back from what the week contains rather than stored, exactly as a substitution
@@ -1093,7 +1202,9 @@ public sealed record GeneratedWeekResponse(
                 .. week.Sessions
                     .OrderBy(session => session.Position)
                     .Select(session => new GeneratedSessionResponse(
+                        session.Id,
                         session.Position,
+                        OutcomeOf(session, boundRoutineIds).ToString(),
                         session.Day?.ToString(),
                         session.Kind.ToString(),
                         EstimatedSecondsFor(session),
@@ -1105,7 +1216,12 @@ public sealed record GeneratedWeekResponse(
                                     titles.GetValueOrDefault(prescription.ExerciseId),
                                     cut)),
                         ])),
-            ]);
+            ],
+            week.Sessions
+                .OrderBy(session => session.Position)
+                .Where(session => OutcomeOf(session, boundRoutineIds) == SessionOutcome.Pending)
+                .Select(session => (int?)session.Position)
+                .FirstOrDefault());
     }
 }
 
@@ -1121,7 +1237,19 @@ public sealed record GeneratedWeekResponse(
 /// </para>
 /// </param>
 public sealed record GeneratedSessionResponse(
+    /// <summary>
+    /// The session's own identifier, so a screen can declare something about it. Absent until
+    /// S5.9 for the same reason a prescription's was absent until S2.6: nothing addressed one.
+    /// </summary>
+    Guid Id,
+
     int Position,
+
+    /// <summary>
+    /// Where this session stands: pending, bound to a logged workout, marked, or skipped. A skip
+    /// is never reported as a completion (`ADR-032`).
+    /// </summary>
+    string Outcome,
 
     /// <summary>
     /// The weekday, for a plan generated before `ADR-027`. Null since: the screen shows a

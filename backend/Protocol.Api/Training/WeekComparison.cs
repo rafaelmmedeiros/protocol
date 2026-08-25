@@ -80,9 +80,16 @@ public static class WeekComparisonBuilder
             unbound,
             // The evidence ADR-019 named as what would justify revisiting it. Reported rather than
             // assumed: if the binding rate is low in practice, that is a measurement to argue
-            // with, not a hunch. Counted over the whole history on purpose -- the rate is about
-            // the join, not about one week.
-            new BindingCoverage(current.Count, boundWorkoutIds.Count));
+            // with, not a hunch.
+            //
+            // Counted over workouts that had a routine to bind to -- the ones logged since this
+            // plan was generated -- and not over the whole history. The denominator used to be
+            // every workout ever imported, which read as 1 of 759 in the live database while 758
+            // of those predate the first push and could never have bound. That is a measurement
+            // defect rather than a low rate, and ADR-019 carries it as a revision.
+            new BindingCoverage(
+                current.Count(workout => workout.StartedAt >= from),
+                boundWorkoutIds.Count));
     }
 
     private static SessionComparison Compare(GeneratedSession session, PerformedWorkout? performed)

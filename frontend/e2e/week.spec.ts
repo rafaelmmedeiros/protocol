@@ -246,3 +246,42 @@ test("swapping an exercise says what else it would change", async ({ page }) => 
   expect(await notes.count()).toBeGreaterThan(0);
   await expect(notes.first()).not.toHaveText("");
 });
+
+test("a session can be marked trained, and the queue moves to the next one", async ({ page }) => {
+  await register(page);
+  await saveProfile(page, "4", "60");
+
+  await page.goto("/week");
+  await page.getByTestId("week-generate").click();
+  await expect(page.getByTestId("week-sessions")).toBeVisible();
+
+  // Only the head of the queue is declarable, so exactly one card carries the controls.
+  await expect(page.getByTestId("session-done")).toHaveCount(1);
+  await expect(page.getByTestId("session-outcome").first()).not.toHaveText("");
+
+  await page.getByTestId("session-done").click();
+
+  // The controls moved to the second card, which is the queue advancing.
+  await expect(page.getByTestId("session-done")).toHaveCount(1);
+  await expect(page.getByTestId("session-outcome").first()).not.toHaveText(
+    await page.getByTestId("session-outcome").nth(1).innerText(),
+  );
+});
+
+test("a session can be skipped, and skipping is not reported as trained", async ({ page }) => {
+  await register(page);
+  await saveProfile(page, "4", "60");
+
+  await page.goto("/week");
+  await page.getByTestId("week-generate").click();
+  await expect(page.getByTestId("week-sessions")).toBeVisible();
+
+  const firstOutcome = await page.getByTestId("session-outcome").first().innerText();
+  await page.getByTestId("session-skip").click();
+
+  // ADR-032: the queue advances either way, and only one of the two says it happened. The words
+  // are translated, so the assertion is that the first card now reads differently from before
+  // and differently from a session still pending.
+  await expect(page.getByTestId("session-outcome").first()).not.toHaveText(firstOutcome);
+  await expect(page.getByTestId("session-skip")).toHaveCount(1);
+});

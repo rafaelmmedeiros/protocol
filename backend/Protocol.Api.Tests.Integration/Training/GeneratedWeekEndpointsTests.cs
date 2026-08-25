@@ -42,6 +42,18 @@ public class GeneratedWeekEndpointsTests(ApiFactory factory) : IClassFixture<Api
         return (await db.Users.SingleAsync(user => user.Email == email)).Id;
     }
 
+    /// <summary>
+    /// Every imported workout in the database, not just this user's. A declaration must not write
+    /// one anywhere, and counting the whole table is what makes that assertion mean it.
+    /// </summary>
+    private async Task<int> PerformedWorkoutCountAsync()
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        return await db.PerformedWorkouts.CountAsync();
+    }
+
     private static async Task<GeneratedWeekResponse> GenerateAsync(HttpClient client)
     {
         var response = await client.PostAsync("/training/weeks", null);
@@ -341,6 +353,110 @@ public class GeneratedWeekEndpointsTests(ApiFactory factory) : IClassFixture<Api
         // with rather than today's constant.
         Assert.NotEmpty(week.Volume);
         Assert.All(week.Volume, entry => Assert.Equal(6.0m, entry.Target));
+    }
+
+    [Fact]
+    public async Task A_fresh_plan_points_at_its_first_session()
+    {
+        var client = await SignedInClientAsync();
+        await SetProfileAsync(client, 4);
+
+        var week = await GenerateAsync(client);
+
+        Assert.Equal(1, week.NextSessionPosition);
+        Assert.All(week.Sessions, session => Assert.Equal(nameof(SessionOutcome.Pending), session.Outcome));
+    }
+
+    [Fact]
+    public async Task Marking_a_session_advances_the_queue_and_writes_no_history()
+    {
+        var client = await SignedInClientAsync();
+        await SetProfileAsync(client, 4);
+        var week = await GenerateAsync(client);
+
+        var before = await PerformedWorkoutCountAsync();
+
+        var response = await client.PostAsync(
+            $"/training/weeks/current/sessions/{week.Sessions[0].Id}/done", null);
+        response.EnsureSuccessStatusCode();
+        var updated = (await response.Content.ReadFromJsonAsync<GeneratedWeekResponse>())!;
+
+        Assert.Equal(nameof(SessionOutcome.Marked), updated.Sessions[0].Outcome);
+        Assert.Equal(2, updated.NextSessionPosition);
+
+        // Root standard 7: a declaration is about the plan and never about imported training.
+        Assert.Equal(before, await PerformedWorkoutCountAsync());
+    }
+
+    [Fact]
+    public async Task Skipping_a_session_advances_the_queue_and_is_not_a_completion()
+    {
+        var client = await SignedInClientAsync();
+        await SetProfileAsync(client, 4);
+        var week = await GenerateAsync(client);
+
+        var before = await PerformedWorkoutCountAsync();
+
+        var response = await client.PostAsync(
+            $"/training/weeks/current/sessions/{week.Sessions[0].Id}/skip", null);
+        response.EnsureSuccessStatusCode();
+        var updated = (await response.Content.ReadFromJsonAsync<GeneratedWeekResponse>())!;
+
+        // The distinction ADR-032 exists for: the queue moves either way, and only one of the two
+        // says the training happened.
+        Assert.Equal(nameof(SessionOutcome.Skipped), updated.Sessions[0].Outcome);
+        Assert.NotEqual(nameof(SessionOutcome.Marked), updated.Sessions[0].Outcome);
+        Assert.Equal(2, updated.NextSessionPosition);
+        Assert.Equal(before, await PerformedWorkoutCountAsync());
+    }
+
+    [Fact]
+    public async Task A_declaration_can_be_corrected()
+    {
+        // Skipping and then marking is a correction rather than an error: the later statement is
+        // the user's, and refusing it would leave them with a plan they cannot fix.
+        var client = await SignedInClientAsync();
+        await SetProfileAsync(client, 4);
+        var week = await GenerateAsync(client);
+        var sessionId = week.Sessions[0].Id;
+
+        await client.PostAsync($"/training/weeks/current/sessions/{sessionId}/skip", null);
+        var response = await client.PostAsync($"/training/weeks/current/sessions/{sessionId}/done", null);
+        var updated = (await response.Content.ReadFromJsonAsync<GeneratedWeekResponse>())!;
+
+        Assert.Equal(nameof(SessionOutcome.Marked), updated.Sessions[0].Outcome);
+    }
+
+    [Fact]
+    public async Task A_plan_whose_sessions_have_all_left_the_queue_points_at_nothing()
+    {
+        var client = await SignedInClientAsync();
+        await SetProfileAsync(client, 2);
+        var week = await GenerateAsync(client);
+
+        foreach (var session in week.Sessions)
+        {
+            await client.PostAsync($"/training/weeks/current/sessions/{session.Id}/skip", null);
+        }
+
+        var read = await client.GetFromJsonAsync<GeneratedWeekResponse>("/training/weeks/current");
+
+        Assert.Null(read!.NextSessionPosition);
+    }
+
+    [Fact]
+    public async Task Declaring_a_session_that_is_not_in_the_current_plan_is_refused_with_its_code()
+    {
+        var client = await SignedInClientAsync();
+        await SetProfileAsync(client, 4);
+        await GenerateAsync(client);
+
+        var response = await client.PostAsync(
+            $"/training/weeks/current/sessions/{Guid.CreateVersion7()}/done", null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<ApiError>();
+        Assert.Equal(TrainingErrorCodes.SessionNotFound, error!.Code);
     }
 
     [Fact]

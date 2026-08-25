@@ -108,6 +108,20 @@ public sealed class GeneratedSession
     /// </summary>
     public string? HevyRoutineId { get; set; }
 
+    /// <summary>
+    /// What the user declared about this session, or null while they have declared nothing.
+    /// <para>
+    /// <b>Only declarations are stored.</b> A session bound to a logged workout is derived from
+    /// `routine_id` on every read (`ADR-019`, `ADR-029`'s test), because it can be. A mark and a
+    /// skip cannot be derived from anything — they are statements — so they are columns
+    /// (`ADR-028`, `ADR-032`).
+    /// </para>
+    /// </summary>
+    public SessionDeclaration? Declared { get; set; }
+
+    /// <summary>When the declaration was made. Null with <see cref="Declared"/>.</summary>
+    public DateTimeOffset? DeclaredAt { get; set; }
+
     public ICollection<GeneratedPrescription> Prescriptions { get; init; } = [];
 }
 

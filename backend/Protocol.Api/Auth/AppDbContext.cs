@@ -325,6 +325,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             // The join (ADR-019). Indexed because the only read is "which session did this
             // workout come from", which is a lookup by exactly this value.
             session.Property(s => s.HevyRoutineId).HasMaxLength(64);
+
+            // Stored as its name: a declaration read back years later should say `Skipped`
+            // rather than `1`, and adding a value must not renumber the ones already written.
+            session.Property(s => s.Declared).HasConversion<string>().HasMaxLength(16);
             session.HasIndex(s => s.HevyRoutineId);
 
             session.HasMany(s => s.Prescriptions)

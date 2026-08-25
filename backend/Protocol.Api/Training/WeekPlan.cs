@@ -89,6 +89,42 @@ public enum SlotKind
 }
 
 /// <summary>
+/// What a user declared about a session of the queue. Neither writes anything into imported
+/// history: both are statements about the plan (root standard 7).
+/// </summary>
+public enum SessionDeclaration
+{
+    /// <summary>Trained, with nothing bound to it — the fallback `ADR-028` exists for.</summary>
+    Marked,
+
+    /// <summary>
+    /// Passed over. The queue advances and the session's volume never arrives, which is why a
+    /// skip is stored rather than silent: deferred volume and skipped volume are different
+    /// failures and a report that adds them together flatters the system (`ADR-032`).
+    /// </summary>
+    Skipped,
+}
+
+/// <summary>
+/// How a session stands in the queue, as the API reports it. Three of the four are ways out; the
+/// fourth is still ahead.
+/// </summary>
+public enum SessionOutcome
+{
+    /// <summary>Still in the queue. The first pending session is the next one to train.</summary>
+    Pending,
+
+    /// <summary>A logged workout carries this session's routine id (`ADR-019`).</summary>
+    Bound,
+
+    /// <summary>Declared trained (`ADR-028`).</summary>
+    Marked,
+
+    /// <summary>Declared skipped (`ADR-032`). Never read as a completion.</summary>
+    Skipped,
+}
+
+/// <summary>
 /// How far down TD-013's cut ladder the generator had to go for the week to fit.
 /// <para>
 /// Reported rather than hidden, because it is not an edge case: at three sessions of forty

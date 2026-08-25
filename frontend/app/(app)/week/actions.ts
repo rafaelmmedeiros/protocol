@@ -112,3 +112,33 @@ export async function excludeExercise(formData: FormData): Promise<void> {
   revalidatePath("/week");
   revalidatePath("/equipment");
 }
+
+/**
+ * Declares what happened to one session of the queue: trained, or passed over.
+ *
+ * Two actions rather than one with a parameter, for the same reason the API has two routes —
+ * they are different statements and neither should be reachable by mistyping the other. Neither
+ * writes anything into imported training (root standard 7); both move the queue.
+ */
+async function declare(sessionId: string, route: "done" | "skip"): Promise<void> {
+  if (!(await getCurrentUser())) redirect("/login");
+
+  const cookieStore = await cookies();
+  await fetch(`${API_URL}/training/weeks/current/sessions/${sessionId}/${route}`, {
+    method: "POST",
+    headers: { cookie: cookieStore.toString() },
+    cache: "no-store",
+  });
+
+  // The page reads the plan server-side, and what changed is which session is next — so unlike
+  // the push control, this screen really does show something different afterwards.
+  revalidatePath("/week");
+}
+
+export async function markSessionDone(formData: FormData): Promise<void> {
+  await declare(formData.get("sessionId")?.toString() ?? "", "done");
+}
+
+export async function skipSession(formData: FormData): Promise<void> {
+  await declare(formData.get("sessionId")?.toString() ?? "", "skip");
+}

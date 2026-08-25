@@ -10,6 +10,9 @@ namespace Protocol.Api.Training;
 /// </summary>
 public static class TrainingErrorCodes
 {
+    /// <summary>No session with that identifier in the current plan.</summary>
+    public const string SessionNotFound = nameof(SessionNotFound);
+
     /// <summary>
     /// The chosen split is not one this frequency admits (TD-023). A code and never a sentence
     /// (root standard 3); the frontend names both the split and the frequency.

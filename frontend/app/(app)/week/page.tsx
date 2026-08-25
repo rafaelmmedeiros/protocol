@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
@@ -10,6 +11,7 @@ import { secondsToMinutes, splitDuration } from "@/lib/duration";
 import { getDictionary, getLocale } from "@/lib/i18n";
 import { formatSessionDay } from "@/lib/week";
 import { ComparisonView, type Comparison } from "./comparison";
+import { markSessionDone, skipSession } from "./actions";
 import { GenerateForm } from "./generate-form";
 import { LoopControls } from "./loop-controls";
 import { SlotActions, type Candidate } from "./slot-actions";
@@ -37,7 +39,10 @@ type Prescription = {
 };
 
 type Session = {
+  id: string;
   position: number;
+  /** `Pending`, `Bound`, `Marked` or `Skipped` — and a skip is never a completion. */
+  outcome: string;
   /** Null since ADR-027; still set on plans generated before it. */
   day: string | null;
   kind: string;
@@ -56,6 +61,8 @@ type MuscleVolume = {
 
 type Week = {
   id: string;
+  /** The first session still pending, or null once every one has left the queue. */
+  nextSessionPosition: number | null;
   /** Null since ADR-027; still set on plans generated before it. */
   weekStartDate: string | null;
   generatedAt: string;
@@ -196,15 +203,24 @@ export default async function WeekPage() {
                   <Pill tone="accent">
                     {strings.kinds[session.kind as keyof typeof strings.kinds] ?? session.kind}
                   </Pill>
+                  {session.position === week.nextSessionPosition && (
+                    <Pill tone="ok">{strings.nextUp}</Pill>
+                  )}
                 </span>
               }
               // Seconds arrive canonical and become minutes here (root standard 4). Shown as an
               // estimate rather than a duration because two of the terms behind it are
               // engineering constants — and a visible number is what lets them be wrong out loud.
               meta={
-                <span data-testid="session-estimate">
-                  {strings.estimate} {secondsToMinutes(session.estimatedSeconds)}{" "}
-                  {strings.minutesShort}
+                <span className="flex flex-wrap items-baseline gap-x-3">
+                  <span data-testid="session-estimate">
+                    {strings.estimate} {secondsToMinutes(session.estimatedSeconds)}{" "}
+                    {strings.minutesShort}
+                  </span>
+                  <span data-testid="session-outcome">
+                    {strings.outcomes[session.outcome as keyof typeof strings.outcomes] ??
+                      session.outcome}
+                  </span>
                 </span>
               }
             />
@@ -281,6 +297,32 @@ export default async function WeekPage() {
                 </li>
               ))}
             </ul>
+
+            {/* Only the session at the head of the queue can be declared: a plan is worked
+                through in order, and offering these on every card would invite the reordering
+                ADR-032 rejected. Plain forms, so both work with no JavaScript. */}
+            {session.position === week.nextSessionPosition && (
+              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
+                <form action={markSessionDone}>
+                  <input type="hidden" name="sessionId" value={session.id} />
+                  <Button type="submit" size="sm" data-testid="session-done">
+                    {strings.markDone}
+                  </Button>
+                </form>
+
+                <form action={skipSession}>
+                  <input type="hidden" name="sessionId" value={session.id} />
+                  <Button
+                    type="submit"
+                    variant="secondary"
+                    size="sm"
+                    data-testid="session-skip"
+                  >
+                    {strings.skipSession}
+                  </Button>
+                </form>
+              </div>
+            )}
           </Card>
         ))}
       </div>

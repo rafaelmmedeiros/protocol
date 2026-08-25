@@ -96,6 +96,16 @@ export const enUS = {
     estimate: "about",
     /** A session has a place in the queue rather than a weekday (ADR-027). */
     sessionAt: (position: number) => `Session ${position}`,
+    markDone: "Mark as trained",
+    skipSession: "Skip this one",
+    nextUp: "next",
+    /** Keyed by the API's `SessionOutcome`. A skip is never worded as a completion. */
+    outcomes: {
+      Pending: "not trained yet",
+      Bound: "trained, matched to your log",
+      Marked: "trained",
+      Skipped: "skipped",
+    },
     swapTo: "Swap for",
     refuse: "Not this one",
     noAlternatives: "No alternative in your gym",

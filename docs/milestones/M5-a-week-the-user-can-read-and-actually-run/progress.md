@@ -224,7 +224,28 @@ point: git carries what changed, this carries what a future session would otherw
     cannot differ by when it was asked for, which is a guarantee the parameter always threatened.
 
 ### S5.9 — A session is done, and the queue advances
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 221 backend unit (3 new, in the `WeekComparisonTests` file the plan named and that
+  did not exist), 144 integration (6 new), 22 frontend unit, 45 E2E in Docker (2 new)
+- **Observations:**
+  - **The session response had no id, and the two routes need one.** Exactly the situation
+    `S2.6` hit with prescriptions: an identifier enters the response the moment a screen has to
+    address the thing, and not before. The comment on `GeneratedPrescriptionResponse.Id` already
+    says this; now there are two instances of it, which makes it a pattern rather than an anecdote.
+  - **A declaration beats a binding, and that had to be decided in code.** A user who skipped a
+    session and then logged something that binds to it has said two things. The later one is
+    theirs and the earlier is inferred, so `OutcomeOf` reads the declaration first. Nothing in
+    `ADR-028` or `ADR-032` settles the collision — it is named at the line instead.
+  - **Only the head of the queue carries the controls.** Offering them on every card would be
+    reordering by another route, which `ADR-032` rejected as renaming the stall.
+  - **The coverage denominator moved and the unit tests are the point.** It counts workouts logged
+    since the plan was generated, so a real account's 758 pre-push workouts stop dragging the rate
+    to 0.1%. One test asserts the other direction as well — training since the plan that bound to
+    nothing still counts against it — because a denominator that only ever shrinks would be
+    flattery rather than a measurement.
+  - **`BoundRoutineIdsAsync` excludes deleted workouts.** A workout removed upstream stops binding
+    its session, which is the behaviour a derived read gives for free and a stored column would
+    have got wrong silently (`ADR-029`'s test, one level up from where it was written).
 
 ### S5.10 — What a muscle has actually accumulated
 - **Status:** pending
