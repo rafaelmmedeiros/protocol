@@ -170,6 +170,15 @@ cost a data migration, or a recount of every analysis already produced, if adopt
     `TD` is what the system asserts about training, and only the second is subject to a research
     gate.
 
+    **A record's factual claims about this repo are verified against the repo before it is
+    committed.** Not the decision — the claims it leans on: what a column holds, what another
+    record decided, what the code currently does, what a number works out to. Records are
+    append-only, so a false one is not corrected but outlived, and the cost lands on whoever
+    builds against it. `ADR-029` asserted that the volume target was already snapshotted onto a
+    week; it never was, and `S5.5` stopped mid-step to find out. `/protocol-training` carries the
+    arithmetic instance of this rule; this is the general one, and it sits here because an `ADR`
+    is not always written inside `/protocol-milestone`.
+
 ### Boundaries
 
 17. **Hevy is a mapped boundary, not a model.** Everything this system reasons about is
