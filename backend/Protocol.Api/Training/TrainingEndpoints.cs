@@ -393,7 +393,6 @@ public static class TrainingEndpoints
                 var plan = WeekGenerator.Generate(
                     profile,
                     catalogue,
-                    DateOnly.FromDateTime(generatedAt.UtcDateTime),
                     owned,
                     preferences);
 
@@ -636,6 +635,8 @@ public static class TrainingEndpoints
                 {
                     Id = Guid.CreateVersion7(),
                     Position = session.Position,
+                    // Copied, not recomputed: a week generated before ADR-027 keeps the
+                    // weekday it was generated with, and a substitution does not rewrite history.
                     Day = session.Day,
                     Kind = session.Kind,
                     Prescriptions =
@@ -714,15 +715,16 @@ public static class TrainingEndpoints
     /// </summary>
     private static bool Matches(GeneratedWeek stored, WeekPlan plan)
     {
-        if (stored.WeekStartDate != plan.WeekStartDate) return false;
-
+        // No date comparison since ADR-027. A stored week that predates it carries a start
+        // date the plan cannot have, so comparing them would make every old week look different
+        // from a plan identical to it -- and ADR-009 would then write a duplicate row.
         var storedSessions = stored.Sessions.OrderBy(session => session.Position).ToList();
         if (storedSessions.Count != plan.Sessions.Count) return false;
 
         return storedSessions.Zip(plan.Sessions).All(pair =>
         {
             var (left, right) = pair;
-            if (left.Day != right.Day || left.Kind != right.Kind) return false;
+            if (left.Kind != right.Kind) return false;
 
             var storedSlots = left.Prescriptions.OrderBy(slot => slot.Position).ToList();
             if (storedSlots.Count != right.Slots.Count) return false;
@@ -753,7 +755,6 @@ public static class TrainingEndpoints
         {
             Id = Guid.CreateVersion7(),
             UserId = userId,
-            WeekStartDate = plan.WeekStartDate,
             GeneratedAt = generatedAt,
             Goal = profile.Goal,
             DaysPerWeek = profile.DaysPerWeek,
@@ -766,7 +767,6 @@ public static class TrainingEndpoints
                 {
                     Id = Guid.CreateVersion7(),
                     Position = session.Position,
-                    Day = session.Day,
                     Kind = session.Kind,
                     Prescriptions =
                     [
@@ -973,7 +973,7 @@ public sealed record TrainingProfileResponse(
 /// </summary>
 public sealed record GeneratedWeekResponse(
     Guid Id,
-    DateOnly WeekStartDate,
+    DateOnly? WeekStartDate,
     DateTimeOffset GeneratedAt,
     string Goal,
     int DaysPerWeek,
@@ -1094,7 +1094,7 @@ public sealed record GeneratedWeekResponse(
                     .OrderBy(session => session.Position)
                     .Select(session => new GeneratedSessionResponse(
                         session.Position,
-                        session.Day.ToString(),
+                        session.Day?.ToString(),
                         session.Kind.ToString(),
                         EstimatedSecondsFor(session),
                         [
@@ -1122,7 +1122,12 @@ public sealed record GeneratedWeekResponse(
 /// </param>
 public sealed record GeneratedSessionResponse(
     int Position,
-    string Day,
+
+    /// <summary>
+    /// The weekday, for a plan generated before `ADR-027`. Null since: the screen shows a
+    /// position, because that is what the queue has.
+    /// </summary>
+    string? Day,
     string Kind,
     int EstimatedSeconds,
     IReadOnlyList<GeneratedPrescriptionResponse> Prescriptions);

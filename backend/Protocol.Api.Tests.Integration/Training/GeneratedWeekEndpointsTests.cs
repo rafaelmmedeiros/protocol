@@ -31,6 +31,17 @@ public class GeneratedWeekEndpointsTests(ApiFactory factory) : IClassFixture<Api
         response.EnsureSuccessStatusCode();
     }
 
+    private async Task<string> UserIdAsync(HttpClient client)
+    {
+        var me = await client.GetFromJsonAsync<Dictionary<string, object>>("/auth/me");
+        var email = me!["email"].ToString();
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        return (await db.Users.SingleAsync(user => user.Email == email)).Id;
+    }
+
     private static async Task<GeneratedWeekResponse> GenerateAsync(HttpClient client)
     {
         var response = await client.PostAsync("/training/weeks", null);
@@ -75,17 +86,21 @@ public class GeneratedWeekEndpointsTests(ApiFactory factory) : IClassFixture<Api
     }
 
     [Fact]
-    public async Task A_generated_week_matches_the_profile_and_starts_on_Monday()
+    public async Task A_generated_plan_matches_the_profile_and_carries_no_dates()
     {
         var client = await SignedInClientAsync();
         await SetProfileAsync(client, 4);
 
         var week = await GenerateAsync(client);
 
-        Assert.Equal(DayOfWeek.Monday, week.WeekStartDate.DayOfWeek); // root standard 6
+        // ADR-027: an ordered queue. The date and the weekday are gone from what is generated
+        // and kept only on rows that predate the record.
+        Assert.Null(week.WeekStartDate);
+        Assert.All(week.Sessions, session => Assert.Null(session.Day));
+
         Assert.Equal(4, week.Sessions.Count);
         Assert.Equal("Hypertrophy", week.Goal);
-        Assert.Equal("Monday", week.Sessions[0].Day);
+        Assert.Equal([1, 2, 3, 4], week.Sessions.Select(session => session.Position));
         Assert.All(week.Sessions, session => Assert.NotEmpty(session.Prescriptions));
     }
 
@@ -253,6 +268,79 @@ public class GeneratedWeekEndpointsTests(ApiFactory factory) : IClassFixture<Api
             Assert.DoesNotContain(week.Volume, entry => entry.MuscleGroup == muscle);
             Assert.DoesNotContain(week.Shortfalls, entry => entry.MuscleGroup == muscle);
         });
+    }
+
+    [Fact]
+    public async Task A_week_stored_before_the_queue_still_reads_with_its_dates()
+    {
+        // ADR-027 stopped generating dates and did not delete the ones already stored. A row
+        // written under ADR-008 has to keep meaning what it meant -- root standard 7 for the
+        // history, ADR-003 for the week specifically -- so it is inserted here exactly as the
+        // old generator would have written it and read back through the API.
+        //
+        // Written to the context because no endpoint can produce this shape any more, which is
+        // the standing exception backend CLAUDE.md describes for a claim about storage.
+        var client = await SignedInClientAsync();
+        await SetProfileAsync(client, 2);
+        var userId = await UserIdAsync(client);
+
+        var exercise = ExerciseCatalogue.All.First();
+        var legacy = new GeneratedWeek
+        {
+            Id = Guid.CreateVersion7(),
+            UserId = userId,
+            WeekStartDate = new DateOnly(2026, 8, 17),
+            GeneratedAt = new DateTimeOffset(2026, 8, 17, 9, 0, 0, TimeSpan.Zero),
+            Goal = TrainingGoal.Hypertrophy,
+            DaysPerWeek = 2,
+            SessionDurationSeconds = 3_600,
+            WeeklyTargetFractionalSets = 6.0m,
+            WeeklyCeilingFractionalSets = 6.0m,
+            Sessions =
+            [
+                new GeneratedSession
+                {
+                    Id = Guid.CreateVersion7(),
+                    Position = 1,
+                    Day = DayOfWeek.Monday,
+                    Kind = SessionKind.FullBody,
+                    Prescriptions =
+                    [
+                        new GeneratedPrescription
+                        {
+                            Id = Guid.CreateVersion7(),
+                            Position = 1,
+                            ExerciseId = exercise.Id,
+                            Sets = 3,
+                            MinReps = 6,
+                            MaxReps = 10,
+                            RepsInReserve = 2,
+                            RestSeconds = 180,
+                        },
+                    ],
+                },
+            ],
+        };
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.GeneratedWeeks.Add(legacy);
+            await db.SaveChangesAsync();
+        }
+
+        var response = await client.GetAsync("/training/weeks/current");
+        response.EnsureSuccessStatusCode();
+        var week = (await response.Content.ReadFromJsonAsync<GeneratedWeekResponse>())!;
+
+        Assert.Equal(legacy.Id, week.Id);
+        Assert.Equal(new DateOnly(2026, 8, 17), week.WeekStartDate);
+        Assert.Equal("Monday", week.Sessions[0].Day);
+
+        // And everything M5 added is computed for it too, against the target *it* was stored
+        // with rather than today's constant.
+        Assert.NotEmpty(week.Volume);
+        Assert.All(week.Volume, entry => Assert.Equal(6.0m, entry.Target));
     }
 
     [Fact]

@@ -24,7 +24,16 @@ public sealed class GeneratedWeek
     /// The Monday the week begins on. The training week starts on Monday, always, and never
     /// derives that from locale (root standard 6).
     /// </summary>
-    public required DateOnly WeekStartDate { get; init; }
+    /// <summary>
+    /// The Monday a plan was anchored to, for plans generated before `ADR-027`.
+    /// <para>
+    /// <b>Null on everything generated since, and kept rather than dropped.</b> A plan is now an
+    /// ordered queue with no dates, but a week that *was* anchored still means what it meant, and
+    /// deleting the column would make those rows unexplainable — which is what root standard 7
+    /// protects and what `ADR-003` says about a stored week specifically.
+    /// </para>
+    /// </summary>
+    public DateOnly? WeekStartDate { get; init; }
 
     /// <summary>When this week was generated, in UTC (root standard 5).</summary>
     public required DateTimeOffset GeneratedAt { get; init; }
@@ -83,7 +92,12 @@ public sealed class GeneratedSession
     /// <summary>Ordered position within the week, starting at one.</summary>
     public required int Position { get; init; }
 
-    public required DayOfWeek Day { get; init; }
+    /// <summary>
+    /// The weekday this session was assigned, for plans generated before `ADR-027`. Null since:
+    /// a session has a position and the queue decides what is next (see
+    /// <see cref="GeneratedWeek.WeekStartDate"/> for why it is kept).
+    /// </summary>
+    public DayOfWeek? Day { get; init; }
 
     public required SessionKind Kind { get; init; }
 

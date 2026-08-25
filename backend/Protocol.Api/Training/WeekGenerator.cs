@@ -18,16 +18,18 @@ namespace Protocol.Api.Training;
 public static class WeekGenerator
 {
     /// <summary>
-    /// Generates the week beginning on the Monday of <paramref name="reference"/>'s week.
+    /// Generates a plan: an ordered queue of sessions, with no dates (ADR-027).
     /// <para>
-    /// The reference date is passed in rather than read from a clock, because a service that
-    /// reads the time is not deterministic and cannot be asserted whole (ADR-005).
+    /// <b>It no longer takes a reference date, and that absence is the record.</b> A plan used to
+    /// anchor to the next calendar week it could fill, which existed only to keep "which week did
+    /// this session belong to" answerable — a measurement question that
+    /// <see cref="TrainingWeek"/> now answers from what was performed instead. Nothing here reads
+    /// a clock, which is what keeps the same profile producing the same plan (ADR-005).
     /// </para>
     /// </summary>
     public static WeekPlan Generate(
         TrainingProfile profile,
         IReadOnlyList<Exercise> catalogue,
-        DateOnly reference,
         IReadOnlySet<EquipmentItem>? owned = null,
         TrainingPreferences? preferences = null)
     {
@@ -49,7 +51,6 @@ public static class WeekGenerator
 
         // Resolved once, here, from the profile's choice or the frequency's default (ADR-030).
         var split = SplitTemplate.For(SplitTemplate.Resolve(profile.Split, profile.DaysPerWeek));
-        var weekStart = WeekStartFor(reference, split); // ADR-008
 
         // TD-013's ladder, in order. Each rung buys time: rest first because it is 74-79% of the
         // clock and near-free for growth, sets second because they move a muscle down the volume
@@ -61,7 +62,7 @@ public static class WeekGenerator
         // guaranteed target and never the ceiling" true here rather than only in the record.
         foreach (var cut in (CutLevel[])[CutLevel.None, CutLevel.RestToFloor, CutLevel.RestToFloorAndFewerSets])
         {
-            var week = Build(profile, catalogue, weekStart, split, cut, preferences);
+            var week = Build(profile, catalogue, split, cut, preferences);
             if (week.MeetsFloor)
             {
                 return week;
@@ -71,47 +72,12 @@ public static class WeekGenerator
         // Every rung exhausted and some muscle is still short. The week is returned with the
         // gap named rather than refused: a shortfall the user can see beats a week that looks
         // complete and is not (TD-013, step 5).
-        return Build(profile, catalogue, weekStart, split, CutLevel.RestToFloorAndFewerSets, preferences);
-    }
-
-    /// <summary>
-    /// The training week starts on Monday, always. It is a periodization convention, not a
-    /// calendar one, and is never derived from locale — an <c>en-US</c> week starting on Sunday
-    /// must not redraw the boundaries of an existing block (root standard 6).
-    /// </summary>
-    private static DateOnly MondayOf(DateOnly date) =>
-        date.AddDays(-DaysFromMonday(date.DayOfWeek));
-
-    /// <summary>Monday is zero, Sunday is six — the training week's own order, not the locale's.</summary>
-    private static int DaysFromMonday(DayOfWeek day) => ((int)day + 6) % 7;
-
-    /// <summary>
-    /// The week a plan can actually be trained in.
-    /// <para>
-    /// Anchoring to the reference date's own Monday produces a week that is mostly in the past
-    /// whenever it is generated after Monday — on a Sunday, a one-day week. That is not merely
-    /// untidy: the volume target and floor are <b>weekly</b> (TD-014, TD-008), so a week whose
-    /// sessions cannot all still happen fails its own floor by construction, and the shortfall
-    /// it reports would be blamed on the time budget rather than on the calendar.
-    /// </para>
-    /// <para>
-    /// So the current week is used only when every day the split assigns still lies ahead;
-    /// otherwise the next one. The rule comes from TD-003's templates rather than from a
-    /// threshold constant, which is what makes it defensible (ADR-008).
-    /// </para>
-    /// </summary>
-    private static DateOnly WeekStartFor(DateOnly reference, IReadOnlyList<SplitDay> split)
-    {
-        var monday = MondayOf(reference);
-        var everyDayStillAhead = split.All(day => monday.AddDays(DaysFromMonday(day.Day)) >= reference);
-
-        return everyDayStillAhead ? monday : monday.AddDays(7); // ADR-008
+        return Build(profile, catalogue, split, CutLevel.RestToFloorAndFewerSets, preferences);
     }
 
     private static WeekPlan Build(
         TrainingProfile profile,
         IReadOnlyList<Exercise> catalogue,
-        DateOnly weekStart,
         IReadOnlyList<SplitDay> split,
         CutLevel cut,
         TrainingPreferences preferences)
@@ -192,9 +158,8 @@ public static class WeekGenerator
                 continue;
             }
 
-            var day = split[session.Index];
             sessions.Add(new PlannedSession(
-                sessions.Count + 1, day.Day, day.Kind, OrderedSlots(session.Slots)));
+                sessions.Count + 1, split[session.Index].Kind, OrderedSlots(session.Slots)));
         }
 
         var shortfalls = volumes
@@ -204,7 +169,7 @@ public static class WeekGenerator
             .Select(entry => new MuscleShortfall(entry.Key, entry.Value))
             .ToList();
 
-        return new WeekPlan(weekStart, sessions, shortfalls, uncovered, cut);
+        return new WeekPlan(sessions, shortfalls, uncovered, cut);
     }
 
     /// <summary>

@@ -94,6 +94,8 @@ export const enUS = {
     generating: "Generating...",
     generatedAt: "Generated",
     estimate: "about",
+    /** A session has a place in the queue rather than a weekday (ADR-027). */
+    sessionAt: (position: number) => `Session ${position}`,
     swapTo: "Swap for",
     refuse: "Not this one",
     noAlternatives: "No alternative in your gym",

@@ -91,6 +91,7 @@ export const ptBR: Dictionary = {
     generating: "Gerando...",
     generatedAt: "Gerada em",
     estimate: "cerca de",
+    sessionAt: (position: number) => `Sessão ${position}`,
     swapTo: "Trocar por",
     refuse: "Esse não",
     noAlternatives: "Sem alternativa na sua academia",

@@ -21,7 +21,7 @@ public class SessionEstimateTests
     };
 
     private static WeekPlan Generate(int days, int seconds) =>
-        WeekGenerator.Generate(Profile(days, seconds), ExerciseCatalogue.All, Reference);
+        WeekGenerator.Generate(Profile(days, seconds), ExerciseCatalogue.All);
 
     /// <summary>Mirrors what the API computes from stored prescriptions.</summary>
     private static int Estimate(PlannedSession session) =>

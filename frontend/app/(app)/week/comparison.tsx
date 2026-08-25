@@ -31,7 +31,8 @@ export type Extra = {
 
 export type SessionComparison = {
   position: number;
-  day: string;
+  /** Null since ADR-027; a queue position labels the session instead. */
+  day: string | null;
   kind: string;
   performed: boolean;
   performedAt: string | null;
@@ -41,7 +42,7 @@ export type SessionComparison = {
 
 export type Comparison = {
   weekId: string;
-  weekStartDate: string;
+  weekStartDate: string | null;
   sessions: SessionComparison[];
   unboundWorkouts: { externalWorkoutId: string; startedAt: string; exerciseCount: number }[];
   coverage: { importedWorkouts: number; boundWorkouts: number };
@@ -180,7 +181,7 @@ export function ComparisonView({
           key={session.position}
           session={session}
           strings={strings}
-          dayLabel={dayLabels[index] ?? session.day}
+          dayLabel={dayLabels[index] ?? session.day ?? String(session.position)}
         />
       ))}
 

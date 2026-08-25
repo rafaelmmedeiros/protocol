@@ -20,7 +20,7 @@ public class EquipmentFilterTests
     };
 
     private static WeekPlan Generate(IReadOnlySet<EquipmentItem>? owned, int days = 4, int seconds = 3_600) =>
-        WeekGenerator.Generate(Profile(days, seconds), ExerciseCatalogue.All, Reference, owned);
+        WeekGenerator.Generate(Profile(days, seconds), ExerciseCatalogue.All, owned);
 
     private static IEnumerable<Exercise> ExercisesIn(WeekPlan week) =>
         week.Sessions.SelectMany(session => session.Slots).Select(slot => slot.Exercise);

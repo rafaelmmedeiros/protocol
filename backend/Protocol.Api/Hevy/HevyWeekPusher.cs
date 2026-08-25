@@ -167,11 +167,20 @@ public sealed class HevyWeekPusher(AppDbContext db, IHevyClient hevy, HevyKeyPro
     /// What the folder is called in Hevy. Display only, never read back — the binding is on
     /// identifiers alone (ADR-019, standard 9), so this exists for a human scrolling their app.
     /// </summary>
+    /// <summary>
+    /// One folder per generated plan, named for when the plan was generated (ADR-031). It used
+    /// to be named for the week the plan was anchored to; ADR-027 removed that, and the
+    /// generation timestamp is what identifies a plan now.
+    /// </summary>
     private static string FolderTitle(GeneratedWeek week) =>
-        $"Protocol · {week.WeekStartDate:yyyy-MM-dd}";
+        $"Protocol · {week.GeneratedAt:yyyy-MM-dd HH:mm}";
 
+    /// <summary>
+    /// A session by its place in the queue rather than by a weekday it no longer has. Display
+    /// only, on both sides: nothing reads a title, and ADR-019 matches on identifiers alone.
+    /// </summary>
     private static string RoutineTitle(GeneratedWeek week, GeneratedSession session) =>
-        $"{session.Kind} · {session.Day} · {week.WeekStartDate:MM-dd}";
+        $"{session.Position}. {session.Kind}";
 
     private static PushResult Failed(HevyWriteOutcome outcome) => new(outcome switch
     {

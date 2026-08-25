@@ -50,16 +50,22 @@ public static class WeekComparisonBuilder
             sessions.Add(Compare(session, match));
         }
 
-        // Scoped to the week being compared. Listing every unbound workout ever imported turned
-        // this into a dump of years of history under a single week -- 757 rows against one week's
-        // three sessions. A comparison of one week answers for that week.
-        var from = week.WeekStartDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        var until = from.AddDays(7);
+        // Scoped to what happened since this plan was generated. Listing every unbound workout
+        // ever imported turned this into a dump of years of history under a single plan -- 757
+        // rows against three sessions -- and the seven-day window that replaced it stopped
+        // meaning anything when ADR-027 removed the plan's dates.
+        //
+        // There is no upper bound, and that is the queue being honest: a plan is current until
+        // the next one is generated, however many calendar weeks it takes to work through.
+        //
+        // One wrinkle worth knowing: a substitution writes a new row (ADR-012), so its GeneratedAt
+        // is the moment of the swap and training done earlier in the same cycle drops out of this
+        // list. Bound workouts are unaffected -- they match on routine_id and never on a date.
+        var from = week.GeneratedAt;
 
         var unbound = current
             .Where(workout => !boundWorkoutIds.Contains(workout.Id))
-            .Where(workout => workout.StartedAt.UtcDateTime >= from
-                && workout.StartedAt.UtcDateTime < until)
+            .Where(workout => workout.StartedAt >= from)
             .OrderByDescending(workout => workout.StartedAt)
             .Select(workout => new UnboundWorkout(
                 workout.ExternalWorkoutId,
@@ -114,7 +120,7 @@ public static class WeekComparisonBuilder
 
         return new SessionComparison(
             session.Position,
-            session.Day.ToString(),
+            session.Day?.ToString(),
             session.Kind.ToString(),
             performed is not null,
             performed?.StartedAt,
@@ -194,7 +200,7 @@ public static class SlotOutcomes
 /// <summary>One week, prescribed and performed.</summary>
 public sealed record WeekComparison(
     Guid WeekId,
-    DateOnly WeekStartDate,
+    DateOnly? WeekStartDate,
     IReadOnlyList<SessionComparison> Sessions,
     IReadOnlyList<UnboundWorkout> UnboundWorkouts,
     BindingCoverage Coverage);
@@ -202,7 +208,7 @@ public sealed record WeekComparison(
 /// <summary>One prescribed session, and the workout it was trained from if there was one.</summary>
 public sealed record SessionComparison(
     int Position,
-    string Day,
+    string? Day,
     string Kind,
     bool Performed,
     DateTimeOffset? PerformedAt,

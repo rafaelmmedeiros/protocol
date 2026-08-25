@@ -38,7 +38,8 @@ type Prescription = {
 
 type Session = {
   position: number;
-  day: string;
+  /** Null since ADR-027; still set on plans generated before it. */
+  day: string | null;
   kind: string;
   /** Computed on read, never stored — see the API's own note on why. */
   estimatedSeconds: number;
@@ -55,7 +56,8 @@ type MuscleVolume = {
 
 type Week = {
   id: string;
-  weekStartDate: string;
+  /** Null since ADR-027; still set on plans generated before it. */
+  weekStartDate: string | null;
   generatedAt: string;
   daysPerWeek: number;
   sessions: Session[];
@@ -183,8 +185,13 @@ export default async function WeekPage() {
                 <span className="flex items-center gap-2">
                   {/* The day is resolved to a real date and named by Intl, so the dictionary
                       carries six session kinds instead of seven weekdays per locale. */}
+                  {/* A plan is a queue, so a session has a place rather than a date. A week
+                      stored before ADR-027 still carries both and still shows the day it was
+                      given — rewriting the past to look like the present would be the lie. */}
                   <span data-testid="session-day">
-                    {formatSessionDay(week.weekStartDate, session.day, locale)}
+                    {week.weekStartDate && session.day
+                      ? formatSessionDay(week.weekStartDate, session.day, locale)
+                      : strings.sessionAt(session.position)}
                   </span>
                   <Pill tone="accent">
                     {strings.kinds[session.kind as keyof typeof strings.kinds] ?? session.kind}
@@ -363,7 +370,9 @@ export default async function WeekPage() {
         <ComparisonView
           comparison={comparison}
           dayLabels={comparison.sessions.map((session) =>
-            formatSessionDay(week.weekStartDate, session.day, locale),
+            week.weekStartDate && session.day
+              ? formatSessionDay(week.weekStartDate, session.day, locale)
+              : strings.sessionAt(session.position),
           )}
           strings={{
             title: dict.hevy.comparisonTitle,

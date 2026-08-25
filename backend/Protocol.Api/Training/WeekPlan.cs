@@ -19,7 +19,6 @@ namespace Protocol.Api.Training;
 /// amount of cutting closes a gap in what the gym contains.
 /// </param>
 public sealed record WeekPlan(
-    DateOnly WeekStartDate,
     IReadOnlyList<PlannedSession> Sessions,
     IReadOnlyList<MuscleShortfall> Shortfalls,
     IReadOnlyList<MuscleGroup> UncoveredMuscles,
@@ -33,10 +32,17 @@ public sealed record WeekPlan(
     public bool MeetsFloor => Shortfalls.Count == 0;
 }
 
-/// <summary>One training day.</summary>
+/// <summary>
+/// One session of the queue. It has a position and no date: a plan is an ordered list of
+/// sessions, and the next one is whichever is next unfinished (ADR-027).
+/// <para>
+/// The weekday it used to carry was never a training decision — with weekly volume equated,
+/// distribution across days does not change growth — and it produced a permanent per-muscle
+/// deficit whenever the same session was the one life kept taking.
+/// </para>
+/// </summary>
 public sealed record PlannedSession(
     int Position,
-    DayOfWeek Day,
     SessionKind Kind,
     IReadOnlyList<PlannedSlot> Slots);
 

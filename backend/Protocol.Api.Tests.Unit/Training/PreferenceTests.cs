@@ -27,7 +27,7 @@ public class PreferenceTests
     };
 
     private static WeekPlan Generate(TrainingPreferences? preferences, int days = 4, int seconds = 3_600) =>
-        WeekGenerator.Generate(Profile(days, seconds), ExerciseCatalogue.All, Reference, null, preferences);
+        WeekGenerator.Generate(Profile(days, seconds), ExerciseCatalogue.All, null, preferences);
 
     private static IEnumerable<Exercise> ExercisesIn(WeekPlan week) =>
         week.Sessions.SelectMany(session => session.Slots).Select(slot => slot.Exercise);

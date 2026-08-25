@@ -9,16 +9,6 @@ namespace Protocol.Api.Tests.Unit.Training;
 /// </summary>
 public class WeekGeneratorTests
 {
-    /// <summary>A Wednesday, chosen so the Monday anchoring is not accidentally satisfied.</summary>
-    private static readonly DateOnly Reference = new(2026, 8, 26);
-
-    /// <summary>
-    /// The Monday *after* the reference, not the one before it. Generating mid-week means some
-    /// of the split's days have already passed, and a week that cannot hold all its sessions
-    /// fails its own weekly floor by construction (ADR-008).
-    /// </summary>
-    private static readonly DateOnly ExpectedMonday = new(2026, 8, 31);
-
     private static TrainingProfile Profile(
         int daysPerWeek,
         int seconds = 3_600,
@@ -33,7 +23,7 @@ public class WeekGeneratorTests
     };
 
     private static WeekPlan Generate(int daysPerWeek, int seconds = 3_600, SplitTemplateId? split = null) =>
-        WeekGenerator.Generate(Profile(daysPerWeek, seconds, split), ExerciseCatalogue.All, Reference);
+        WeekGenerator.Generate(Profile(daysPerWeek, seconds, split), ExerciseCatalogue.All);
 
     [Theory]
     [InlineData(2)]
@@ -69,16 +59,6 @@ public class WeekGeneratorTests
             Generate(6).Sessions.Select(s => s.Kind));
     }
 
-    [Fact]
-    public void The_week_starts_on_Monday_and_the_first_session_is_Mondays()
-    {
-        var week = Generate(4);
-
-        Assert.Equal(ExpectedMonday, week.WeekStartDate);
-        Assert.Equal(DayOfWeek.Monday, week.WeekStartDate.DayOfWeek);
-        Assert.Equal(DayOfWeek.Monday, week.Sessions[0].Day);
-    }
-
     [Theory]
     [InlineData("en-US")] // starts its calendar week on Sunday
     [InlineData("pt-BR")]
@@ -90,7 +70,14 @@ public class WeekGeneratorTests
         try
         {
             CultureInfo.CurrentCulture = new CultureInfo(culture);
-            Assert.Equal(ExpectedMonday, Generate(3).WeekStartDate);
+
+            // Asserted on the measurement window rather than on the plan: ADR-027 took the date
+            // off the prescription, and root standard 6 moved with the question it answers.
+            // Sunday 2026-08-30 belongs to the week beginning Monday 2026-08-24 in every locale,
+            // including the ones whose calendar week starts on Sunday.
+            Assert.Equal(
+                new DateOnly(2026, 8, 24),
+                TrainingWeek.MondayOf(new DateOnly(2026, 8, 30)));
         }
         finally
         {
@@ -99,65 +86,72 @@ public class WeekGeneratorTests
     }
 
     [Fact]
-    public void Generating_on_a_Monday_uses_that_very_week()
+    public void A_plan_is_an_ordered_queue_with_no_dates()
     {
-        // 2026-08-24 is a Monday and every session of the template still lies ahead of it, so
-        // there is nothing to move (ADR-008).
-        var monday = new DateOnly(2026, 8, 24);
-
-        var week = WeekGenerator.Generate(Profile(4), ExerciseCatalogue.All, monday);
-
-        Assert.Equal(monday, week.WeekStartDate);
-    }
-
-    [Fact]
-    public void Generating_on_a_Sunday_gives_the_week_that_is_about_to_start()
-    {
-        // The case found by using the product: a week generated on Sunday used to come back
-        // starting the previous Monday, with six of its days already gone (ADR-008).
-        var sunday = new DateOnly(2026, 8, 30);
-
-        var week = WeekGenerator.Generate(Profile(5), ExerciseCatalogue.All, sunday);
-
-        Assert.Equal(new DateOnly(2026, 8, 31), week.WeekStartDate);
-        Assert.Equal(DayOfWeek.Monday, week.WeekStartDate.DayOfWeek);
-    }
-
-    [Fact]
-    public void A_week_is_never_generated_with_a_session_in_the_past()
-    {
-        // The property behind ADR-008, checked across every frequency and every day someone
-        // could press the button. A session before the reference date is one that cannot be
-        // trained, and a week that cannot hold its sessions cannot meet a weekly floor.
+        // What ADR-027 replaced three anchoring tests with. A session has a position and the
+        // queue decides what is next; nothing here carries a weekday, and the generator no
+        // longer takes a reference date at all.
         foreach (var days in (int[])[2, 3, 4, 5, 6])
         {
-            for (var offset = 0; offset < 14; offset++)
-            {
-                var reference = new DateOnly(2026, 8, 24).AddDays(offset);
-                var week = WeekGenerator.Generate(Profile(days), ExerciseCatalogue.All, reference);
+            var plan = Generate(days);
 
-                Assert.All(week.Sessions, session =>
-                {
-                    var date = week.WeekStartDate.AddDays(((int)session.Day + 6) % 7);
-                    Assert.True(
-                        date >= reference,
-                        $"{days}d generated on {reference:yyyy-MM-dd} put {session.Day} on {date:yyyy-MM-dd}");
-                });
-            }
+            Assert.Equal(
+                Enumerable.Range(1, plan.Sessions.Count),
+                plan.Sessions.Select(session => session.Position));
         }
     }
 
     [Fact]
-    public void Every_day_of_a_generated_week_falls_on_or_after_its_Monday()
+    public void The_same_profile_still_produces_the_same_plan()
     {
-        var week = Generate(6);
+        // Determinism survived losing the date, and is now stronger: the plan cannot differ by
+        // when it was asked for, which is what a reference parameter always risked (ADR-005).
+        var first = Generate(5);
+        var second = Generate(5);
 
-        Assert.All(week.Sessions, session =>
-            Assert.True(session.Day >= DayOfWeek.Monday || session.Day == DayOfWeek.Sunday));
         Assert.Equal(
-            [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday,
-             DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday],
-            week.Sessions.Select(session => session.Day));
+            first.Sessions.SelectMany(session => session.Slots).Select(Describe),
+            second.Sessions.SelectMany(session => session.Slots).Select(Describe));
+    }
+
+    [Theory]
+    // A Monday, a Sunday, and the Sunday's own week -- the three cases the deleted anchoring
+    // tests worried about, now asked of the measurement window instead of the plan.
+    [InlineData("2026-08-24", "2026-08-24")]
+    [InlineData("2026-08-30", "2026-08-24")]
+    [InlineData("2026-08-31", "2026-08-31")]
+    public void Performed_training_still_buckets_into_Monday_anchored_weeks(string date, string monday)
+    {
+        // Root standard 6 outlived ADR-008. The prescription stopped being a calendar week; what
+        // was performed is still measured over one, and never over a locale's idea of one.
+        var parsed = DateOnly.Parse(date, CultureInfo.InvariantCulture);
+
+        Assert.Equal(DateOnly.Parse(monday, CultureInfo.InvariantCulture), TrainingWeek.MondayOf(parsed));
+        Assert.Equal(DayOfWeek.Monday, TrainingWeek.MondayOf(parsed).DayOfWeek);
+    }
+
+    [Fact]
+    public void Bucketing_reads_an_instant_in_UTC_rather_than_locally()
+    {
+        // Sunday 23:30 in UTC-03:00 is Monday 02:30 UTC, and the two answers are different
+        // weeks. Training is stored in UTC (root standard 5), so the bucket is read there --
+        // otherwise a session moves between weeks depending on where it was logged.
+        var lateSunday = new DateTimeOffset(2026, 8, 30, 23, 30, 0, TimeSpan.FromHours(-3));
+
+        Assert.Equal(new DateOnly(2026, 8, 31), TrainingWeek.MondayOf(lateSunday));
+    }
+
+    [Fact]
+    public void A_six_session_plan_runs_its_template_in_order()
+    {
+        // What replaced the weekday assertion: the shape a template declares is the order the
+        // queue hands out, and nothing about it is a date (ADR-027, TD-023).
+        var plan = Generate(6);
+
+        Assert.Equal(
+            [SessionKind.Push, SessionKind.Pull, SessionKind.Legs,
+             SessionKind.Push, SessionKind.Pull, SessionKind.Legs],
+            plan.Sessions.Select(session => session.Kind));
     }
 
     [Fact]
@@ -168,7 +162,6 @@ public class WeekGeneratorTests
         var first = Generate(4);
         var second = Generate(4);
 
-        Assert.Equal(first.WeekStartDate, second.WeekStartDate);
         Assert.Equal(first.CutApplied, second.CutApplied);
         Assert.Equal(
             first.Sessions.SelectMany(s => s.Slots).Select(Describe),
@@ -249,7 +242,6 @@ public class WeekGeneratorTests
         var backwards = WeekGenerator.Generate(
             Profile(days),
             [.. ExerciseCatalogue.All.Reverse()],
-            Reference,
             ExerciseCatalogue.AssumedGym);
 
         Assert.Equal(
@@ -262,7 +254,7 @@ public class WeekGeneratorTests
         string.Join(
             "|",
             plan.Sessions.SelectMany(session => session.Slots.Select(slot =>
-                $"{session.Position}:{session.Day}:{slot.Exercise.ExternalTemplateId}"
+                $"{session.Position}:{session.Kind}:{slot.Exercise.ExternalTemplateId}"
                     + $":{slot.Sets}:{slot.Prescription.MinReps}-{slot.Prescription.MaxReps}")));
 
     [Fact]

@@ -60,7 +60,7 @@ test("a user with a profile and no week sees the empty state and can generate", 
   await expect(page.getByTestId("week-sessions")).toHaveCount(0);
 });
 
-test("a generated week renders one session per training day, starting on Monday", async ({
+test("a generated plan renders one session per training day, numbered in queue order", async ({
   page,
 }) => {
   await register(page);
@@ -73,9 +73,11 @@ test("a generated week renders one session per training day, starting on Monday"
   await expect(page.getByTestId("week-sessions")).toBeVisible();
   await expect(page.getByTestId("session-day")).toHaveCount(4);
 
-  // Monday first, always -- and the day is rendered as a real date, so this reads the text
-  // rather than an id. It is the one place the locale is pinned by the assertion itself.
-  await expect(page.getByTestId("session-day").first()).toContainText(/Monday/i);
+  // A place in the queue rather than a weekday (ADR-027). This used to assert "Monday" first,
+  // which is exactly the promise the screen stopped making: a session happens when it happens.
+  // The text is translated, so the assertion is on the number the label ends with.
+  await expect(page.getByTestId("session-day").first()).toContainText(/1/);
+  await expect(page.getByTestId("session-day").last()).toContainText(/4/);
 
   await expect(page.getByTestId("prescription").first()).toBeVisible();
 });

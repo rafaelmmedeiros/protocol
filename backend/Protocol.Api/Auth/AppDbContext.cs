@@ -290,7 +290,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             // Read pattern is "this user's most recent week", so the index matches it.
             week.HasIndex(w => new { w.UserId, w.GeneratedAt });
 
-            week.Property(w => w.WeekStartDate).IsRequired();
+            // Nullable since ADR-027: a plan has no week start, and rows that had one keep it.
+            week.Property(w => w.WeekStartDate);
 
             // timestamptz. UTC in, UTC out (root standard 5).
             week.Property(w => w.GeneratedAt).IsRequired();
@@ -317,7 +318,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             session.HasKey(s => s.Id);
 
             session.Property(s => s.Position).IsRequired();
-            session.Property(s => s.Day).HasConversion<string>().IsRequired().HasMaxLength(16);
+            // Nullable since ADR-027, for the same reason as the week's start date.
+            session.Property(s => s.Day).HasConversion<string>().HasMaxLength(16);
             session.Property(s => s.Kind).HasConversion<string>().IsRequired().HasMaxLength(16);
 
             // The join (ADR-019). Indexed because the only read is "which session did this

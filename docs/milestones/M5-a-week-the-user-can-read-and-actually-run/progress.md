@@ -193,7 +193,35 @@ point: git carries what changed, this carries what a future session would otherw
     window silently stops being the declared week if it ever breaks.
 
 ### S5.8 — The plan becomes a queue
-- **Status:** pending
+- **Status:** completed
+- **Tests:** 218 backend unit, 138 integration (1 new), 22 frontend unit, 43 E2E in Docker; the
+  suite that was red at `S5.7` is green again
+- **Observations:**
+  - **The date-dependent failure `S5.7` reported fixed itself by elimination**, which is the
+    strongest evidence the record was right. `ComparisonEndpointsTests` failed because it scoped
+    unbound workouts to the compared week's seven-day window and that window moved when generation
+    happened on a Tuesday. There is no window now: unbound means "since this plan was generated",
+    which has no upper bound because a plan is current until the next one replaces it, however
+    many calendar weeks that takes.
+  - **A substitution narrows that list, and it is written down rather than fixed.** `ADR-012`
+    makes a swap a new row, so its `GeneratedAt` is the moment of the swap and training done
+    earlier in the same cycle drops out of the unbound list. Bound workouts are unaffected —
+    they match on `routine_id` and never on a date.
+  - **Nothing was dropped from the schema.** `WeekStartDate` and `Day` became nullable and kept
+    every value they held; a test inserts a row shaped exactly as the old generator wrote it and
+    reads it back through the API, dates and all. The screen renders that week's weekday and every
+    new plan's queue position, from the same component — rewriting the past to look like the
+    present would have been the lie.
+  - **`Matches` had to stop comparing dates or `ADR-009` would have inverted.** It decides whether
+    a regeneration is identical to the stored week; a stored week from before this step carries a
+    date no plan can have, so every comparison would report "different" and write a duplicate row
+    — the exact behaviour `ADR-009` exists to prevent.
+  - **Three unit tests and one E2E were deleted rather than adapted**, because they asserted
+    `ADR-008`'s anchoring and that decision is superseded. What replaced them keeps the property
+    that survived: root standard 6 is now asserted against `TrainingWeek`, the measurement window,
+    including the locale test — Sunday still belongs to the previous Monday's week in `en-US`.
+  - **`Generate` no longer takes a reference date, and determinism got stronger for it.** A plan
+    cannot differ by when it was asked for, which is a guarantee the parameter always threatened.
 
 ### S5.9 — A session is done, and the queue advances
 - **Status:** pending
